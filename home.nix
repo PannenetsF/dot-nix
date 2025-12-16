@@ -13,6 +13,7 @@
       pkgsUnstable.fzf
       pkgsUnstable.ripgrep
       pkgs.nodePackages.vim-language-server
+      pkgs.universal-ctags
     ];
 
     # This needs to be set to your actual username.
