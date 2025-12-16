@@ -39,7 +39,7 @@
 
     };
 
-    promptInit = ''
+    initExtra = ''
 # <<<<< Enable natural text editing
 #
 # Move to the beginning of the line. `Cmd + Left Arrow`:
