@@ -34,5 +34,3 @@ USER=root nix --extra-experimental-features "nix-command flakes" \
   run nixpkgs#home-manager -- \
   --extra-experimental-features "nix-command flakes" \
   switch --flake $HOME/.config/nix-hm/#root
-
-echo "USER=root . \$HOME/.nix-profile/etc/profile.d/nix.sh" >> ~/.zshrc
