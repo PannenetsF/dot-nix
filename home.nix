@@ -56,7 +56,7 @@ bindkey "^[[3;10~" backward-kill-word
 bindkey "^[[3;3~" kill-word
 #
 # Enable natural text editing >>>>>
-    ''
+    '';
   };
 
   programs.neovim = {
