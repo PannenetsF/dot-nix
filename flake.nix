@@ -24,7 +24,7 @@
             {
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.users.pf = ./home.nix;
+              home-manager.users.pf = ./users/pf.nix;
               home-manager.extraSpecialArgs = { pkgsUnstable = pkgsUnstable; };
               home-manager.backupCommand = "\${pkgs.trash-cli}/bin/trash";
             }
