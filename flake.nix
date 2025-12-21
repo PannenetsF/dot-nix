@@ -31,5 +31,13 @@
           ];
         };
       };
+      dockerHomeConfigurations = {
+        root = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = { pkgsUnstable = pkgsUnstable; };
+
+          modules = [ ./user/docker.nix ];
+        };
+      };
     };
 }
