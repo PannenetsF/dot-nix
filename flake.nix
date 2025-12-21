@@ -31,7 +31,7 @@
           ];
         };
       };
-      dockerHomeConfigurations = {
+      homeConfigurations = {
         root = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           extraSpecialArgs = { pkgsUnstable = pkgsUnstable; };
