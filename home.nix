@@ -74,7 +74,7 @@
   programs.home-manager.enable = true;
 
   programs.tmux = {
-    tmuxConf = ''
+    extraConfig = ''
       set-option -a terminal-features "xterm:RGB"
     '';
   };
