@@ -66,6 +66,12 @@ bindkey "^[[3;3~" kill-word
   };
   programs.home-manager.enable = true;
 
+  programs.tmux = {
+    tmuxConf = ''
+set-option -a terminal-features "xterm:RGB"
+    '';
+  }
+
   home.sessionVariables = { PATH = "$HOME/.local/bin:$PATH"; };
   
   home.emptyActivationPath = false;
