@@ -11,21 +11,30 @@
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nixpkgs-unstable,
+      home-manager,
+      ...
+    }:
     let
       system = "x86_64-linux";
       inherit (nixpkgs) lib;
       pkgs = import nixpkgs { inherit system; };
       pkgsUnstable = import nixpkgs-unstable { inherit system; };
-    in {
+    in
+    {
       homeConfigurations = {
         root = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
-          extraSpecialArgs = { pkgsUnstable = pkgsUnstable; };
+          extraSpecialArgs = {
+            pkgsUnstable = pkgsUnstable;
+          };
 
           modules = [ ./home.nix ];
         };
       };
     };
 }
-

@@ -1,4 +1,11 @@
-{ config, pkgs, pkgsUnstable, lib, ... }: {
+{
+  config,
+  pkgs,
+  pkgsUnstable,
+  lib,
+  ...
+}:
+{
   home = {
     packages = [
       pkgs.lazygit
@@ -40,22 +47,22 @@
     };
 
     initExtra = ''
-# <<<<< Enable natural text editing
-#
-# Move to the beginning of the line. `Cmd + Left Arrow`:
-bindkey "^[[1;9D" beginning-of-line
-# Move to the end of the line. `Cmd + Right Arrow`:
-bindkey "^[[1;9C" end-of-line
-# Move to the beginning of the previous word. `Option + Left Arrow`:
-bindkey "^[[1;3D" backward-word
-# Move to the beginning of the next word. `Option + Right Arrow`:
-bindkey "^[[1;3C" forward-word
-# Delete the word behind the cursor. `Option + Delete`:
-bindkey "^[[3;10~" backward-kill-word
-# Delete the word after the cursor. `Option + fn + Delete`:
-bindkey "^[[3;3~" kill-word
-#
-# Enable natural text editing >>>>>
+      # <<<<< Enable natural text editing
+      #
+      # Move to the beginning of the line. `Cmd + Left Arrow`:
+      bindkey "^[[1;9D" beginning-of-line
+      # Move to the end of the line. `Cmd + Right Arrow`:
+      bindkey "^[[1;9C" end-of-line
+      # Move to the beginning of the previous word. `Option + Left Arrow`:
+      bindkey "^[[1;3D" backward-word
+      # Move to the beginning of the next word. `Option + Right Arrow`:
+      bindkey "^[[1;3C" forward-word
+      # Delete the word behind the cursor. `Option + Delete`:
+      bindkey "^[[3;10~" backward-kill-word
+      # Delete the word after the cursor. `Option + fn + Delete`:
+      bindkey "^[[3;3~" kill-word
+      #
+      # Enable natural text editing >>>>>
     '';
   };
 
@@ -68,12 +75,15 @@ bindkey "^[[3;3~" kill-word
 
   programs.tmux = {
     tmuxConf = ''
-set-option -a terminal-features "xterm:RGB"
+      set-option -a terminal-features "xterm:RGB"
     '';
-  }
+  };
 
-  home.sessionVariables = { PATH = "$HOME/.local/bin:$PATH"; };
-  
+  home.sessionVariables = {
+    PATH = "$HOME/.local/bin:$PATH";
+    LC_ALL = "C.UTF-8";
+  };
+
   home.emptyActivationPath = false;
   home.activation.runMyScript = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     bash ~/.config/nix-hm/install-linux-server.sh
