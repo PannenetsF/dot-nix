@@ -30,7 +30,17 @@ mkdir -p ~/.config/nix/
 git clone https://github.com/PannenetsF/dot-nix.git ~/.config/nix-hm
 echo "substituters = https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/" > ~/.config/nix/nix.conf
 
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+  SYSTEM="x86_64-linux"
+elif [ "$ARCH" = "aarch64" ]; then
+  SYSTEM="aarch64-linux"
+else
+  echo "Unsupported architecture: $ARCH"
+  exit 1
+fi
+
 USER=root nix --extra-experimental-features "nix-command flakes" \
   run nixpkgs#home-manager -- \
   --extra-experimental-features "nix-command flakes" \
-  switch --flake $HOME/.config/nix-hm/#root
+  switch --flake "$HOME/.config/nix-hm/#${SYSTEM}"

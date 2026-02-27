@@ -20,21 +20,25 @@
       ...
     }:
     let
-      system = "x86_64-linux";
-      inherit (nixpkgs) lib;
-      pkgs = import nixpkgs { inherit system; };
-      pkgsUnstable = import nixpkgs-unstable { inherit system; };
-    in
-    {
-      homeConfigurations = {
-        root = home-manager.lib.homeManagerConfiguration {
+      lib = nixpkgs.lib;
+      mkHomeConfig = system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          pkgsUnstable = import nixpkgs-unstable { inherit system; };
+        in
+        home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           extraSpecialArgs = {
-            pkgsUnstable = pkgsUnstable;
+            inherit pkgsUnstable;
           };
 
           modules = [ ./home.nix ];
         };
+    in
+    {
+      homeConfigurations = {
+        "x86_64-linux" = mkHomeConfig "x86_64-linux";
+        "aarch64-linux" = mkHomeConfig "aarch64-linux";
       };
     };
 }
