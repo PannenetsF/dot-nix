@@ -1,92 +1,13 @@
+{ config, pkgs, pkgsUnstable, lib, ... }:
 {
-  config,
-  pkgs,
-  pkgsUnstable,
-  lib,
-  ...
-}:
-{
+  imports =
+    [ ./modules/common.nix ]
+    ++ lib.optionals pkgs.stdenv.isLinux [ ./modules/linux.nix ]
+    ++ lib.optionals pkgs.stdenv.isDarwin [ ./modules/darwin.nix ];
+
   home = {
-    packages = [
-      pkgs.lazygit
-      pkgs.git
-      pkgs.tmux
-      pkgs.wget
-      pkgs.curl
-      pkgs.lua
-      pkgs.gdb
-      pkgs.nixfmt-classic
-      pkgsUnstable.clang-tools
-      pkgsUnstable.fzf
-      pkgsUnstable.ripgrep
-      pkgs.nodePackages.vim-language-server
-      pkgs.universal-ctags
-    ];
-
-    # This needs to be set to your actual username.
-    username = "root";
-    homeDirectory = "/root";
-
-    # Don't ever change this after the first build.
-    # It tells home-manager what the original state schema
-    # was, so it knows how to go to the next state.  It
-    # should NOT update when you update your system!
+    username = builtins.getEnv "USER";
+    homeDirectory = builtins.getEnv "HOME";
     stateVersion = "25.05";
   };
-  programs.zsh = {
-    enable = true;
-    enableCompletion = true;
-    autosuggestion.enable = true;
-    syntaxHighlighting.enable = true;
-
-    oh-my-zsh = {
-      enable = true;
-      plugins = [ "git" ];
-      theme = "robbyrussell";
-
-    };
-
-    initExtra = ''
-      # <<<<< Enable natural text editing
-      #
-      # Move to the beginning of the line. `Cmd + Left Arrow`:
-      bindkey "^[[1;9D" beginning-of-line
-      # Move to the end of the line. `Cmd + Right Arrow`:
-      bindkey "^[[1;9C" end-of-line
-      # Move to the beginning of the previous word. `Option + Left Arrow`:
-      bindkey "^[[1;3D" backward-word
-      # Move to the beginning of the next word. `Option + Right Arrow`:
-      bindkey "^[[1;3C" forward-word
-      # Delete the word behind the cursor. `Option + Delete`:
-      bindkey "^[[3;10~" backward-kill-word
-      # Delete the word after the cursor. `Option + fn + Delete`:
-      bindkey "^[[3;3~" kill-word
-      #
-      # Enable natural text editing >>>>>
-    '';
-  };
-
-  programs.neovim = {
-    enable = true;
-    vimAlias = true;
-    package = pkgsUnstable.neovim-unwrapped;
-  };
-  programs.home-manager.enable = true;
-
-  programs.tmux = {
-    extraConfig = ''
-      set-option -a terminal-features "xterm:RGB"
-    '';
-  };
-
-  home.sessionVariables = {
-    PATH = "$HOME/.local/bin:$PATH";
-    LC_ALL = "C.UTF-8";
-  };
-
-  home.emptyActivationPath = false;
-  home.activation.runMyScript = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    bash ~/.config/nix-hm/install-linux-server.sh
-  '';
-
 }
