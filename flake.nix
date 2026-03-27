@@ -35,10 +35,12 @@
           modules = [ ./home.nix ];
         };
     in
-    {
-      homeConfigurations = {
-        "x86_64-linux" = mkHomeConfig "x86_64-linux";
-        "aarch64-linux" = mkHomeConfig "aarch64-linux";
-      };
+  {
+    homeConfigurations = {
+      "x86_64-linux" = mkHomeConfig "x86_64-linux";
+      "aarch64-linux" = mkHomeConfig "aarch64-linux";
+      "x86_64-darwin" = mkHomeConfig "x86_64-darwin";
+      "aarch64-darwin" = mkHomeConfig "aarch64-darwin";
     };
+  };
 }
