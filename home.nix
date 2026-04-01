@@ -2,8 +2,18 @@
 {
   imports =
     [ ./modules/common.nix ]
-    ++ lib.optionals pkgs.stdenv.isLinux [ ./modules/linux.nix ]
-    ++ lib.optionals pkgs.stdenv.isDarwin [ ./modules/darwin.nix ];
+    ++ (
+      if builtins.match ".*-linux" builtins.currentSystem != null then
+        [ ./modules/linux.nix ]
+      else
+        [ ]
+    )
+    ++ (
+      if builtins.match ".*-darwin" builtins.currentSystem != null then
+        [ ./modules/darwin.nix ]
+      else
+        [ ]
+    );
 
   home = {
     username = builtins.getEnv "USER";
