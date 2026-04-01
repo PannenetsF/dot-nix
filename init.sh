@@ -155,28 +155,6 @@ main() {
       --extra-experimental-features "nix-command flakes" \
       switch --flake "$nix_hm_dir/#${system}"
   fi
-
-  # Verification: ensure nix is usable and nvim ultimately comes from Nix (symlink into store).
-  source_nix_profile
-  echo "[init.sh] nix path: $(command -v nix)"
-  if command -v nvim >/dev/null 2>&1; then
-    local nvim_link
-    nvim_link="$(command -v nvim)"
-    echo "[init.sh] nvim path: $nvim_link"
-    if command -v python3 >/dev/null 2>&1; then
-      NVIM_PATH="$nvim_link" python3 - <<'PY'
-import os
-import sys
-
-path = os.environ.get("NVIM_PATH")
-if not path:
-    sys.exit(0)
-print("[init.sh] nvim realpath:", os.path.realpath(path))
-PY
-    fi
-  else
-    echo "[init.sh] WARN: nvim not found in PATH (home-manager switch may have failed)" >&2
-  fi
 }
 
 main "$@"
