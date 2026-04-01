@@ -106,6 +106,9 @@ system_from_host() {
 }
 
 main() {
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
   if is_linux; then
     ensure_linux_prereqs
   elif is_darwin; then
@@ -128,16 +131,35 @@ main() {
   echo "substituters = https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/" > "$HOME/.config/nix/nix.conf"
 
   local nix_hm_dir
-  nix_hm_dir="$HOME/.config/nix-hm"
-  if [[ -d "$nix_hm_dir/.git" ]]; then
-    git -C "$nix_hm_dir" pull --rebase
+  # Prefer using the repository that contains this script (common usage:
+  # `git clone ... ~/.config/nix-hm && bash ~/.config/nix-hm/init.sh`).
+  if [[ -f "$script_dir/flake.nix" ]]; then
+    nix_hm_dir="$script_dir"
+    if [[ -d "$nix_hm_dir/.git" ]]; then
+      git -C "$nix_hm_dir" pull --rebase || true
+    fi
   else
-    rm -rf "$nix_hm_dir"
-    git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir"
+    nix_hm_dir="$HOME/.config/nix-hm"
+    if [[ -d "$nix_hm_dir/.git" ]]; then
+      git -C "$nix_hm_dir" pull --rebase || true
+    else
+      rm -rf "$nix_hm_dir"
+      git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir"
+    fi
   fi
 
   local system
   system="$(system_from_host)"
+
+  if [[ ! -f "$nix_hm_dir/flake.nix" ]]; then
+    die "flake.nix not found under $nix_hm_dir"
+  fi
+
+  # Early, user-friendly check for the common error:
+  #   flake ... does not provide attribute 'homeConfigurations."$system".activationPackage'
+  if ! grep -q "\"$system\"" "$nix_hm_dir/flake.nix"; then
+    die "flake does not define homeConfigurations for '$system'. Please update $nix_hm_dir (git pull) to a version that includes darwin support."
+  fi
 
   # home.nix uses builtins.getEnv("USER"/"HOME"). In flakes, this may require --impure.
   local user
