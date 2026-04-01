@@ -40,7 +40,7 @@ else
   exit 1
 fi
 
-USER=root nix --extra-experimental-features "nix-command flakes" \
+USER=$(whoami) nix --extra-experimental-features "nix-command flakes" \
   run nixpkgs#home-manager -- \
   --extra-experimental-features "nix-command flakes" \
   switch --flake "$HOME/.config/nix-hm/#${SYSTEM}"
