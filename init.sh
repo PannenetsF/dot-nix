@@ -1,46 +1,182 @@
-#! /usr/bin/bash
-set -ex
+#!/usr/bin/env bash
+set -e
 
-apt update
-apt install nscd git -y 
-
-git config --global core.sshCommand 'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
-
-mkdir -m 0755 -p /nix && groupadd -r nixbld && chown root /nix \
-      && for n in $(seq 1 10); do useradd -c "Nix build user $n" -d /var/empty -g nixbld -G nixbld -M -N -r -s "$(command -v nologin)" "nixbld$n"; done
-
-[[ -n "$PF_http_proxy" ]] && export http_proxy=$PF_http_proxy
-[[ -n "$PF_https_proxy" ]] && export https_proxy=$PF_https_proxy
-[[ -n "$PF_no_proxy" ]] && export no_proxy=$PF_no_proxy
-
-sh <(curl --proto '=https' --tlsv1.2 -L https://mirrors.tuna.tsinghua.edu.cn/nix/latest/install) --no-daemon --no-channel-add
-USER=root . $HOME/.nix-profile/etc/profile.d/nix.sh
-echo "USER=root . \$HOME/.nix-profile/etc/profile.d/nix.sh" >> ~/.bashrc
-source ~/.bashrc
-
-[[ -n "$PF_http_proxy" ]] && export http_proxy=$PF_http_proxy
-[[ -n "$PF_https_proxy" ]] && export https_proxy=$PF_https_proxy
-[[ -n "$PF_no_proxy" ]] && export no_proxy=$PF_no_proxy
-
-nix-channel --add https://mirrors.tuna.tsinghua.edu.cn/nix-channels/nixpkgs-unstable nixpkgs
-nix-channel --update
-
-mkdir -p ~/.config/nix/
-
-git clone https://github.com/PannenetsF/dot-nix.git ~/.config/nix-hm
-echo "substituters = https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/" > ~/.config/nix/nix.conf
-
-ARCH=$(uname -m)
-if [ "$ARCH" = "x86_64" ]; then
-  SYSTEM="x86_64-linux"
-elif [ "$ARCH" = "aarch64" ]; then
-  SYSTEM="aarch64-linux"
-else
-  echo "Unsupported architecture: $ARCH"
-  exit 1
+if [[ "${DEBUG-}" == "1" ]]; then
+  set -x
 fi
 
-USER=$(whoami) nix --extra-experimental-features "nix-command flakes" \
-  run nixpkgs#home-manager -- \
-  --extra-experimental-features "nix-command flakes" \
-  switch --flake "$HOME/.config/nix-hm/#${SYSTEM}"
+die() {
+  echo "[init.sh] ERROR: $*" >&2
+  exit 1
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+is_darwin() {
+  [[ "$(uname -s)" == "Darwin" ]]
+}
+
+is_linux() {
+  [[ "$(uname -s)" == "Linux" ]]
+}
+
+ensure_proxy_env() {
+  [[ -n "${PF_http_proxy-}" ]] && export http_proxy="$PF_http_proxy"
+  [[ -n "${PF_https_proxy-}" ]] && export https_proxy="$PF_https_proxy"
+  [[ -n "${PF_no_proxy-}" ]] && export no_proxy="$PF_no_proxy"
+}
+
+ensure_linux_prereqs() {
+  # Ubuntu/Debian
+  if command -v apt-get >/dev/null 2>&1; then
+    if [[ "$(id -u)" -ne 0 ]]; then
+      need_cmd sudo
+      sudo -E apt-get update
+      sudo -E apt-get install -y git curl
+      # Optional, may not exist in minimal images.
+      sudo -E apt-get install -y nscd || true
+    else
+      apt-get update
+      apt-get install -y git curl
+      apt-get install -y nscd || true
+    fi
+  else
+    die "unsupported Linux distro: apt-get not found"
+  fi
+}
+
+install_nix_if_needed() {
+  if command -v nix >/dev/null 2>&1; then
+    return 0
+  fi
+
+  need_cmd curl
+  ensure_proxy_env
+
+  # Determinate Nix Installer (works on macOS + Linux, non-interactive)
+  # Ref: https://install.determinate.systems/nix
+  curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- --no-confirm
+}
+
+source_nix_profile() {
+  # Multi-user (daemon) install
+  if [[ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]]; then
+    # shellcheck disable=SC1091
+    . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+    return 0
+  fi
+
+  # Single-user install
+  if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
+    # shellcheck disable=SC1090
+    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    return 0
+  fi
+
+  die "nix profile script not found; nix may not be installed correctly"
+}
+
+system_from_host() {
+  local arch
+  local os
+  os="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os" in
+    Linux)
+      case "$arch" in
+        x86_64) echo "x86_64-linux" ;;
+        aarch64|arm64) echo "aarch64-linux" ;;
+        *) die "unsupported architecture on Linux: $arch" ;;
+      esac
+      ;;
+    Darwin)
+      case "$arch" in
+        x86_64) echo "x86_64-darwin" ;;
+        arm64) echo "aarch64-darwin" ;;
+        *) die "unsupported architecture on macOS: $arch" ;;
+      esac
+      ;;
+    *)
+      die "unsupported OS: $os"
+      ;;
+  esac
+}
+
+main() {
+  if is_linux; then
+    ensure_linux_prereqs
+  elif is_darwin; then
+    need_cmd git
+    need_cmd curl
+  else
+    die "unsupported OS: $(uname -s)"
+  fi
+
+  install_nix_if_needed
+  source_nix_profile
+  need_cmd nix
+
+  # Optional: keep old behavior behind an opt-in env to avoid weakening SSH security by default.
+  if [[ "${NIX_HM_DISABLE_STRICT_SSH-}" == "1" ]]; then
+    git config --global core.sshCommand 'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+  fi
+
+  mkdir -p "$HOME/.config/nix"
+  echo "substituters = https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/" > "$HOME/.config/nix/nix.conf"
+
+  local nix_hm_dir
+  nix_hm_dir="$HOME/.config/nix-hm"
+  if [[ -d "$nix_hm_dir/.git" ]]; then
+    git -C "$nix_hm_dir" pull --rebase
+  else
+    rm -rf "$nix_hm_dir"
+    git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir"
+  fi
+
+  local system
+  system="$(system_from_host)"
+
+  # home.nix uses builtins.getEnv("USER"/"HOME"). In flakes, this may require --impure.
+  local user
+  user="$(whoami)"
+
+  set +e
+  USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+    --extra-experimental-features "nix-command flakes" \
+    switch --flake "$nix_hm_dir/#${system}" --impure
+  local rc=$?
+  set -e
+
+  if [[ $rc -ne 0 ]]; then
+    USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+      --extra-experimental-features "nix-command flakes" \
+      switch --flake "$nix_hm_dir/#${system}"
+  fi
+
+  # Verification: ensure nix is usable and nvim ultimately comes from Nix (symlink into store).
+  source_nix_profile
+  echo "[init.sh] nix path: $(command -v nix)"
+  if command -v nvim >/dev/null 2>&1; then
+    local nvim_link
+    nvim_link="$(command -v nvim)"
+    echo "[init.sh] nvim path: $nvim_link"
+    if command -v python3 >/dev/null 2>&1; then
+      NVIM_PATH="$nvim_link" python3 - <<'PY'
+import os
+import sys
+
+path = os.environ.get("NVIM_PATH")
+if not path:
+    sys.exit(0)
+print("[init.sh] nvim realpath:", os.path.realpath(path))
+PY
+    fi
+  else
+    echo "[init.sh] WARN: nvim not found in PATH (home-manager switch may have failed)" >&2
+  fi
+}
+
+main "$@"
