@@ -38,6 +38,13 @@
         . "$HOME/.nix-profile/etc/profile.d/nix.sh"
       fi
 
+      # Set TERM with fallback
+      if infocmp xterm-kitty >/dev/null 2>&1; then
+        export TERM="xterm-kitty"
+      else
+        export TERM="xterm-256color"
+      fi
+
       # <<<<< Enable natural text editing
       #
       # Move to the beginning of the line. `Cmd + Left Arrow`:
@@ -77,7 +84,6 @@
     PATH = "$HOME/.local/bin:$PATH";
     LC_ALL = "C.UTF-8";
     COLORTERM = "truecolor";
-    TERM = "xterm-kitty";
   };
 
   programs.home-manager.enable = true;
