@@ -30,7 +30,7 @@
       theme = "robbyrussell";
     };
 
-    initExtra = ''
+    initContent = ''
       # <<<<< Enable natural text editing
       #
       # Move to the beginning of the line. `Cmd + Left Arrow`:
@@ -47,6 +47,9 @@
       bindkey "^[[3;3~" kill-word
       #
       # Enable natural text editing >>>>>
+
+      alias work="cd $HOME/Documents/workspace/ || cd $HOME/workspace"
+      alias gomounts="cd $HOME/Documents/workspace/mounts/"
     '';
   };
 
