@@ -1,15 +1,15 @@
-{ config, pkgs, pkgsUnstable, lib, ... }:
+{ config, pkgs, pkgsUnstable, lib, system, ... }:
 {
   imports =
     [ ./modules/common.nix ]
     ++ (
-      if builtins.match ".*-linux" builtins.currentSystem != null then
+      if builtins.match ".*-linux" system != null then
         [ ./modules/linux.nix ]
       else
         [ ]
     )
     ++ (
-      if builtins.match ".*-darwin" builtins.currentSystem != null then
+      if builtins.match ".*-darwin" system != null then
         [ ./modules/darwin.nix ]
       else
         [ ]

@@ -30,6 +30,7 @@
           inherit pkgs;
           extraSpecialArgs = {
             inherit pkgsUnstable;
+            inherit system;
           };
 
           modules = [ ./home.nix ];
