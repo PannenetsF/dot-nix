@@ -6,6 +6,7 @@
   # If neither is available, fail with a clear error.
   _module.args =
     let
+      debug = builtins.getEnv "NIX_HM_DEBUG" == "1";
       user = builtins.getEnv "USER";
       homeEnv = builtins.getEnv "HOME";
       isDarwin = builtins.match ".*-darwin" system != null;
@@ -18,7 +19,12 @@
           "/root"
         else
           "/home/${user}";
-      homeDir = if homeEnv != "" then homeEnv else inferredHome;
+      homeDirRaw = if homeEnv != "" then homeEnv else inferredHome;
+      homeDir =
+        if debug then
+          builtins.trace "[home.nix][debug] system=${system} USER='${user}' HOME='${homeEnv}' inferredHome='${inferredHome}' homeDir='${homeDirRaw}'" homeDirRaw
+        else
+          homeDirRaw;
     in
     {
       _homeDir =

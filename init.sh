@@ -165,15 +165,22 @@ main() {
   local user
   user="$(whoami)"
 
+  if [[ "${DEBUG-}" == "1" ]]; then
+    echo "[init.sh][debug] system=$system"
+    echo "[init.sh][debug] nix_hm_dir=$nix_hm_dir"
+    echo "[init.sh][debug] USER=$user"
+    echo "[init.sh][debug] HOME=$HOME"
+  fi
+
   set +e
-  HOME="$HOME" USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+  HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
     --extra-experimental-features "nix-command flakes" \
     switch --flake "$nix_hm_dir/#${system}" --impure
   local rc=$?
   set -e
 
   if [[ $rc -ne 0 ]]; then
-    HOME="$HOME" USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+    HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
       --extra-experimental-features "nix-command flakes" \
       switch --flake "$nix_hm_dir/#${system}"
   fi
