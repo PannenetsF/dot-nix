@@ -166,14 +166,14 @@ main() {
   user="$(whoami)"
 
   set +e
-  USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+  HOME="$HOME" USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
     --extra-experimental-features "nix-command flakes" \
     switch --flake "$nix_hm_dir/#${system}" --impure
   local rc=$?
   set -e
 
   if [[ $rc -ne 0 ]]; then
-    USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+    HOME="$HOME" USER="$user" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
       --extra-experimental-features "nix-command flakes" \
       switch --flake "$nix_hm_dir/#${system}"
   fi
