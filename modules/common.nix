@@ -75,6 +75,8 @@
   home.sessionVariables = {
     PATH = "$HOME/.local/bin:$PATH";
     LC_ALL = "C.UTF-8";
+    COLORTERM = "truecolor";
+    TERM = "xterm-kitty";
   };
 
   programs.home-manager.enable = true;
