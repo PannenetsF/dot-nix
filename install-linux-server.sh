@@ -12,7 +12,9 @@ else
 	env | grep PATH
 	pip3 install ruff ty jedi-language-server pynvim $PIP_EXTRA
 	mkdir -p $HOME/.config
-	git clone https://github.com/PannenetsF/dot-nvim.git $HOME/.config/nvim
+	if [ ! -d "$HOME/.config/nvim" ]; then
+		git clone https://github.com/PannenetsF/dot-nvim.git "$HOME/.config/nvim"
+	fi
     nvim --headless -c 'Lazy' -c 'qa'
     nvim --headless -c 'TSUpdateSync' -c 'qa'
 	echo hello >> $FILE_LOCK

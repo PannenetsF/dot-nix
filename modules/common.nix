@@ -31,6 +31,13 @@
     };
 
     initContent = ''
+      # Source Nix profile
+      if [ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
+        . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+      elif [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+        . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+      fi
+
       # <<<<< Enable natural text editing
       #
       # Move to the beginning of the line. `Cmd + Left Arrow`:

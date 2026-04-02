@@ -175,14 +175,14 @@ main() {
   set +e
   HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
     --extra-experimental-features "nix-command flakes" \
-    switch --flake "$nix_hm_dir/#${system}" --impure
+    switch -b backup --flake "$nix_hm_dir/#${system}" --impure
   local rc=$?
   set -e
 
   if [[ $rc -ne 0 ]]; then
     HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
       --extra-experimental-features "nix-command flakes" \
-      switch --flake "$nix_hm_dir/#${system}"
+      switch -b backup --flake "$nix_hm_dir/#${system}"
   fi
 }
 
