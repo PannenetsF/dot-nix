@@ -57,6 +57,7 @@
 
       alias work="cd $HOME/Documents/workspace/ || cd $HOME/workspace"
       alias gomounts="cd $HOME/Documents/workspace/mounts/"
+      alias hm-update="[ -f $HOME/Documents/workspace/dot-nix/init.sh ] && bash $HOME/Documents/workspace/dot-nix/init.sh || bash $HOME/.config/nix-hm/init.sh"
     '';
   };
 
