@@ -10,6 +10,7 @@
       pkgs.lua
       pkgs.gdb
       pkgs.nixfmt-classic
+      pkgs.python3
       pkgsUnstable.clang-tools
       pkgsUnstable.fzf
       pkgsUnstable.ripgrep
