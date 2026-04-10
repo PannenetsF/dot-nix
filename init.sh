@@ -23,9 +23,9 @@ is_linux() {
 }
 
 ensure_proxy_env() {
-  [[ -n "${PF_http_proxy-}" ]] && export http_proxy="$PF_http_proxy"
-  [[ -n "${PF_https_proxy-}" ]] && export https_proxy="$PF_https_proxy"
-  [[ -n "${PF_no_proxy-}" ]] && export no_proxy="$PF_no_proxy"
+  [[ -n "${PF_http_proxy-}" ]] && export http_proxy="$PF_http_proxy" || true
+  [[ -n "${PF_https_proxy-}" ]] && export https_proxy="$PF_https_proxy" || true
+  [[ -n "${PF_no_proxy-}" ]] && export no_proxy="$PF_no_proxy" || true
 }
 
 ensure_linux_prereqs() {
@@ -57,7 +57,7 @@ install_nix_if_needed() {
 
   # Determinate Nix Installer (works on macOS + Linux, non-interactive)
   # Ref: https://install.determinate.systems/nix
-  curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- --no-confirm
+  curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
 }
 
 source_nix_profile() {
