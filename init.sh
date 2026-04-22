@@ -133,15 +133,28 @@ main() {
   local nix_hm_dir
   # Prefer using the repository that contains this script (common usage:
   # `git clone ... ~/.config/nix-hm && bash ~/.config/nix-hm/init.sh`).
+  # 安全地更新 git 仓库，处理本地更改
+  safe_git_pull() {
+    local dir="$1"
+    if [[ ! -d "$dir/.git" ]]; then
+      return
+    fi
+    # 检查是否有未暂存的更改
+    if ! git -C "$dir" diff --quiet || ! git -C "$dir" diff --cached --quiet || [[ -n "$(git -C "$dir" status --porcelain | grep '^??')" ]]; then
+      echo "[init.sh] WARNING: 本地有未提交的更改，跳过 git pull"
+      echo "[init.sh] 建议: 提交更改或 git stash 后手动运行 git pull"
+      return
+    fi
+    git -C "$dir" pull --rebase || true
+  }
+
   if [[ -f "$script_dir/flake.nix" ]]; then
     nix_hm_dir="$script_dir"
-    if [[ -d "$nix_hm_dir/.git" ]]; then
-      git -C "$nix_hm_dir" pull --rebase || true
-    fi
+    safe_git_pull "$nix_hm_dir"
   else
     nix_hm_dir="$HOME/.config/nix-hm"
     if [[ -d "$nix_hm_dir/.git" ]]; then
-      git -C "$nix_hm_dir" pull --rebase || true
+      safe_git_pull "$nix_hm_dir"
     else
       rm -rf "$nix_hm_dir"
       git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir"
