@@ -109,6 +109,11 @@ main() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+  local do_upgrade=false
+  if [[ "$1" == "--upgrade" ]]; then
+    do_upgrade=true
+  fi
+
   if is_linux; then
     ensure_linux_prereqs
   elif is_darwin; then
@@ -166,6 +171,19 @@ main() {
 
   if [[ ! -f "$nix_hm_dir/flake.nix" ]]; then
     die "flake.nix not found under $nix_hm_dir"
+  fi
+
+  # 如果是升级模式，先更新 flake 输入
+  if [[ "$do_upgrade" == true ]]; then
+    echo "[init.sh] 准备升级 flake 输入 (nixpkgs, home-manager 等)"
+    read -p "[init.sh] 确认继续？(y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "[init.sh] 已取消升级"
+      exit 0
+    fi
+    echo "[init.sh] 正在运行 nix flake update..."
+    (cd "$nix_hm_dir" && nix --extra-experimental-features "nix-command flakes" flake update)
   fi
 
   # Early, user-friendly check for the common error:
