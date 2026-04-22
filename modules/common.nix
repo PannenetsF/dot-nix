@@ -83,8 +83,8 @@
 
       alias work="cd $HOME/Documents/workspace/ || cd $HOME/workspace"
       alias gomounts="cd $HOME/Documents/workspace/mounts/"
-      alias hm-update="[ -f $HOME/Documents/workspace/dot-nix/init.sh ] && bash $HOME/Documents/workspace/dot-nix/init.sh || bash $HOME/.config/nix-hm/init.sh"
-      alias hm-upgrade="[ -f $HOME/Documents/workspace/dot-nix/init.sh ] && bash $HOME/Documents/workspace/dot-nix/init.sh --upgrade || bash $HOME/.config/nix-hm/init.sh --upgrade"
+      alias hm-update="bash $HOME/.config/nix-hm/init.sh"
+      alias hm-upgrade="bash $HOME/.config/nix-hm/init.sh --upgrade"
     '';
   };
 
