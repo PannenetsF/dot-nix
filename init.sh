@@ -133,7 +133,7 @@ main() {
   fi
 
   mkdir -p "$HOME/.config/nix"
-  echo "substituters = https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store https://cache.nixos.org/" > "$HOME/.config/nix/nix.conf"
+  echo "substituters = https://mirrors.ustc.edu.cn/nix-channels/store https://cache.nixos.org/" > "$HOME/.config/nix/nix.conf"
 
   local nix_hm_dir
   # Prefer using the repository that contains this script (common usage:
