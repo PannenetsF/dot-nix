@@ -1,0 +1,73 @@
+{
+  pkgs,
+  pkgsUnstable,
+  lib,
+  ...
+}:
+{
+  home.packages =
+    (with pkgs; [
+      aerc
+      automake
+      cmake
+      docker
+      gcc
+      git-filter-repo
+      gnuplot
+      graphviz
+      helix
+      htop
+      hugo
+      ispell
+      jq
+      libgccjit
+      libsodium
+      lnav
+      luarocks
+      mermaid-cli
+      neofetch
+      ninja
+      pandoc
+      pkgconf
+      poppler
+      python3
+      shfmt
+      stylua
+      texliveFull
+    ])
+    ++ (with pkgsUnstable; [
+      gh
+      go
+      tokei
+      tree-sitter
+    ])
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin (
+      (with pkgs; [
+        colima
+        inkscape
+        keycastr
+        monitorcontrol
+        nerd-fonts.shure-tech-mono
+        rar
+        sketchybar
+        sketchybar-app-font
+        skhd
+        terminal-notifier
+        yabai
+        zotero
+      ])
+      ++ (with pkgsUnstable; [
+        aerospace
+        firefox
+        kitty
+        maccy
+        macism
+        obsidian
+        raycast
+        scroll-reverser
+        vscode
+        wechat
+        zed-editor
+      ])
+    );
+}

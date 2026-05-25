@@ -11,37 +11,50 @@
     };
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      nixpkgs-unstable,
-      home-manager,
-      ...
-    }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, ... }:
     let
       lib = nixpkgs.lib;
-      mkHomeConfig = system:
+      mkHomeConfig = { system, isHost ? false, }:
         let
-          pkgs = import nixpkgs { inherit system; };
-          pkgsUnstable = import nixpkgs-unstable { inherit system; };
-        in
-        home-manager.lib.homeManagerConfiguration {
+          nixpkgsConfig = { allowUnfree = true; };
+          pkgs = import nixpkgs {
+            inherit system;
+            config = nixpkgsConfig;
+          };
+          pkgsUnstable = import nixpkgs-unstable {
+            inherit system;
+            config = nixpkgsConfig;
+          };
+        in home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           extraSpecialArgs = {
             inherit pkgsUnstable;
             inherit system;
+            inherit isHost;
           };
 
           modules = [ ./home.nix ];
         };
-    in
-  {
-    homeConfigurations = {
-      "x86_64-linux" = mkHomeConfig "x86_64-linux";
-      "aarch64-linux" = mkHomeConfig "aarch64-linux";
-      "x86_64-darwin" = mkHomeConfig "x86_64-darwin";
-      "aarch64-darwin" = mkHomeConfig "aarch64-darwin";
+    in {
+      homeConfigurations = {
+        "x86_64-linux" = mkHomeConfig { system = "x86_64-linux"; };
+        "aarch64-linux" = mkHomeConfig { system = "aarch64-linux"; };
+        "x86_64-linux-host" = mkHomeConfig {
+          system = "x86_64-linux";
+          isHost = true;
+        };
+        "aarch64-linux-host" = mkHomeConfig {
+          system = "aarch64-linux";
+          isHost = true;
+        };
+        "x86_64-darwin" = mkHomeConfig {
+          system = "x86_64-darwin";
+          isHost = true;
+        };
+        "aarch64-darwin" = mkHomeConfig {
+          system = "aarch64-darwin";
+          isHost = true;
+        };
+      };
     };
-  };
 }
