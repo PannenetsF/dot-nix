@@ -23,9 +23,25 @@ is_linux() {
 }
 
 ensure_proxy_env() {
-  [[ -n "${PF_http_proxy-}" ]] && export http_proxy="$PF_http_proxy" || true
-  [[ -n "${PF_https_proxy-}" ]] && export https_proxy="$PF_https_proxy" || true
-  [[ -n "${PF_no_proxy-}" ]] && export no_proxy="$PF_no_proxy" || true
+  local proxy="${PF_proxy:-${PF_PROXY-}}"
+  local http="${PF_http_proxy:-${PF_HTTP_PROXY:-${proxy}}}"
+  local https="${PF_https_proxy:-${PF_HTTPS_PROXY:-${proxy}}}"
+  local no="${PF_no_proxy:-${PF_NO_PROXY-}}"
+
+  if [[ -n "$http" ]]; then
+    export http_proxy="$http"
+    export HTTP_PROXY="$http"
+  fi
+
+  if [[ -n "$https" ]]; then
+    export https_proxy="$https"
+    export HTTPS_PROXY="$https"
+  fi
+
+  if [[ -n "$no" ]]; then
+    export no_proxy="$no"
+    export NO_PROXY="$no"
+  fi
 }
 
 ensure_linux_prereqs() {
@@ -110,9 +126,27 @@ main() {
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
   local do_upgrade=false
-  if [[ "$1" == "--upgrade" ]]; then
-    do_upgrade=true
+  local use_host=false
+  if [[ "${NIX_HM_PROFILE-}" == "host" ]]; then
+    use_host=true
   fi
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --upgrade)
+        do_upgrade=true
+        ;;
+      --host)
+        use_host=true
+        ;;
+      *)
+        die "unknown argument: $1"
+        ;;
+    esac
+    shift
+  done
+
+  ensure_proxy_env
 
   if is_linux; then
     ensure_linux_prereqs
@@ -168,6 +202,9 @@ main() {
 
   local system
   system="$(system_from_host)"
+  if [[ "$use_host" == true && "$system" == *-linux ]]; then
+    system="${system}-host"
+  fi
 
   if [[ ! -f "$nix_hm_dir/flake.nix" ]]; then
     die "flake.nix not found under $nix_hm_dir"

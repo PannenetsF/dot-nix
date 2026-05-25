@@ -1,5 +1,4 @@
-{ config, pkgs, pkgsUnstable, lib, ... }:
-{
+{ config, pkgs, pkgsUnstable, lib, ... }: {
   home = {
     packages = [
       pkgs.lazygit
@@ -13,7 +12,7 @@
       pkgsUnstable.clang-tools
       pkgsUnstable.fzf
       pkgsUnstable.ripgrep
-      pkgs.nodePackages.vim-language-server
+      pkgs.vim-language-server
       pkgs.universal-ctags
     ];
   };
