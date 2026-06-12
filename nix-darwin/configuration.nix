@@ -14,7 +14,7 @@
     useUserPackages = true;
     backupFileExtension = "backup";
     extraSpecialArgs = {
-      inherit pkgsUnstable system;
+      inherit pkgsUnstable system username homeDir;
       isHost = true;
     };
     users.${username} = import ../home.nix;
