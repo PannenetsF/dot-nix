@@ -131,7 +131,7 @@ if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "$darwin_log" >&2
   exit 1
 fi
-if [[ "$darwin_log" != *"NIX_HM_HOME="*"/home"* || "$darwin_log" != *"NIX_HM_USER=testuser"* ]]; then
+if [[ "$darwin_log" != *"NIX_HM_HOME="*"/home"* || "$darwin_log" != *"NIX_HM_USER=testuser"* || "$darwin_log" != *"SUDO_USER=testuser"* ]]; then
   echo "expected Darwin sudo env to preserve original home-manager HOME and USER" >&2
   echo "$darwin_log" >&2
   exit 1

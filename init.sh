@@ -353,6 +353,7 @@ darwin_env_args() {
   env_args=(
     "HOME=/var/root"
     "USER=root"
+    "SUDO_USER=$user"
     "NIX_HM_HOME=$HOME"
     "NIX_HM_USER=$user"
     "NIX_HM_DEBUG=${DEBUG-}"
