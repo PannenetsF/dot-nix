@@ -170,7 +170,7 @@ if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "$darwin_log" >&2
   exit 1
 fi
-if [[ "$darwin_log" != *"NIX_HM_HOME="*"/home"* || "$darwin_log" != *"NIX_HM_USER=testuser"* ]]; then
+if [[ "$darwin_log" != *"NIX_HM_HOME="*"/home"* || "$darwin_log" != *"NIX_HM_USER=testuser"* || "$darwin_log" != *"SUDO_USER=testuser"* ]]; then
   echo "expected Darwin sudo env to preserve original home-manager HOME and USER" >&2
   echo "$darwin_log" >&2
   exit 1
@@ -204,8 +204,8 @@ if [[ "$darwin_sudo_env_line" != *" run --impure "*"#darwin-rebuild"* ]]; then
   echo "$darwin_log" >&2
   exit 1
 fi
-if [[ "$darwin_sudo_env_line" == *" -- switch --flake "*" --impure"* ]]; then
-  echo "expected Darwin init not to pass --impure to darwin-rebuild switch" >&2
+if [[ "$darwin_sudo_env_line" != *" -- switch --flake "*" --impure"* ]]; then
+  echo "expected Darwin init to pass --impure to darwin-rebuild switch so it can read NIX_HM_USER" >&2
   echo "$darwin_log" >&2
   exit 1
 fi

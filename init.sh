@@ -369,6 +369,7 @@ darwin_env_args() {
   env_args=(
     "HOME=/var/root"
     "USER=root"
+    "SUDO_USER=$user"
     "NIX_HM_HOME=$HOME"
     "NIX_HM_USER=$user"
     "NIX_HM_DEBUG=${DEBUG-}"
@@ -402,10 +403,10 @@ activate_nix_darwin() {
     darwin_env_args "$user"
     sudo env "${env_args[@]}" \
       nix --extra-experimental-features "nix-command flakes" run --impure "$nix_hm_dir#darwin-rebuild" -- \
-      switch --flake "$nix_hm_dir/#${system}"
+      switch --flake "$nix_hm_dir/#${system}" --impure
   else
     NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run --impure "$nix_hm_dir#darwin-rebuild" -- \
-      switch --flake "$nix_hm_dir/#${system}"
+      switch --flake "$nix_hm_dir/#${system}" --impure
   fi
 }
 
@@ -436,9 +437,9 @@ restore_environment() {
 
   assert_flake_has_system "$nix_hm_dir" "$system"
 
-  # flake.nix derives username/homeDirectory from USER/HOME or NIX_HM_*.
-  # That means app evaluation intentionally stays impure, but darwin-rebuild
-  # itself must not receive --impure after the `--` separator.
+  # flake.nix derives username/homeDirectory from USER/HOME, SUDO_USER, or
+  # NIX_HM_*. Darwin activation keeps --impure on both nix run and
+  # darwin-rebuild switch so nix-darwin can evaluate those values.
   if [[ "${DEBUG-}" == "1" ]]; then
     echo "[init.sh][debug] system=$system"
     echo "[init.sh][debug] nix_hm_dir=$nix_hm_dir"
