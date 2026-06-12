@@ -4,8 +4,10 @@
 
   users.users.${username}.home = homeDir;
 
+  # Determinate Nix Installer manages the Nix daemon itself. Let it own the Nix
+  # installation so nix-darwin does not conflict with Determinate's daemon.
+  nix.enable = false;
   nixpkgs.config.allowUnfree = true;
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   home-manager = {
     useGlobalPkgs = true;
