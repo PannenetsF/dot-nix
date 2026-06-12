@@ -33,6 +33,9 @@
 
   imports = [ ./modules/common.nix ]
     ++ lib.optionals isHost [ ./modules/host.nix ]
+    ++ lib.optionals (isHost && builtins.match ".*-darwin" system != null) [
+      ./modules/mac-gui-app.nix
+    ]
     ++ (if builtins.match ".*-linux" system != null then
       [ ./modules/linux.nix ]
     else
