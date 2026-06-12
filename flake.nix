@@ -9,22 +9,32 @@
       url = "github:nix-community/home-manager/release-25.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nix-darwin = {
+      url = "github:LnL7/nix-darwin/nix-darwin-25.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nix-darwin, ... }:
     let
       lib = nixpkgs.lib;
+      darwinSystems = [ "x86_64-darwin" "aarch64-darwin" ];
+      nixpkgsConfig = { allowUnfree = true; };
+      mkPkgs = system:
+        import nixpkgs {
+          inherit system;
+          config = nixpkgsConfig;
+        };
+      mkPkgsUnstable = system:
+        import nixpkgs-unstable {
+          inherit system;
+          config = nixpkgsConfig;
+        };
       mkHomeConfig = { system, isHost ? false, }:
         let
-          nixpkgsConfig = { allowUnfree = true; };
-          pkgs = import nixpkgs {
-            inherit system;
-            config = nixpkgsConfig;
-          };
-          pkgsUnstable = import nixpkgs-unstable {
-            inherit system;
-            config = nixpkgsConfig;
-          };
+          pkgs = mkPkgs system;
+          pkgsUnstable = mkPkgsUnstable system;
         in home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           extraSpecialArgs = {
@@ -35,7 +45,36 @@
 
           modules = [ ./home.nix ];
         };
+      mkDarwinConfig = { system, }:
+        let
+          username = builtins.getEnv "USER";
+          homeDir = builtins.getEnv "HOME";
+        in nix-darwin.lib.darwinSystem {
+          inherit system;
+          specialArgs = {
+            inherit system username homeDir;
+            pkgsUnstable = mkPkgsUnstable system;
+          };
+          modules = [
+            ./nix-darwin/configuration.nix
+            home-manager.darwinModules.home-manager
+          ];
+        };
     in {
+      apps = lib.genAttrs darwinSystems (system: {
+        darwin-rebuild = {
+          type = "app";
+          program = "${
+              nix-darwin.packages.${system}.darwin-rebuild
+            }/bin/darwin-rebuild";
+        };
+      });
+
+      darwinConfigurations = {
+        "x86_64-darwin" = mkDarwinConfig { system = "x86_64-darwin"; };
+        "aarch64-darwin" = mkDarwinConfig { system = "aarch64-darwin"; };
+      };
+
       homeConfigurations = {
         "x86_64-linux" = mkHomeConfig { system = "x86_64-linux"; };
         "aarch64-linux" = mkHomeConfig { system = "aarch64-linux"; };
