@@ -94,6 +94,8 @@ chmod +x "$tmp/bin"/*
 NIX_INSTALL_STUB_LOG="$tmp/install.log" \
 NIX_STUB_BIN="$tmp/bin" \
 NIX_HM_ETC_DIR="$tmp/etc" \
+NIX_HM_NIX_DAEMON_PROFILE="$tmp/missing-nix-daemon.sh" \
+NIX_HM_NIX_PROFILE="$tmp/home/.nix-profile/etc/profile.d/nix.sh" \
 PATH="$tmp/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
 HOME="$tmp/home" \
 bash "$repo_root/init.sh" >/dev/null

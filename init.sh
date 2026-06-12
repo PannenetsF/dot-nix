@@ -76,6 +76,10 @@ install_nix_if_needed() {
     return 0
   fi
 
+  if nix_profile_script_exists; then
+    return 0
+  fi
+
   need_cmd curl
   ensure_proxy_env
 
@@ -89,18 +93,30 @@ install_nix_if_needed() {
   fi
 }
 
+nix_daemon_profile_script() {
+  printf '%s\n' "${NIX_HM_NIX_DAEMON_PROFILE:-/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh}"
+}
+
+nix_user_profile_script() {
+  printf '%s\n' "${NIX_HM_NIX_PROFILE:-$HOME/.nix-profile/etc/profile.d/nix.sh}"
+}
+
+nix_profile_script_exists() {
+  [[ -f "$(nix_daemon_profile_script)" || -f "$(nix_user_profile_script)" ]]
+}
+
 source_nix_profile() {
   # Multi-user (daemon) install
-  if [[ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]]; then
+  if [[ -f "$(nix_daemon_profile_script)" ]]; then
     # shellcheck disable=SC1091
-    . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+    . "$(nix_daemon_profile_script)"
     return 0
   fi
 
   # Single-user install
-  if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
+  if [[ -f "$(nix_user_profile_script)" ]]; then
     # shellcheck disable=SC1090
-    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    . "$(nix_user_profile_script)"
     return 0
   fi
 
