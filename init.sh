@@ -387,10 +387,10 @@ activate_nix_darwin() {
     darwin_env_args "$user"
     sudo env "${env_args[@]}" \
       nix --extra-experimental-features "nix-command flakes" run --impure "$nix_hm_dir#darwin-rebuild" -- \
-      switch --flake "$nix_hm_dir/#${system}"
+      switch --flake "$nix_hm_dir/#${system}" --impure
   else
     NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run --impure "$nix_hm_dir#darwin-rebuild" -- \
-      switch --flake "$nix_hm_dir/#${system}"
+      switch --flake "$nix_hm_dir/#${system}" --impure
   fi
 }
 
