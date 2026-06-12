@@ -47,8 +47,12 @@
         };
       mkDarwinConfig = { system, }:
         let
-          username = builtins.getEnv "USER";
-          homeDir = builtins.getEnv "HOME";
+          nixHmUser = builtins.getEnv "NIX_HM_USER";
+          nixHmHome = builtins.getEnv "NIX_HM_HOME";
+          username =
+            if nixHmUser != "" then nixHmUser else builtins.getEnv "USER";
+          homeDir =
+            if nixHmHome != "" then nixHmHome else builtins.getEnv "HOME";
         in nix-darwin.lib.darwinSystem {
           inherit system;
           specialArgs = {
