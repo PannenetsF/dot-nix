@@ -7,9 +7,7 @@ nix_gui_module="${repo_root}/modules/mac-gui-app.nix"
 
 for cask in \
   1password \
-  brave-browser \
   firefox \
-  inkscape \
   karabiner-elements \
   keycastr \
   kitty \
@@ -32,9 +30,7 @@ done
 
 for nix_pkg in \
   _1password-gui \
-  brave \
   firefox \
-  inkscape \
   karabiner-elements \
   keycastr \
   kitty \

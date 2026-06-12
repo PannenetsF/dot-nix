@@ -5,10 +5,8 @@ tap "whatpulse/whatpulse"
 # GUI apps that should be installed as native macOS apps in /Applications so
 # Spotlight, Raycast, LaunchServices, and `open -a` can index them reliably.
 cask "1password"
-cask "brave-browser"
 cask "firefox"
 cask "font-sf-pro"
-cask "inkscape"
 cask "input-source-pro"
 cask "karabiner-elements"
 cask "keycastr"
