@@ -52,6 +52,7 @@
       unset hm_nounset_was_enabled
     fi
     export PATH="${config.home.profileDirectory}/bin:$PATH"
+    bash ${../brew}/install.sh
     bash ${../install-macos.sh}
   '';
 }

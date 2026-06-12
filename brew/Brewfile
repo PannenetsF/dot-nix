@@ -2,18 +2,36 @@ tap "daipeihust/tap"
 tap "gromgit/fuse"
 tap "whatpulse/whatpulse"
 
-# GUI apps and macOS-specific utilities that are not managed by Nix yet.
+# GUI apps that should be installed as native macOS apps in /Applications so
+# Spotlight, Raycast, LaunchServices, and `open -a` can index them reliably.
+cask "1password"
+cask "brave-browser"
+cask "firefox"
 cask "font-sf-pro"
+cask "inkscape"
 cask "input-source-pro"
+cask "karabiner-elements"
+cask "keycastr"
+cask "kitty"
 cask "macfuse"
+cask "maccy"
+cask "monitorcontrol"
 cask "neteasemusic"
+cask "obsidian"
+cask "raycast"
+cask "scroll-reverser"
 cask "sf-symbols"
+cask "skim"
 cask "snipaste"
 cask "soduto"
 cask "tencent-lemon"
 cask "updf"
+cask "visual-studio-code"
+cask "wechat"
 cask "whatpulse"
 cask "whatpulse_chmodbpf"
+cask "zed"
+cask "zotero"
 
 # Formulae kept in Homebrew because they are tap-specific or not available in
 # the current nixpkgs set.

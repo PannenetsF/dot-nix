@@ -1,31 +1,5 @@
-{
-  pkgs,
-  pkgsUnstable,
-  ...
-}:
-{
-  home.packages =
-    (with pkgs; [
-      _1password-gui
-      brave
-      inkscape
-      karabiner-elements
-      keycastr
-      monitorcontrol
-      nerd-fonts.shure-tech-mono
-      sketchybar-app-font
-      skim
-      zotero
-    ])
-    ++ (with pkgsUnstable; [
-      firefox
-      kitty
-      maccy
-      obsidian
-      raycast
-      scroll-reverser
-      vscode
-      wechat
-      zed-editor
-    ]);
+{ pkgs, ... }: {
+  # Desktop GUI apps live in brew/Brewfile so macOS indexes them as native
+  # /Applications apps. Keep Nix here for fonts and assets used by the desktop.
+  home.packages = with pkgs; [ nerd-fonts.shure-tech-mono sketchybar-app-font ];
 }
