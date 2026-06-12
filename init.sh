@@ -94,6 +94,164 @@ source_nix_profile() {
   die "nix profile script not found; nix may not be installed correctly"
 }
 
+managed_nix_conf_block() {
+  local user="$1"
+  local include_trust="$2"
+  local substituters="${NIX_HM_SUBSTITUTERS:-https://mirrors.ustc.edu.cn/nix-channels/store https://cache.nixos.org/}"
+  local trusted_public_keys="${NIX_HM_TRUSTED_PUBLIC_KEYS:-cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=}"
+
+  cat <<EOF
+# BEGIN dot-nix managed cache config
+extra-substituters = ${substituters}
+extra-trusted-public-keys = ${trusted_public_keys}
+EOF
+
+  if [[ "$include_trust" == "1" ]]; then
+    cat <<EOF
+extra-trusted-substituters = ${substituters}
+extra-trusted-users = ${user}
+EOF
+  fi
+
+  cat <<'EOF'
+# END dot-nix managed cache config
+EOF
+}
+
+write_managed_nix_conf() {
+  local target="$1"
+  local block="$2"
+  local dir
+  local old_body
+  local new_file
+  dir="$(dirname "$target")"
+  old_body="$(mktemp)"
+  new_file="$(mktemp)"
+
+  if [[ -f "$target" ]]; then
+    awk '
+      /^# BEGIN dot-nix managed cache config$/ { skip = 1; next }
+      /^# END dot-nix managed cache config$/ { skip = 0; next }
+      !skip { print }
+    ' "$target" > "$old_body"
+  fi
+
+  {
+    cat "$old_body"
+    if [[ -s "$old_body" ]]; then
+      printf '\n'
+    fi
+    printf '%s\n' "$block"
+  } > "$new_file"
+
+  if [[ -f "$target" ]] && cmp -s "$target" "$new_file"; then
+    rm -f "$old_body" "$new_file"
+    return 1
+  fi
+
+  if [[ -w "$target" || ( ! -e "$target" && -w "$dir" ) ]]; then
+    mkdir -p "$dir"
+    cp "$new_file" "$target"
+  else
+    need_cmd sudo
+    sudo mkdir -p "$dir"
+    sudo cp "$new_file" "$target"
+    sudo chmod 0644 "$target"
+  fi
+
+  rm -f "$old_body" "$new_file"
+  return 0
+}
+
+ensure_nix_conf_include() {
+  local target="$1"
+  local include_file="$2"
+  local dir
+  local old_body
+  local new_file
+  dir="$(dirname "$target")"
+  old_body="$(mktemp)"
+  new_file="$(mktemp)"
+
+  if [[ -f "$target" ]]; then
+    awk '
+      /^# BEGIN dot-nix managed cache config$/ { skip = 1; next }
+      /^# END dot-nix managed cache config$/ { skip = 0; next }
+      $0 == "!include " include_file { found = 1 }
+      !skip { print }
+      END {
+        if (!found) {
+          if (NR > 0) print ""
+          print "!include " include_file
+        }
+      }
+    ' include_file="$include_file" "$target" > "$old_body"
+  else
+    printf '!include %s\n' "$include_file" > "$old_body"
+  fi
+
+  cp "$old_body" "$new_file"
+
+  if [[ -f "$target" ]] && cmp -s "$target" "$new_file"; then
+    rm -f "$old_body" "$new_file"
+    return 1
+  fi
+
+  if [[ -w "$target" || ( ! -e "$target" && -w "$dir" ) ]]; then
+    mkdir -p "$dir"
+    cp "$new_file" "$target"
+  else
+    need_cmd sudo
+    sudo mkdir -p "$dir"
+    sudo cp "$new_file" "$target"
+    sudo chmod 0644 "$target"
+  fi
+
+  rm -f "$old_body" "$new_file"
+  return 0
+}
+
+restart_nix_daemon() {
+  if is_darwin && command -v launchctl >/dev/null 2>&1; then
+    if launchctl print system/org.nixos.nix-daemon >/dev/null 2>&1; then
+      sudo launchctl kickstart -k system/org.nixos.nix-daemon || echo "[init.sh] WARNING: failed to restart org.nixos.nix-daemon; restart it manually for nix.conf changes to take effect" >&2
+    fi
+  elif is_linux && command -v systemctl >/dev/null 2>&1; then
+    if systemctl list-unit-files nix-daemon.service >/dev/null 2>&1; then
+      sudo systemctl restart nix-daemon || echo "[init.sh] WARNING: failed to restart nix-daemon; restart it manually for nix.conf changes to take effect" >&2
+    fi
+  fi
+}
+
+ensure_nix_cache_config() {
+  local user="$1"
+  local user_conf="$HOME/.config/nix/nix.conf"
+  local daemon_conf="/etc/nix/nix.conf"
+  local daemon_custom_conf="/etc/nix/nix.custom.conf"
+  local user_block
+  local daemon_block
+  local daemon_changed=false
+
+  mkdir -p "$(dirname "$user_conf")"
+  user_block="$(managed_nix_conf_block "$user" 0)"
+  write_managed_nix_conf "$user_conf" "$user_block" || true
+
+  # Multi-user Nix ignores user-provided substituters unless the user is trusted
+  # by the daemon or the substituter is trusted daemon-wide.
+  if [[ -d "/nix/var/nix/profiles/default" ]]; then
+    daemon_block="$(managed_nix_conf_block "$user" 1)"
+    if write_managed_nix_conf "$daemon_custom_conf" "$daemon_block"; then
+      daemon_changed=true
+    fi
+    if ensure_nix_conf_include "$daemon_conf" "nix.custom.conf"; then
+      daemon_changed=true
+    fi
+    if [[ "$daemon_changed" == "true" ]]; then
+      restart_nix_daemon
+    fi
+  fi
+}
+
 system_from_host() {
   local arch
   local os
@@ -160,14 +318,14 @@ main() {
   install_nix_if_needed
   source_nix_profile
   need_cmd nix
+  local user
+  user="$(whoami)"
+  ensure_nix_cache_config "$user"
 
   # Optional: keep old behavior behind an opt-in env to avoid weakening SSH security by default.
   if [[ "${NIX_HM_DISABLE_STRICT_SSH-}" == "1" ]]; then
     git config --global core.sshCommand 'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
   fi
-
-  mkdir -p "$HOME/.config/nix"
-  echo "substituters = https://mirrors.ustc.edu.cn/nix-channels/store https://cache.nixos.org/" > "$HOME/.config/nix/nix.conf"
 
   local nix_hm_dir
   # Prefer using the repository that contains this script (common usage:
@@ -230,9 +388,6 @@ main() {
   fi
 
   # home.nix uses builtins.getEnv("USER"/"HOME"). In flakes, this may require --impure.
-  local user
-  user="$(whoami)"
-
   if [[ "${DEBUG-}" == "1" ]]; then
     echo "[init.sh][debug] system=$system"
     echo "[init.sh][debug] nix_hm_dir=$nix_hm_dir"
