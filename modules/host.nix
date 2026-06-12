@@ -44,30 +44,15 @@
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin (
       (with pkgs; [
         colima
-        inkscape
-        keycastr
-        monitorcontrol
-        nerd-fonts.shure-tech-mono
         rar
         sketchybar
-        sketchybar-app-font
         skhd
         terminal-notifier
         yabai
-        zotero
       ])
       ++ (with pkgsUnstable; [
         aerospace
-        firefox
-        kitty
-        maccy
         macism
-        obsidian
-        raycast
-        scroll-reverser
-        vscode
-        wechat
-        zed-editor
       ])
     );
 }
