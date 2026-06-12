@@ -77,33 +77,60 @@ run_init_for() {
   local os="$1"
   local arch="$2"
   local uid="${3:-0}"
+  local create_zshenv="${4:-0}"
   local tmp
   tmp="$(mktemp -d)"
 
-  mkdir -p "${tmp}/bin" "${tmp}/home/.nix-profile/etc/profile.d"
+  mkdir -p "${tmp}/bin" "${tmp}/etc" "${tmp}/home/.nix-profile/etc/profile.d"
   : >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  if [[ "$create_zshenv" == "1" ]]; then
+    printf 'legacy zshenv\n' >"${tmp}/etc/zshenv"
+  fi
   make_stub_bin "${tmp}/bin"
 
   TEST_UNAME_S="$os" \
   TEST_UNAME_M="$arch" \
   TEST_ID_U="$uid" \
   NIX_STUB_LOG="${tmp}/nix.log" \
+  NIX_HM_ETC_DIR="${tmp}/etc" \
   PATH="${tmp}/bin:${PATH}" \
   HOME="${tmp}/home" \
   bash "${repo_root}/init.sh" >/dev/null
 
   cat "${tmp}/nix.log"
+  if [[ "$create_zshenv" == "1" ]]; then
+    if [[ -e "${tmp}/etc/zshenv" || ! -e "${tmp}/etc/zshenv.before-nix-darwin" ]]; then
+      echo "expected existing zshenv to be moved aside for nix-darwin" >&2
+      find "${tmp}/etc" -maxdepth 1 -type f -print >&2
+      exit 1
+    fi
+  fi
   rm -rf "${tmp}"
 }
 
-darwin_log="$(run_init_for Darwin arm64 501)"
+darwin_log="$(run_init_for Darwin arm64 501 1)"
+darwin_sudo_env_line="$(printf '%s\n' "$darwin_log" | awk '/^sudo env / { print; exit }')"
+darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
+  for (i = 1; i <= NF; i++) {
+    if ($i ~ /^HOME=/) {
+      sub(/^HOME=/, "", $i)
+      print $i
+      exit
+    }
+  }
+}')"
 if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "expected Darwin init to run darwin-rebuild through sudo env" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
-if [[ "$darwin_log" != *"HOME="*"/home"* || "$darwin_log" != *"USER=testuser"* ]]; then
-  echo "expected Darwin sudo env to preserve original HOME and USER" >&2
+if [[ "$darwin_log" != *"NIX_HM_HOME="*"/home"* || "$darwin_log" != *"NIX_HM_USER=testuser"* ]]; then
+  echo "expected Darwin sudo env to preserve original home-manager HOME and USER" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ "$darwin_root_home" != "/var/root" ]]; then
+  echo "expected Darwin sudo env to use root HOME for the root nix process" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
