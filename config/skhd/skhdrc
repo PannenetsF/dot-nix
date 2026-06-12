@@ -1,0 +1,3 @@
+cmd + shift - return : open -n -a "Google Chrome"
+
+cmd - 0x27 : kitten quick-access-terminal
