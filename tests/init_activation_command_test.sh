@@ -32,7 +32,13 @@ SH
 
   cat >"${bin_dir}/launchctl" <<'SH'
 #!/usr/bin/env bash
-exit 1
+if [[ "$1" == "print" && "$2" == "system/org.nixos.nix-daemon" ]]; then
+  exit 0
+fi
+printf 'launchctl ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
 SH
 
   cat >"${bin_dir}/git" <<'SH'
@@ -57,7 +63,8 @@ SH
 
   cat >"${bin_dir}/apt-get" <<'SH'
 #!/usr/bin/env bash
-exit 0
+echo "apt-get should not be called by init.sh" >&2
+exit 1
 SH
 
   cat >"${bin_dir}/id" <<'SH'
@@ -66,7 +73,39 @@ if [[ "$1" == "-u" ]]; then
   printf '%s\n' "${TEST_ID_U:-0}"
   exit 0
 fi
+if [[ "$1" == "-nG" ]]; then
+  printf 'testuser nix-users\n'
+  exit 0
+fi
 exit 1
+SH
+
+  cat >"${bin_dir}/getent" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "group" && "$2" == "nix-users" ]]; then
+  printf 'nix-users:x:30000:testuser\n'
+  exit 0
+fi
+exit 2
+SH
+
+  cat >"${bin_dir}/systemctl" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "list-unit-files" && "$2" == "nix-daemon.service" ]]; then
+  exit 0
+fi
+printf 'systemctl ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
+SH
+
+  cat >"${bin_dir}/usermod" <<'SH'
+#!/usr/bin/env bash
+printf 'usermod ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
 SH
 
   cat >"${bin_dir}/whoami" <<'SH'
@@ -180,6 +219,11 @@ if [[ "$darwin_log" == *"Already up to date."* ]]; then
   echo "$darwin_log" >&2
   exit 1
 fi
+if [[ "$darwin_log" != *"launchctl kickstart -k system/org.nixos.nix-daemon"* ]]; then
+  echo "expected Darwin init to restart nix-daemon when managed nix cache config changes" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
 
 linux_log="$(run_init_for Linux aarch64)"
 if [[ "$linux_log" != *"nixpkgs#home-manager"* ]]; then
@@ -189,6 +233,16 @@ if [[ "$linux_log" != *"nixpkgs#home-manager"* ]]; then
 fi
 if [[ "$linux_log" != *"#aarch64-linux"* ]]; then
   echo "expected Linux init to target aarch64-linux" >&2
+  echo "$linux_log" >&2
+  exit 1
+fi
+if [[ "$linux_log" == *"apt-get"* ]]; then
+  echo "expected Linux init not to manage apt packages" >&2
+  echo "$linux_log" >&2
+  exit 1
+fi
+if [[ "$linux_log" != *"systemctl restart nix-daemon"* ]]; then
+  echo "expected Linux init to restart nix-daemon when managed nix cache config changes" >&2
   echo "$linux_log" >&2
   exit 1
 fi
