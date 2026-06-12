@@ -54,4 +54,7 @@ if ! command -v brew >/dev/null 2>&1; then
   fi
 fi
 
+brew trust --formula daipeihust/tap/im-select || true
+brew trust --formula gromgit/fuse/sshfs-mac || true
+
 brew bundle --no-upgrade --file="${BREWFILE}"

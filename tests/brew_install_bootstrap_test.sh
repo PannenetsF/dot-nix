@@ -72,3 +72,13 @@ if [[ "$log" != *"brew bundle --no-upgrade --file="* ]]; then
   printf '%s\n' "$log" >&2
   exit 1
 fi
+
+for trust_cmd in \
+  "brew trust --formula daipeihust/tap/im-select" \
+  "brew trust --formula gromgit/fuse/sshfs-mac"; do
+  if [[ "$log" != *"$trust_cmd"* ]]; then
+    echo "expected brew/install.sh to trust third-party Homebrew formulae before bundle" >&2
+    printf '%s\n' "$log" >&2
+    exit 1
+  fi
+done
