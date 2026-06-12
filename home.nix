@@ -6,11 +6,24 @@
   _module.args = let
     debug = builtins.getEnv "NIX_HM_DEBUG" == "1";
     userEnv = builtins.getEnv "NIX_HM_USER";
+    sudoUser = builtins.getEnv "SUDO_USER";
+    shellUser = builtins.getEnv "USER";
     homeOverride = builtins.getEnv "NIX_HM_HOME";
-    user = if userEnv != "" then userEnv else builtins.getEnv "USER";
-    homeEnv =
-      if homeOverride != "" then homeOverride else builtins.getEnv "HOME";
+    rawHomeEnv = builtins.getEnv "HOME";
+    user = if userEnv != "" then
+      userEnv
+    else if sudoUser != "" && sudoUser != "root" then
+      sudoUser
+    else
+      shellUser;
     isDarwin = builtins.match ".*-darwin" system != null;
+    homeEnv = if homeOverride != "" then
+      homeOverride
+    else if isDarwin && user != "root" && (rawHomeEnv == "" || rawHomeEnv
+      == "/var/root" || shellUser == "root") then
+      ""
+    else
+      rawHomeEnv;
     inferredHome = if user == "" then
       ""
     else if isDarwin then
@@ -22,7 +35,7 @@
     homeDirRaw = if homeEnv != "" then homeEnv else inferredHome;
     homeDir = if debug then
       builtins.trace
-      "[home.nix][debug] system=${system} USER='${user}' HOME='${homeEnv}' NIX_HM_HOME='${homeOverride}' inferredHome='${inferredHome}' homeDir='${homeDirRaw}'"
+      "[home.nix][debug] system=${system} USER='${user}' HOME='${homeEnv}' SUDO_USER='${sudoUser}' NIX_HM_HOME='${homeOverride}' inferredHome='${inferredHome}' homeDir='${homeDirRaw}'"
       homeDirRaw
     else
       homeDirRaw;
