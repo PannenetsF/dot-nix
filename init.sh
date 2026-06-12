@@ -252,6 +252,28 @@ ensure_nix_cache_config() {
   fi
 }
 
+prepare_darwin_etc_for_nix_darwin() {
+  local etc_dir="${NIX_HM_ETC_DIR:-/etc}"
+  local zshenv="${etc_dir}/zshenv"
+  local backup="${zshenv}.before-nix-darwin"
+
+  if [[ ! -e "$zshenv" || -L "$zshenv" ]]; then
+    return 0
+  fi
+
+  if [[ -e "$backup" ]]; then
+    backup="${backup}.$(date +%Y%m%d%H%M%S)"
+  fi
+
+  echo "[init.sh] moving existing $zshenv to $backup before nix-darwin activation"
+  if [[ -w "$zshenv" && -w "$etc_dir" ]]; then
+    mv "$zshenv" "$backup"
+  else
+    need_cmd sudo
+    sudo mv "$zshenv" "$backup"
+  fi
+}
+
 system_from_host() {
   local arch
   local os
@@ -403,13 +425,14 @@ main() {
   fi
 
   if is_darwin && [[ "$use_home_manager" != true ]]; then
+    prepare_darwin_etc_for_nix_darwin
     if [[ "$(id -u)" -ne 0 ]]; then
       need_cmd sudo
-      sudo env HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" PATH="$PATH" \
+      sudo env HOME="/var/root" USER="root" NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" PATH="$PATH" \
         nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
         switch --flake "$nix_hm_dir/#${system}" --impure
     else
-      HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
+      NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
         switch --flake "$nix_hm_dir/#${system}" --impure
     fi
     return
