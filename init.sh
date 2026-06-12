@@ -81,7 +81,12 @@ install_nix_if_needed() {
 
   # Determinate Nix Installer (works on macOS + Linux, non-interactive)
   # Ref: https://install.determinate.systems/nix
-  curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
+  if [[ "$(id -u)" -eq 0 ]]; then
+    curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
+  else
+    need_cmd sudo
+    curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sudo -E sh -s -- install --no-confirm
+  fi
 }
 
 source_nix_profile() {
