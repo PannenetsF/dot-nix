@@ -35,22 +35,34 @@
         let
           nixHmUser = builtins.getEnv "NIX_HM_USER";
           nixHmHome = builtins.getEnv "NIX_HM_HOME";
-          envUser =
-            if nixHmUser != "" then nixHmUser else builtins.getEnv "USER";
-          envHome =
-            if nixHmHome != "" then nixHmHome else builtins.getEnv "HOME";
+          sudoUser = builtins.getEnv "SUDO_USER";
+          shellUser = builtins.getEnv "USER";
+          envHome = builtins.getEnv "HOME";
           isDarwin = builtins.match ".*-darwin" system != null;
-          inferredHome = if envUser == "" then
+          username = if nixHmUser != "" then
+            nixHmUser
+          else if isDarwin && sudoUser != "" && sudoUser != "root" then
+            sudoUser
+          else
+            shellUser;
+          effectiveHome = if nixHmHome != "" then
+            nixHmHome
+          else if isDarwin && username != "root" && (envHome == "" || envHome
+            == "/var/root" || shellUser == "root") then
+            ""
+          else
+            envHome;
+          inferredHome = if username == "" then
             ""
           else if isDarwin then
-            "/Users/${envUser}"
-          else if envUser == "root" then
+            "/Users/${username}"
+          else if username == "root" then
             "/root"
           else
-            "/home/${envUser}";
+            "/home/${username}";
         in {
-          username = envUser;
-          homeDir = if envHome != "" then envHome else inferredHome;
+          inherit username;
+          homeDir = if effectiveHome != "" then effectiveHome else inferredHome;
         };
       mkHomeConfig = { system, isHost ? false, }:
         let
