@@ -248,8 +248,15 @@ main() {
   fi
 
   if is_darwin && [[ "$use_home_manager" != true ]]; then
-    HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
-      switch --flake "$nix_hm_dir/#${system}" --impure
+    if [[ "$(id -u)" -ne 0 ]]; then
+      need_cmd sudo
+      sudo env HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" PATH="$PATH" \
+        nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
+        switch --flake "$nix_hm_dir/#${system}" --impure
+    else
+      HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
+        switch --flake "$nix_hm_dir/#${system}" --impure
+    fi
     return
   fi
 

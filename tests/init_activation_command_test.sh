@@ -22,6 +22,17 @@ printf '\n' >>"${NIX_STUB_LOG}"
 exit 0
 SH
 
+  cat >"${bin_dir}/sudo" <<'SH'
+#!/usr/bin/env bash
+printf 'sudo ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+if [[ "${1-}" == "env" ]]; then
+  shift
+fi
+env "$@"
+SH
+
   cat >"${bin_dir}/git" <<'SH'
 #!/usr/bin/env bash
 if [[ "$*" == *"status --porcelain"* ]]; then
@@ -46,7 +57,7 @@ SH
   cat >"${bin_dir}/id" <<'SH'
 #!/usr/bin/env bash
 if [[ "$1" == "-u" ]]; then
-  printf '0\n'
+  printf '%s\n' "${TEST_ID_U:-0}"
   exit 0
 fi
 exit 1
@@ -63,6 +74,7 @@ SH
 run_init_for() {
   local os="$1"
   local arch="$2"
+  local uid="${3:-0}"
   local tmp
   tmp="$(mktemp -d)"
 
@@ -72,6 +84,7 @@ run_init_for() {
 
   TEST_UNAME_S="$os" \
   TEST_UNAME_M="$arch" \
+  TEST_ID_U="$uid" \
   NIX_STUB_LOG="${tmp}/nix.log" \
   PATH="${tmp}/bin:${PATH}" \
   HOME="${tmp}/home" \
@@ -81,7 +94,17 @@ run_init_for() {
   rm -rf "${tmp}"
 }
 
-darwin_log="$(run_init_for Darwin arm64)"
+darwin_log="$(run_init_for Darwin arm64 501)"
+if [[ "$darwin_log" != *"sudo env"* ]]; then
+  echo "expected Darwin init to run darwin-rebuild through sudo env" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ "$darwin_log" != *"HOME="*"/home"* || "$darwin_log" != *"USER=testuser"* ]]; then
+  echo "expected Darwin sudo env to preserve original HOME and USER" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
 if [[ "$darwin_log" != *"#darwin-rebuild"* ]]; then
   echo "expected Darwin init to run the local darwin-rebuild app" >&2
   echo "$darwin_log" >&2
