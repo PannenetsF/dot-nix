@@ -35,6 +35,16 @@ if ! command -v brew >/dev/null 2>&1; then
       echo "curl is required to install Homebrew." >&2
       exit 1
     }
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      if [[ -t 0 ]]; then
+        sudo -v
+      else
+        sudo -n -v || {
+          echo "Homebrew install needs an existing sudo session when running without a TTY." >&2
+          exit 1
+        }
+      fi
+    fi
     echo "Homebrew is not installed; installing it non-interactively."
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     load_brew_shellenv "$(default_brew_bin)" || {

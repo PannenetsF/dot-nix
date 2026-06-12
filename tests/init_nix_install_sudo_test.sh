@@ -89,6 +89,17 @@ chmod +x "$NIX_STUB_BIN/nix"
 INSTALLER
 SH
 
+cat >"$tmp/bin/brew" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "shellenv" ]]; then
+  exit 0
+fi
+printf 'brew ' >>"$NIX_INSTALL_STUB_LOG"
+printf '%q ' "$@" >>"$NIX_INSTALL_STUB_LOG"
+printf '\n' >>"$NIX_INSTALL_STUB_LOG"
+exit 0
+SH
+
 chmod +x "$tmp/bin"/*
 
 NIX_INSTALL_STUB_LOG="$tmp/install.log" \

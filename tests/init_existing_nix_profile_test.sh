@@ -50,6 +50,17 @@ echo "curl installer should not be called when an existing Nix profile script is
 exit 99
 SH
 
+cat >"$tmp/bin/brew" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "shellenv" ]]; then
+  exit 0
+fi
+printf 'brew ' >>"$NIX_PROFILE_STUB_LOG"
+printf '%q ' "$@" >>"$NIX_PROFILE_STUB_LOG"
+printf '\n' >>"$NIX_PROFILE_STUB_LOG"
+exit 0
+SH
+
 cat >"$tmp/bin/sudo" <<'SH'
 #!/usr/bin/env bash
 printf 'sudo ' >>"$NIX_PROFILE_STUB_LOG"

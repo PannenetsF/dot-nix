@@ -476,6 +476,18 @@ restore_environment() {
   activate_home_manager "$nix_hm_dir" "$system" "$user"
 }
 
+install_homebrew_bundle() {
+  local nix_hm_dir="$1"
+
+  if ! is_darwin || [[ "${NIX_HM_SKIP_BREW-}" == "1" ]]; then
+    return 0
+  fi
+
+  if [[ -x "$nix_hm_dir/brew/install.sh" ]]; then
+    bash "$nix_hm_dir/brew/install.sh"
+  fi
+}
+
 system_from_host() {
   local arch
   local os
@@ -574,6 +586,8 @@ main() {
   if [[ "$do_upgrade" == true ]]; then
     maybe_update_flake_inputs "$nix_hm_dir"
   fi
+
+  install_homebrew_bundle "$nix_hm_dir"
 
   # 3. Restore the declarative environment through Nix.
   # 4. Python/nvim dependencies are handled by Home Manager activation scripts.

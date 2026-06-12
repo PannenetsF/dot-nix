@@ -28,7 +28,24 @@ chmod +x "$BREW_TEST_PREFIX/bin/brew"
 INSTALLER
 SH
 
-chmod +x "$tmp/bin/curl"
+cat >"$tmp/bin/sudo" <<'SH'
+#!/usr/bin/env bash
+printf 'sudo ' >>"$BREW_TEST_LOG"
+printf '%q ' "$@" >>"$BREW_TEST_LOG"
+printf '\n' >>"$BREW_TEST_LOG"
+exit 0
+SH
+
+cat >"$tmp/bin/uname" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "-s" ]]; then
+  printf 'Darwin\n'
+  exit 0
+fi
+exit 1
+SH
+
+chmod +x "$tmp/bin"/*
 
 BREW_TEST_LOG="$tmp/brew.log" \
 BREW_TEST_PREFIX="$tmp/homebrew" \
@@ -40,6 +57,12 @@ bash "$repo_root/brew/install.sh"
 log="$(cat "$tmp/brew.log")"
 if [[ "$log" != *"homebrew-installer NONINTERACTIVE=1"* ]]; then
   echo "expected brew/install.sh to bootstrap Homebrew non-interactively when brew is missing" >&2
+  printf '%s\n' "$log" >&2
+  exit 1
+fi
+
+if [[ "$log" != *"sudo -n -v"* ]]; then
+  echo "expected brew/install.sh to require a cached sudo session before unattended Homebrew install" >&2
   printf '%s\n' "$log" >&2
   exit 1
 fi

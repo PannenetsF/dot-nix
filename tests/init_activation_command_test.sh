@@ -61,6 +61,17 @@ SH
 exit 0
 SH
 
+  cat >"${bin_dir}/brew" <<'SH'
+#!/usr/bin/env bash
+if [[ "$1" == "shellenv" ]]; then
+  exit 0
+fi
+printf 'brew ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
+SH
+
   cat >"${bin_dir}/apt-get" <<'SH'
 #!/usr/bin/env bash
 echo "apt-get should not be called by init.sh" >&2
@@ -167,6 +178,16 @@ darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
 }')"
 if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "expected Darwin init to run darwin-rebuild through sudo env" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ "$darwin_log" != *"brew bundle --no-upgrade --file="* ]]; then
+  echo "expected Darwin init to install Homebrew GUI apps before nix-darwin activation" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ "$darwin_log" == *"sudo env"*"brew bundle --no-upgrade --file="* ]]; then
+  echo "expected Darwin init to run brew bundle before darwin-rebuild" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
