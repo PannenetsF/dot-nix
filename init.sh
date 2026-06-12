@@ -394,6 +394,17 @@ activate_nix_darwin() {
   fi
 }
 
+install_homebrew_if_needed() {
+  local nix_hm_dir="$1"
+  local bootstrap_script="${NIX_HM_BREW_BOOTSTRAP:-$nix_hm_dir/brew/install.sh}"
+
+  if ! is_darwin; then
+    return 0
+  fi
+
+  bash "$bootstrap_script"
+}
+
 activate_home_manager() {
   local nix_hm_dir="$1"
   local system="$2"
@@ -519,6 +530,7 @@ main() {
   fi
 
   if is_darwin && [[ "$use_home_manager" != true ]]; then
+    install_homebrew_if_needed "$nix_hm_dir"
     activate_nix_darwin "$nix_hm_dir" "$system" "$user"
     return
   fi
