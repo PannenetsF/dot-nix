@@ -1,4 +1,6 @@
 { pkgsUnstable, system, username, homeDir, ... }: {
+  imports = [ ./homebrew.nix ];
+
   system.stateVersion = 6;
   system.primaryUser = username;
 

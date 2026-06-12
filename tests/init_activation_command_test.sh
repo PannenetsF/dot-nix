@@ -77,6 +77,16 @@ SH
   chmod +x "${bin_dir}"/*
 }
 
+make_brew_bootstrap_stub() {
+  local path="$1"
+
+  cat >"$path" <<'SH'
+#!/usr/bin/env bash
+printf 'brew-bootstrap\n' >>"${NIX_STUB_LOG}"
+SH
+  chmod +x "$path"
+}
+
 run_init_for() {
   local os="$1"
   local arch="$2"
@@ -91,11 +101,13 @@ run_init_for() {
     printf 'legacy zshenv\n' >"${tmp}/etc/zshenv"
   fi
   make_stub_bin "${tmp}/bin"
+  make_brew_bootstrap_stub "${tmp}/brew-bootstrap"
 
   TEST_UNAME_S="$os" \
   TEST_UNAME_M="$arch" \
   TEST_ID_U="$uid" \
   NIX_STUB_LOG="${tmp}/nix.log" \
+  NIX_HM_BREW_BOOTSTRAP="${tmp}/brew-bootstrap" \
   NIX_HM_ETC_DIR="${tmp}/etc" \
   PIP_INDEX_URL="https://pypi.example/simple" \
   PIP_TRUSTED_HOST="pypi.example" \
@@ -128,6 +140,11 @@ darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
 }')"
 if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "expected Darwin init to run darwin-rebuild through sudo env" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ "$darwin_log" != *"brew-bootstrap"* ]]; then
+  echo "expected Darwin init to bootstrap Homebrew before darwin-rebuild" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
