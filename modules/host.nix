@@ -46,12 +46,10 @@
         colima
         rar
         sketchybar
-        skhd
         terminal-notifier
         yabai
       ])
       ++ (with pkgsUnstable; [
-        aerospace
         macism
       ])
     );
