@@ -274,6 +274,15 @@ prepare_darwin_etc_for_nix_darwin() {
   fi
 }
 
+append_env_if_set() {
+  local name
+  for name in "$@"; do
+    if [[ -n "${!name-}" ]]; then
+      env_args+=("${name}=${!name}")
+    fi
+  done
+}
+
 system_from_host() {
   local arch
   local os
@@ -428,7 +437,29 @@ main() {
     prepare_darwin_etc_for_nix_darwin
     if [[ "$(id -u)" -ne 0 ]]; then
       need_cmd sudo
-      sudo env HOME="/var/root" USER="root" NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" PATH="$PATH" \
+      local env_args=(
+        "HOME=/var/root"
+        "USER=root"
+        "NIX_HM_HOME=$HOME"
+        "NIX_HM_USER=$user"
+        "NIX_HM_DEBUG=${DEBUG-}"
+        "PATH=$PATH"
+      )
+      append_env_if_set \
+        PIP_POSTFIX \
+        PIP_INDEX_URL \
+        PIP_EXTRA_INDEX_URL \
+        PIP_TRUSTED_HOST \
+        PIP_CONFIG_FILE \
+        PIP_CERT \
+        PIP_CLIENT_CERT \
+        http_proxy \
+        https_proxy \
+        HTTP_PROXY \
+        HTTPS_PROXY \
+        no_proxy \
+        NO_PROXY
+      sudo env "${env_args[@]}" \
         nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
         switch --flake "$nix_hm_dir/#${system}" --impure
     else
