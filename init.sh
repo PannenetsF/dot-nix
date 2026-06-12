@@ -283,6 +283,135 @@ append_env_if_set() {
   done
 }
 
+safe_git_pull() {
+  local dir="$1"
+  if [[ ! -d "$dir/.git" ]]; then
+    return
+  fi
+  # 检查是否有未暂存的更改
+  if ! git -C "$dir" diff --quiet || ! git -C "$dir" diff --cached --quiet || [[ -n "$(git -C "$dir" status --porcelain | grep '^??')" ]]; then
+    echo "[init.sh] WARNING: 本地有未提交的更改，跳过 git pull" >&2
+    echo "[init.sh] 建议: 提交更改或 git stash 后手动运行 git pull" >&2
+    return
+  fi
+  git -C "$dir" pull --rebase >&2 || true
+}
+
+resolve_nix_hm_dir() {
+  local script_dir="$1"
+  local nix_hm_dir
+
+  # Prefer using the repository that contains this script (common usage:
+  # `git clone ... ~/.config/nix-hm && bash ~/.config/nix-hm/init.sh`).
+  if [[ -f "$script_dir/flake.nix" ]]; then
+    nix_hm_dir="$script_dir"
+    safe_git_pull "$nix_hm_dir"
+  else
+    nix_hm_dir="$HOME/.config/nix-hm"
+    if [[ -d "$nix_hm_dir/.git" ]]; then
+      safe_git_pull "$nix_hm_dir"
+    else
+      rm -rf "$nix_hm_dir"
+      git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir" >&2
+    fi
+  fi
+
+  printf '%s\n' "$nix_hm_dir"
+}
+
+maybe_update_flake_inputs() {
+  local nix_hm_dir="$1"
+
+  echo "[init.sh] 准备升级 flake 输入 (nixpkgs, home-manager 等)"
+  read -p "[init.sh] 确认继续？(y/N): " -n 1 -r
+  echo
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "[init.sh] 已取消升级"
+    exit 0
+  fi
+  echo "[init.sh] 正在运行 nix flake update..."
+  (cd "$nix_hm_dir" && nix --extra-experimental-features "nix-command flakes" flake update)
+}
+
+assert_flake_has_system() {
+  local nix_hm_dir="$1"
+  local system="$2"
+
+  if [[ ! -f "$nix_hm_dir/flake.nix" ]]; then
+    die "flake.nix not found under $nix_hm_dir"
+  fi
+
+  # Early, user-friendly check for the common error:
+  #   flake ... does not provide attribute 'homeConfigurations."$system".activationPackage'
+  if ! grep -q "\"$system\"" "$nix_hm_dir/flake.nix"; then
+    die "flake does not define homeConfigurations for '$system'. Please update $nix_hm_dir (git pull) to a version that includes darwin support."
+  fi
+}
+
+darwin_env_args() {
+  local user="$1"
+  env_args=(
+    "HOME=/var/root"
+    "USER=root"
+    "NIX_HM_HOME=$HOME"
+    "NIX_HM_USER=$user"
+    "NIX_HM_DEBUG=${DEBUG-}"
+    "PATH=$PATH"
+  )
+  append_env_if_set \
+    PIP_POSTFIX \
+    PIP_INDEX_URL \
+    PIP_EXTRA_INDEX_URL \
+    PIP_TRUSTED_HOST \
+    PIP_CONFIG_FILE \
+    PIP_CERT \
+    PIP_CLIENT_CERT \
+    http_proxy \
+    https_proxy \
+    HTTP_PROXY \
+    HTTPS_PROXY \
+    no_proxy \
+    NO_PROXY
+}
+
+activate_nix_darwin() {
+  local nix_hm_dir="$1"
+  local system="$2"
+  local user="$3"
+
+  prepare_darwin_etc_for_nix_darwin
+  if [[ "$(id -u)" -ne 0 ]]; then
+    need_cmd sudo
+    local env_args
+    darwin_env_args "$user"
+    sudo env "${env_args[@]}" \
+      nix --extra-experimental-features "nix-command flakes" run --impure "$nix_hm_dir#darwin-rebuild" -- \
+      switch --flake "$nix_hm_dir/#${system}"
+  else
+    NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run --impure "$nix_hm_dir#darwin-rebuild" -- \
+      switch --flake "$nix_hm_dir/#${system}"
+  fi
+}
+
+activate_home_manager() {
+  local nix_hm_dir="$1"
+  local system="$2"
+  local user="$3"
+
+  set +e
+  HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+    --extra-experimental-features "nix-command flakes" \
+    switch -b backup --flake "$nix_hm_dir/#${system}" --impure
+  local rc=$?
+  set -e
+
+  if [[ $rc -ne 0 ]]; then
+    HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
+      --extra-experimental-features "nix-command flakes" \
+      switch -b backup --flake "$nix_hm_dir/#${system}"
+  fi
+}
+
 system_from_host() {
   local arch
   local os
@@ -366,35 +495,7 @@ main() {
   fi
 
   local nix_hm_dir
-  # Prefer using the repository that contains this script (common usage:
-  # `git clone ... ~/.config/nix-hm && bash ~/.config/nix-hm/init.sh`).
-  # 安全地更新 git 仓库，处理本地更改
-  safe_git_pull() {
-    local dir="$1"
-    if [[ ! -d "$dir/.git" ]]; then
-      return
-    fi
-    # 检查是否有未暂存的更改
-    if ! git -C "$dir" diff --quiet || ! git -C "$dir" diff --cached --quiet || [[ -n "$(git -C "$dir" status --porcelain | grep '^??')" ]]; then
-      echo "[init.sh] WARNING: 本地有未提交的更改，跳过 git pull"
-      echo "[init.sh] 建议: 提交更改或 git stash 后手动运行 git pull"
-      return
-    fi
-    git -C "$dir" pull --rebase || true
-  }
-
-  if [[ -f "$script_dir/flake.nix" ]]; then
-    nix_hm_dir="$script_dir"
-    safe_git_pull "$nix_hm_dir"
-  else
-    nix_hm_dir="$HOME/.config/nix-hm"
-    if [[ -d "$nix_hm_dir/.git" ]]; then
-      safe_git_pull "$nix_hm_dir"
-    else
-      rm -rf "$nix_hm_dir"
-      git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir"
-    fi
-  fi
+  nix_hm_dir="$(resolve_nix_hm_dir "$script_dir")"
 
   local system
   system="$(system_from_host)"
@@ -402,28 +503,11 @@ main() {
     system="${system}-host"
   fi
 
-  if [[ ! -f "$nix_hm_dir/flake.nix" ]]; then
-    die "flake.nix not found under $nix_hm_dir"
-  fi
-
-  # 如果是升级模式，先更新 flake 输入
   if [[ "$do_upgrade" == true ]]; then
-    echo "[init.sh] 准备升级 flake 输入 (nixpkgs, home-manager 等)"
-    read -p "[init.sh] 确认继续？(y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      echo "[init.sh] 已取消升级"
-      exit 0
-    fi
-    echo "[init.sh] 正在运行 nix flake update..."
-    (cd "$nix_hm_dir" && nix --extra-experimental-features "nix-command flakes" flake update)
+    maybe_update_flake_inputs "$nix_hm_dir"
   fi
 
-  # Early, user-friendly check for the common error:
-  #   flake ... does not provide attribute 'homeConfigurations."$system".activationPackage'
-  if ! grep -q "\"$system\"" "$nix_hm_dir/flake.nix"; then
-    die "flake does not define homeConfigurations for '$system'. Please update $nix_hm_dir (git pull) to a version that includes darwin support."
-  fi
+  assert_flake_has_system "$nix_hm_dir" "$system"
 
   # home.nix uses builtins.getEnv("USER"/"HOME"). In flakes, this may require --impure.
   if [[ "${DEBUG-}" == "1" ]]; then
@@ -434,53 +518,11 @@ main() {
   fi
 
   if is_darwin && [[ "$use_home_manager" != true ]]; then
-    prepare_darwin_etc_for_nix_darwin
-    if [[ "$(id -u)" -ne 0 ]]; then
-      need_cmd sudo
-      local env_args=(
-        "HOME=/var/root"
-        "USER=root"
-        "NIX_HM_HOME=$HOME"
-        "NIX_HM_USER=$user"
-        "NIX_HM_DEBUG=${DEBUG-}"
-        "PATH=$PATH"
-      )
-      append_env_if_set \
-        PIP_POSTFIX \
-        PIP_INDEX_URL \
-        PIP_EXTRA_INDEX_URL \
-        PIP_TRUSTED_HOST \
-        PIP_CONFIG_FILE \
-        PIP_CERT \
-        PIP_CLIENT_CERT \
-        http_proxy \
-        https_proxy \
-        HTTP_PROXY \
-        HTTPS_PROXY \
-        no_proxy \
-        NO_PROXY
-      sudo env "${env_args[@]}" \
-        nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
-        switch --flake "$nix_hm_dir/#${system}" --impure
-    else
-      NIX_HM_HOME="$HOME" NIX_HM_USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
-        switch --flake "$nix_hm_dir/#${system}" --impure
-    fi
+    activate_nix_darwin "$nix_hm_dir" "$system" "$user"
     return
   fi
 
-  set +e
-  HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
-    --extra-experimental-features "nix-command flakes" \
-    switch -b backup --flake "$nix_hm_dir/#${system}" --impure
-  local rc=$?
-  set -e
-
-  if [[ $rc -ne 0 ]]; then
-    HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run nixpkgs#home-manager -- \
-      --extra-experimental-features "nix-command flakes" \
-      switch -b backup --flake "$nix_hm_dir/#${system}"
-  fi
+  activate_home_manager "$nix_hm_dir" "$system" "$user"
 }
 
 main "$@"
