@@ -93,6 +93,9 @@ run_init_for() {
   TEST_ID_U="$uid" \
   NIX_STUB_LOG="${tmp}/nix.log" \
   NIX_HM_ETC_DIR="${tmp}/etc" \
+  PIP_INDEX_URL="https://pypi.example/simple" \
+  PIP_TRUSTED_HOST="pypi.example" \
+  PIP_POSTFIX="--timeout 60" \
   PATH="${tmp}/bin:${PATH}" \
   HOME="${tmp}/home" \
   bash "${repo_root}/init.sh" >/dev/null
@@ -131,6 +134,20 @@ if [[ "$darwin_log" != *"NIX_HM_HOME="*"/home"* || "$darwin_log" != *"NIX_HM_USE
 fi
 if [[ "$darwin_root_home" != "/var/root" ]]; then
   echo "expected Darwin sudo env to use root HOME for the root nix process" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+for pip_env in \
+  "PIP_INDEX_URL=https://pypi.example/simple" \
+  "PIP_TRUSTED_HOST=pypi.example"; do
+  if [[ "$darwin_sudo_env_line" != *"$pip_env"* ]]; then
+    echo "expected Darwin sudo env to preserve $pip_env for activation scripts" >&2
+    echo "$darwin_log" >&2
+    exit 1
+  fi
+done
+if [[ "$darwin_sudo_env_line" != *"PIP_POSTFIX=--timeout"* || "$darwin_sudo_env_line" != *"60"* ]]; then
+  echo "expected Darwin sudo env to preserve PIP_POSTFIX for activation scripts" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
