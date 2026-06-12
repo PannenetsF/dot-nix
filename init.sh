@@ -285,8 +285,12 @@ main() {
 
   local do_upgrade=false
   local use_host=false
+  local use_home_manager=false
   if [[ "${NIX_HM_PROFILE-}" == "host" ]]; then
     use_host=true
+  fi
+  if [[ "${NIX_HM_USE_HOME_MANAGER-}" == "1" ]]; then
+    use_home_manager=true
   fi
 
   while [[ $# -gt 0 ]]; do
@@ -296,6 +300,9 @@ main() {
         ;;
       --host)
         use_host=true
+        ;;
+      --home-manager)
+        use_home_manager=true
         ;;
       *)
         die "unknown argument: $1"
@@ -393,6 +400,12 @@ main() {
     echo "[init.sh][debug] nix_hm_dir=$nix_hm_dir"
     echo "[init.sh][debug] USER=$user"
     echo "[init.sh][debug] HOME=$HOME"
+  fi
+
+  if is_darwin && [[ "$use_home_manager" != true ]]; then
+    HOME="$HOME" USER="$user" NIX_HM_DEBUG="${DEBUG-}" nix --extra-experimental-features "nix-command flakes" run "$nix_hm_dir#darwin-rebuild" -- \
+      switch --flake "$nix_hm_dir/#${system}" --impure
+    return
   fi
 
   set +e
