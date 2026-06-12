@@ -56,6 +56,5 @@ fi
 
 brew trust --formula daipeihust/tap/im-select || true
 brew trust --formula gromgit/fuse/sshfs-mac || true
-brew trust whatpulse/whatpulse || true
 
 brew bundle --no-upgrade --file="${BREWFILE}"

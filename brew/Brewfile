@@ -1,6 +1,5 @@
 tap "daipeihust/tap"
 tap "gromgit/fuse"
-tap "whatpulse/whatpulse"
 
 # GUI apps that should be installed as native macOS apps in /Applications so
 # Spotlight, Raycast, LaunchServices, and `open -a` can index them reliably.
@@ -25,8 +24,6 @@ cask "soduto"
 cask "tencent-lemon"
 cask "visual-studio-code"
 cask "wechat"
-cask "whatpulse"
-cask "whatpulse_chmodbpf"
 cask "zed"
 cask "zotero"
 
