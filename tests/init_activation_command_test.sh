@@ -181,13 +181,13 @@ if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "$darwin_log" >&2
   exit 1
 fi
-if [[ "$darwin_log" != *"brew bundle --no-upgrade --file="* ]]; then
-  echo "expected Darwin init to install Homebrew GUI apps before nix-darwin activation" >&2
+if [[ "$darwin_log" == *"brew bundle"* ]]; then
+  echo "expected Darwin init to leave Homebrew package management to nix-darwin activation" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
-if [[ "$darwin_log" == *"sudo env"*"brew bundle --no-upgrade --file="* ]]; then
-  echo "expected Darwin init to run brew bundle before darwin-rebuild" >&2
+if [[ "$darwin_log" == *"sudo env"*"brew trust"* ]]; then
+  echo "expected Darwin init to trust Homebrew taps before darwin-rebuild" >&2
   echo "$darwin_log" >&2
   exit 1
 fi

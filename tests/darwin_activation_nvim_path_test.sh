@@ -23,14 +23,8 @@ if [[ "$activation" != *"set +u"* || "$activation" != *"hm-session-vars.sh"* || 
   exit 1
 fi
 
-if [[ "$activation" != *"brew"*"/install.sh"* ]]; then
-  echo "Darwin activation should run the Brewfile installer for GUI apps" >&2
-  printf '%s\n' "$activation" >&2
-  exit 1
-fi
-
-if [[ "$activation" == *"install-macos.sh"*"brew"*"/install.sh"* ]]; then
-  echo "Darwin activation should install Homebrew GUI apps before install-macos.sh" >&2
+if [[ "$activation" == *"brew"*"/install.sh"* ]]; then
+  echo "Darwin Home Manager activation should leave Homebrew package management to nix-darwin" >&2
   printf '%s\n' "$activation" >&2
   exit 1
 fi

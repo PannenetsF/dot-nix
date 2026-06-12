@@ -1,26 +1,14 @@
-# Homebrew Extras
+# Homebrew Bootstrap
 
-This folder tracks macOS apps and utilities that are intentionally left in
-Homebrew for now, usually because they are not available in the current Nix
-package set or need Homebrew-specific taps.
+This folder only bootstraps Homebrew itself and trusts the third-party taps used
+by the nix-darwin Homebrew module.
 
-Install or restore them with:
+Install or repair Homebrew with:
 
 ```bash
 bash brew/install.sh
 ```
 
-Check whether everything is already installed without treating outdated
-packages as missing:
-
-```bash
-brew bundle check --no-upgrade --file=brew/Brewfile
-```
-
-If Homebrew refuses third-party taps because they are not trusted yet, trust the
-formulae first:
-
-```bash
-brew trust --formula daipeihust/tap/im-select
-brew trust --formula gromgit/fuse/sshfs-mac
-```
+Homebrew packages, casks, and taps are declared in
+`nix-darwin/homebrew.nix`. They are installed by nix-darwin during
+`darwin-rebuild switch`.

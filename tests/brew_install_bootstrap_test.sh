@@ -67,18 +67,18 @@ if [[ "$log" != *"sudo -n -v"* ]]; then
   exit 1
 fi
 
-if [[ "$log" != *"brew bundle --no-upgrade --file="* ]]; then
-  echo "expected brew/install.sh to run brew bundle after bootstrapping Homebrew" >&2
-  printf '%s\n' "$log" >&2
-  exit 1
-fi
-
 for trust_cmd in \
   "brew trust --formula daipeihust/tap/im-select" \
   "brew trust --formula gromgit/fuse/sshfs-mac"; do
   if [[ "$log" != *"$trust_cmd"* ]]; then
-    echo "expected brew/install.sh to trust third-party Homebrew formulae before bundle" >&2
+    echo "expected brew/install.sh to trust third-party Homebrew formulae before nix-darwin activation" >&2
     printf '%s\n' "$log" >&2
     exit 1
   fi
 done
+
+if [[ "$log" == *"brew bundle"* ]]; then
+  echo "expected brew/install.sh to leave package management to nix-darwin" >&2
+  printf '%s\n' "$log" >&2
+  exit 1
+fi

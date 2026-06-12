@@ -2,7 +2,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-BREWFILE="${SCRIPT_DIR}/Brewfile"
 
 default_brew_bin() {
   if [[ -n "${NIX_HM_BREW_BIN-}" ]]; then
@@ -56,5 +55,3 @@ fi
 
 brew trust --formula daipeihust/tap/im-select || true
 brew trust --formula gromgit/fuse/sshfs-mac || true
-
-brew bundle --no-upgrade --file="${BREWFILE}"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-brewfile="${repo_root}/brew/Brewfile"
+darwin_brew_module="${repo_root}/nix-darwin/homebrew.nix"
 nix_gui_module="${repo_root}/modules/mac-gui-app.nix"
 
 for cask in \
@@ -22,8 +22,22 @@ for cask in \
   wechat \
   zed \
   zotero; do
-  if ! grep -Fq "cask \"${cask}\"" "$brewfile"; then
-    echo "expected ${cask} to be managed as a Homebrew cask" >&2
+  if ! grep -Fq "\"${cask}\"" "$darwin_brew_module"; then
+    echo "expected ${cask} to be managed by nix-darwin homebrew casks" >&2
+    exit 1
+  fi
+done
+
+for brew in daipeihust/tap/im-select gromgit/fuse/sshfs-mac; do
+  if ! grep -Fq "\"${brew}\"" "$darwin_brew_module"; then
+    echo "expected ${brew} to be managed by nix-darwin homebrew brews" >&2
+    exit 1
+  fi
+done
+
+for unwanted in brave-browser brave inkscape soduto demumble updf whatpulse whatpulse_chmodbpf; do
+  if grep -Fq "$unwanted" "$darwin_brew_module"; then
+    echo "expected ${unwanted} not to be managed by nix-darwin homebrew" >&2
     exit 1
   fi
 done
