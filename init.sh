@@ -45,21 +45,29 @@ ensure_proxy_env() {
 }
 
 ensure_linux_prereqs() {
-  # Ubuntu/Debian
-  if command -v apt-get >/dev/null 2>&1; then
-    if [[ "$(id -u)" -ne 0 ]]; then
-      need_cmd sudo
-      sudo -E apt-get update
-      sudo -E apt-get install -y git curl
-      # Optional, may not exist in minimal images.
-      sudo -E apt-get install -y nscd || true
-    else
-      apt-get update
-      apt-get install -y git curl
-      apt-get install -y nscd || true
-    fi
-  else
-    die "unsupported Linux distro: apt-get not found"
+  local user="$1"
+
+  need_cmd git
+  need_cmd curl
+  ensure_linux_nix_user_group "$user"
+}
+
+ensure_linux_nix_user_group() {
+  local user="$1"
+
+  if ! getent group nix-users >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if id -nG "$user" | tr ' ' '\n' | grep -qx nix-users; then
+    return 0
+  fi
+
+  echo "[init.sh] WARNING: user '$user' is not in nix-users; adding it may require a new login shell before Nix works reliably" >&2
+  if [[ "$(id -u)" -eq 0 ]]; then
+    usermod -aG nix-users "$user" || true
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo usermod -aG nix-users "$user" || true
   fi
 }
 
@@ -96,7 +104,12 @@ install_nix_if_needed() {
 install_determinate_cli() {
   # Determinate Nix Installer CLI path (works on macOS + Linux, non-interactive)
   # Ref: https://install.determinate.systems/nix
-  curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
+  if [[ "$(id -u)" -eq 0 ]]; then
+    curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
+  else
+    need_cmd sudo
+    curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sudo -E sh -s -- install --no-confirm
+  fi
 }
 
 install_determinate_pkg_macos() {
@@ -327,6 +340,14 @@ prepare_darwin_etc_for_nix_darwin() {
   fi
 }
 
+prepare_nix_darwin_activation() {
+  if ! is_darwin; then
+    return 0
+  fi
+
+  prepare_darwin_etc_for_nix_darwin
+}
+
 append_env_if_set() {
   local name
   for name in "$@"; do
@@ -433,7 +454,7 @@ activate_nix_darwin() {
   local system="$2"
   local user="$3"
 
-  prepare_darwin_etc_for_nix_darwin
+  prepare_nix_darwin_activation
   if [[ "$(id -u)" -ne 0 ]]; then
     need_cmd sudo
     local env_args
@@ -475,6 +496,33 @@ activate_home_manager() {
       --extra-experimental-features "nix-command flakes" \
       switch -b backup --flake "$nix_hm_dir/#${system}"
   fi
+}
+
+restore_environment() {
+  local nix_hm_dir="$1"
+  local system="$2"
+  local user="$3"
+  local use_home_manager="$4"
+
+  assert_flake_has_system "$nix_hm_dir" "$system"
+
+  # flake.nix derives username/homeDirectory from USER/HOME, SUDO_USER, or
+  # NIX_HM_*. Darwin activation keeps --impure on both nix run and
+  # darwin-rebuild switch so nix-darwin can evaluate those values.
+  if [[ "${DEBUG-}" == "1" ]]; then
+    echo "[init.sh][debug] system=$system"
+    echo "[init.sh][debug] nix_hm_dir=$nix_hm_dir"
+    echo "[init.sh][debug] USER=$user"
+    echo "[init.sh][debug] HOME=$HOME"
+  fi
+
+  if is_darwin && [[ "$use_home_manager" != true ]]; then
+    install_homebrew_if_needed "$nix_hm_dir"
+    activate_nix_darwin "$nix_hm_dir" "$system" "$user"
+    return
+  fi
+
+  activate_home_manager "$nix_hm_dir" "$system" "$user"
 }
 
 system_from_host() {
@@ -538,8 +586,16 @@ main() {
 
   ensure_proxy_env
 
+  # 1. Install Nix when it is missing.
+  install_nix_if_needed
+  source_nix_profile
+  need_cmd nix
+  local user
+  user="$(whoami)"
+
+  # Keep host prerequisites narrow: command availability and Nix user group only.
   if is_linux; then
-    ensure_linux_prereqs
+    ensure_linux_prereqs "$user"
   elif is_darwin; then
     need_cmd git
     need_cmd curl
@@ -547,11 +603,6 @@ main() {
     die "unsupported OS: $(uname -s)"
   fi
 
-  install_nix_if_needed
-  source_nix_profile
-  need_cmd nix
-  local user
-  user="$(whoami)"
   ensure_nix_cache_config "$user"
 
   # Optional: keep old behavior behind an opt-in env to avoid weakening SSH security by default.
@@ -559,6 +610,7 @@ main() {
     git config --global core.sshCommand 'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
   fi
 
+  # 2. Use the repo containing this script, or clone nix-hm when curl-installed.
   local nix_hm_dir
   nix_hm_dir="$(resolve_nix_hm_dir "$script_dir")"
 
@@ -572,23 +624,9 @@ main() {
     maybe_update_flake_inputs "$nix_hm_dir"
   fi
 
-  assert_flake_has_system "$nix_hm_dir" "$system"
-
-  # home.nix uses builtins.getEnv("USER"/"HOME"). In flakes, this may require --impure.
-  if [[ "${DEBUG-}" == "1" ]]; then
-    echo "[init.sh][debug] system=$system"
-    echo "[init.sh][debug] nix_hm_dir=$nix_hm_dir"
-    echo "[init.sh][debug] USER=$user"
-    echo "[init.sh][debug] HOME=$HOME"
-  fi
-
-  if is_darwin && [[ "$use_home_manager" != true ]]; then
-    install_homebrew_if_needed "$nix_hm_dir"
-    activate_nix_darwin "$nix_hm_dir" "$system" "$user"
-    return
-  fi
-
-  activate_home_manager "$nix_hm_dir" "$system" "$user"
+  # 3. Restore the declarative environment through Nix.
+  # 4. Python/nvim dependencies are handled by Home Manager activation scripts.
+  restore_environment "$nix_hm_dir" "$system" "$user" "$use_home_manager"
 }
 
 main "$@"

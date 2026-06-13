@@ -31,8 +31,42 @@
           inherit system;
           config = nixpkgsConfig;
         };
+      mkUserHome = system:
+        let
+          nixHmUser = builtins.getEnv "NIX_HM_USER";
+          nixHmHome = builtins.getEnv "NIX_HM_HOME";
+          sudoUser = builtins.getEnv "SUDO_USER";
+          shellUser = builtins.getEnv "USER";
+          envHome = builtins.getEnv "HOME";
+          isDarwin = builtins.match ".*-darwin" system != null;
+          username = if nixHmUser != "" then
+            nixHmUser
+          else if isDarwin && sudoUser != "" && sudoUser != "root" then
+            sudoUser
+          else
+            shellUser;
+          effectiveHome = if nixHmHome != "" then
+            nixHmHome
+          else if isDarwin && username != "root" && (envHome == "" || envHome
+            == "/var/root" || shellUser == "root") then
+            ""
+          else
+            envHome;
+          inferredHome = if username == "" then
+            ""
+          else if isDarwin then
+            "/Users/${username}"
+          else if username == "root" then
+            "/root"
+          else
+            "/home/${username}";
+        in {
+          inherit username;
+          homeDir = if effectiveHome != "" then effectiveHome else inferredHome;
+        };
       mkHomeConfig = { system, isHost ? false, }:
         let
+          userHome = mkUserHome system;
           pkgs = mkPkgs system;
           pkgsUnstable = mkPkgsUnstable system;
         in home-manager.lib.homeManagerConfiguration {
@@ -41,41 +75,18 @@
             inherit pkgsUnstable;
             inherit system;
             inherit isHost;
+            inherit (userHome) username homeDir;
           };
 
           modules = [ ./home.nix ];
         };
       mkDarwinConfig = { system, }:
-        let
-          nixHmUser = builtins.getEnv "NIX_HM_USER";
-          nixHmHome = builtins.getEnv "NIX_HM_HOME";
-          sudoUser = builtins.getEnv "SUDO_USER";
-          userEnv = builtins.getEnv "USER";
-          homeEnv = builtins.getEnv "HOME";
-          username = if nixHmUser != "" then
-            nixHmUser
-          else if sudoUser != "" && sudoUser != "root" then
-            sudoUser
-          else if userEnv != "" then
-            userEnv
-          else
-            throw
-            "Unable to determine Darwin username; set NIX_HM_USER or USER";
-          homeDir = if nixHmHome != "" then
-            nixHmHome
-          else if username != "root"
-          && (homeEnv == "" || homeEnv == "/var/root" || userEnv == "root") then
-            "/Users/${username}"
-          else if homeEnv != "" then
-            homeEnv
-          else if username == "root" then
-            "/var/root"
-          else
-            "/Users/${username}";
+        let userHome = mkUserHome system;
         in nix-darwin.lib.darwinSystem {
           inherit system;
           specialArgs = {
-            inherit system username homeDir;
+            inherit system;
+            inherit (userHome) username homeDir;
             pkgsUnstable = mkPkgsUnstable system;
           };
           modules = [
