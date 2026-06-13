@@ -33,7 +33,6 @@
       python3
       shfmt
       stylua
-      texliveFull
     ])
     ++ (with pkgsUnstable; [
       gh
