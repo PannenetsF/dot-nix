@@ -1,0 +1,82 @@
+[
+  {
+    "context": "vim_mode == normal && !menu",
+    "bindings": {
+      "space f f": "file_finder::Toggle",
+      "space f g": "pane::DeploySearch",
+      "space f p": "projects::OpenRecent",
+      "space f r": "projects::OpenRecent",
+      "space f c": "command_palette::Toggle",
+      "space f t": "outline_panel::ToggleFocus",
+      "space e": "project_panel::ToggleFocus",
+      "space g": "git_panel::ToggleFocus",
+      "space shift-g": ["task::Spawn", { "task_name": "lazygit", "reveal_target": "center" }],
+      "space t f": "workspace::NewTerminal",
+      "space t t": "terminal_panel::ToggleFocus",
+      "space t p": "terminal_panel::Toggle",
+      "g d": "editor::GoToDefinition",
+      "g r": "editor::FindAllReferences",
+      "g y": "editor::CopyPermalinkToLine",
+      "g o": "editor::OpenPermalinkToLine",
+      "g k": "editor::ShowSignatureHelp",
+      "shift-k": "editor::Hover",
+      "[ d": "editor::GoToPreviousDiagnostic",
+      "] d": "editor::GoToDiagnostic",
+      "[ c": "editor::GoToPreviousHunk",
+      "] c": "editor::GoToHunk",
+      "space a c": ["task::Spawn", { "task_name": "compile" }],
+      "space a n": ["task::Rerun", { "reevaluate_context": true }],
+      "space a l": "editor::ToggleCodeActions",
+      "space r n": "editor::Rename",
+      "space l": "editor::Format",
+      "space q w": "editor::ToggleDiagnostics",
+      "space w s": "project_symbols::Toggle",
+      "space shift-a": "editor::SelectAllMatches",
+      "space b b": "pane::ActivatePreviousItem",
+      "space b n": "pane::ActivateNextItem",
+      "space b c": "pane::CloseActiveItem",
+      "space b shift-c": "pane::CloseOtherItems",
+      "space b h": "pane::CloseItemsToTheLeft",
+      "space b l": "pane::CloseItemsToTheRight",
+      "space b z": "editor::ToggleSoftWrap",
+      "alt-j": "editor::MoveLineDown",
+      "alt-k": "editor::MoveLineUp",
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+      ", g b": "editor::ToggleGitBlameInline",
+      ", g g": "git_panel::ToggleFocus",
+      ", f f": "pane::DeploySearch"
+    }
+  },
+  {
+    "context": "vim_mode == visual && !menu",
+    "bindings": {
+      "g y": "editor::CopyPermalinkToLine",
+      "g o": "editor::OpenPermalinkToLine",
+      "space shift-a": "editor::SelectAllMatches",
+      "space l": "editor::FormatSelections",
+      "alt-j": "editor::MoveLineDown",
+      "alt-k": "editor::MoveLineUp"
+    }
+  },
+  {
+    "context": "Dock",
+    "bindings": {
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight"
+    }
+  }
+]

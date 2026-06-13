@@ -1,0 +1,72 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "project_panel": {
+    "dock": "right"
+  },
+  "outline_panel": {
+    "dock": "right"
+  },
+  "collaboration_panel": {
+    "dock": "right"
+  },
+  "agent": {
+    "dock": "left",
+    "favorite_models": [],
+    "model_parameters": []
+  },
+  "git_panel": {
+    "dock": "right"
+  },
+  "which_key": {
+    "enabled": true,
+  },
+  "icon_theme": {
+    "mode": "system",
+    "light": "Zed (Default)",
+    "dark": "Zed (Default)",
+  },
+  "use_system_prompts": false,
+  "ssh_connections": [
+    {
+      "host": "galaxy-h20-sm90",
+      "args": [],
+      "projects": [
+        {
+          "paths": [
+            "/data00/fanyunqian.1/fyq_local_run_lgt"
+          ]
+        },
+        {
+          "paths": [
+            "/data00/fanyunqian.1/fyq_local_run_lgt/localrun"
+          ]
+        },
+        {
+          "paths": [
+            "/data00/fanyunqian.1/fyq_local_run_lgt/localrun-vv"
+          ]
+        },
+        {
+          "paths": [
+            "/home/tiger"
+          ]
+        }
+      ]
+    }
+  ],
+  "vim_mode": true,
+  "base_keymap": "VSCode",
+  "relative_line_numbers": "enabled",
+  "ui_font_size": 16,
+  "buffer_font_size": 15,
+  "theme": "Gruvbox Light",
+  "confirm_quit": false,
+  "proxy": "http://sys-proxy-rd-relay.byted.org:8118",
+}
