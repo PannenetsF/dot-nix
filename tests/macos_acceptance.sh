@@ -128,6 +128,9 @@ check_path "${HOME}/.config/skhd/skhdrc"
 check_path "${HOME}/.skhdrc"
 check_path "${HOME}/.config/skhd/open_iterm2.sh"
 check_path "${HOME}/.config/karabiner/karabiner.json"
+check_path "${HOME}/.config/kitty/kitty.conf"
+check_path "${HOME}/.config/kitty/tab_bar.py"
+check_path "${HOME}/.config/kitty/theme.conf"
 check_path "${HOME}/Pictures/Screenshots"
 
 if grep -Riq "emacs" "${HOME}/.config/aerospace" 2>/dev/null; then

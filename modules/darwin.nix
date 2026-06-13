@@ -17,6 +17,41 @@
       source = ../config/karabiner/karabiner.json;
       force = true;
     };
+
+    ".config/kitty/kitty.conf" = {
+      source = ../config/kitty/kitty.conf;
+      force = true;
+    };
+
+    ".config/kitty/tab_bar.py" = {
+      source = ../config/kitty/tab_bar.py;
+      force = true;
+    };
+
+    ".config/kitty/theme.conf" = {
+      source = ../config/kitty/theme.conf;
+      force = true;
+    };
+
+    ".config/kitty/dark-theme.auto.conf" = {
+      source = ../config/kitty/dark-theme.auto.conf;
+      force = true;
+    };
+
+    ".config/kitty/light-theme.auto.conf" = {
+      source = ../config/kitty/light-theme.auto.conf;
+      force = true;
+    };
+
+    ".config/kitty/no-preference-theme.auto.conf" = {
+      source = ../config/kitty/no-preference-theme.auto.conf;
+      force = true;
+    };
+
+    ".config/kitty/saved-session.conf" = {
+      source = ../config/kitty/saved-session.conf;
+      force = true;
+    };
   };
 
   services.skhd = {
@@ -28,6 +63,18 @@
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       mkdir -p "${config.home.homeDirectory}/Library/Logs/skhd" \
         "${config.home.homeDirectory}/Pictures/Screenshots"
+    '';
+
+  home.activation.prepareKittyConfig =
+    lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+      kitty_config="${config.home.homeDirectory}/.config/kitty"
+      if [ -L "$kitty_config" ]; then
+        rm -f "$kitty_config"
+      elif [ -d "$kitty_config/.git" ]; then
+        rm -rf "$kitty_config"
+      fi
+      mkdir -p "$kitty_config"
+      unset kitty_config
     '';
 
   home.activation.runMyScript = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
