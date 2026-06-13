@@ -57,7 +57,8 @@
   home.activation.ensureDarwinLogDirectories =
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       mkdir -p "${config.home.homeDirectory}/Library/Logs/aerospace" \
-        "${config.home.homeDirectory}/Library/Logs/skhd"
+        "${config.home.homeDirectory}/Library/Logs/skhd" \
+        "${config.home.homeDirectory}/Pictures/Screenshots"
     '';
 
   home.activation.runMyScript = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
