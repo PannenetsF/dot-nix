@@ -35,6 +35,8 @@ assert_contains "$repo_root/nix-darwin/app-defaults.nix" "\"com.Snipaste\"" \
   "expected Snipaste preferences to be configured"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "pkgs.duti" \
   "expected duti to be installed for default app handlers"
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "sudo -u \${username} duti" \
+  "expected default app handlers to run duti as the login user"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "org.mozilla.firefox https all" \
   "expected Firefox to be set as default HTTPS handler"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "com.microsoft.VSCode public.source-code all" \
