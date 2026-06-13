@@ -21,6 +21,12 @@ if [[ "$bash_completion" != "false" ]]; then
 	exit 1
 fi
 
+shell_options="$(nix_eval --json .#homeConfigurations.aarch64-darwin.config.programs.bash.shellOptions)"
+if [[ "$shell_options" == *"globstar"* || "$shell_options" == *"checkjobs"* ]]; then
+	echo "expected bash shellOptions to avoid options unsupported by macOS /bin/bash 3.2" >&2
+	exit 1
+fi
+
 profile_extra="$(nix_eval --raw .#homeConfigurations.aarch64-darwin.config.programs.bash.profileExtra)"
 if [[ "$profile_extra" != *"/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"* ]]; then
 	echo "expected bash profile to source the Nix daemon profile" >&2
