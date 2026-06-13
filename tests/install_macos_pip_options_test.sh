@@ -27,16 +27,7 @@ cat >"$tmp/bin/git" <<'SH'
 #!/usr/bin/env bash
 printf '%q ' "$@" >>"${GIT_STUB_LOG}"
 printf '\n' >>"${GIT_STUB_LOG}"
-for arg in "$@"; do
-  if [[ "$arg" == "fetch" && "${GIT_FAIL_FETCH:-0}" == "1" ]]; then
-    echo "simulated fetch failure" >&2
-    exit 1
-  fi
-done
 if [[ "${1-}" == "clone" ]]; then
-  dest="${@: -1}"
-  mkdir -p "${dest:?missing destination}"
-elif [[ "$*" == *" clone "* ]]; then
   dest="${@: -1}"
   mkdir -p "${dest:?missing destination}"
 fi
@@ -48,9 +39,6 @@ exit 0
 SH
 
 chmod +x "$tmp/bin"/*
-
-mkdir -p "$tmp/home/.config/kitty"
-printf 'stale\n' >"$tmp/home/.config/kitty/old.conf"
 
 GIT_STUB_LOG="$tmp/git.log" \
 PIP_STUB_LOG="$tmp/pip.log" \
@@ -64,29 +52,14 @@ if grep -q -- "--break-system-packages" "$tmp/pip.log"; then
   exit 1
 fi
 
-if ! grep -Fq "https://github.com/PannenetsF/dot-kitty.git" "$tmp/git.log"; then
-  echo "install-macos.sh should clone the kitty config repo" >&2
+if grep -Fq "dot-kitty" "$tmp/git.log"; then
+  echo "install-macos.sh should not clone the kitty config repo" >&2
   cat "$tmp/git.log" >&2
   exit 1
 fi
 
-if [[ -e "$tmp/home/.config/kitty/old.conf" ]]; then
-  echo "install-macos.sh should overwrite a stale non-git kitty config directory" >&2
-  exit 1
-fi
-
-mkdir -p "$tmp/home-existing/.config/kitty/.git"
-printf 'keep\n' >"$tmp/home-existing/.config/kitty/kitty.conf"
-touch "$tmp/home-existing/pf-init-macos"
-
-GIT_STUB_LOG="$tmp/git-existing.log" \
-PIP_STUB_LOG="$tmp/pip-existing.log" \
-GIT_FAIL_FETCH=1 \
-PATH="$tmp/bin:/usr/bin:/bin" \
-HOME="$tmp/home-existing" \
-bash "$repo_root/install-macos.sh" >/dev/null
-
-if [[ ! -e "$tmp/home-existing/.config/kitty/kitty.conf" ]]; then
-  echo "install-macos.sh should keep existing kitty config when fetch fails" >&2
+if ! grep -Fq "https://github.com/PannenetsF/dot-nvim.git" "$tmp/git.log"; then
+  echo "install-macos.sh should still clone the nvim config repo on first init" >&2
+  cat "$tmp/git.log" >&2
   exit 1
 fi

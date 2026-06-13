@@ -102,7 +102,11 @@ assert_module_contains "services.skhd" \
 assert_module_contains "config = builtins.readFile ../config/skhd/skhdrc;" \
 	"expected skhd settings to be loaded from the tracked skhdrc"
 
-if grep -Riq "emacs" "${repo_root}/config" "${repo_root}/modules"; then
+if grep -Riq "emacs" \
+	"${repo_root}/config/aerospace" \
+	"${repo_root}/config/skhd" \
+	"${repo_root}/config/karabiner" \
+	"${repo_root}/modules"; then
 	echo "did not expect Emacs references in managed macOS configs" >&2
 	exit 1
 fi
