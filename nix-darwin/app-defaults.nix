@@ -1,4 +1,4 @@
-{ lib, pkgs, username, ... }: {
+{ lib, pkgs, username, homeDir, ... }: {
   environment.systemPackages = [ pkgs.duti ];
 
   system.activationScripts.postActivation.text = lib.mkAfter ''
@@ -15,12 +15,29 @@
     write_user_default com.raycast.macos showGettingStartedLink -bool false
     write_user_default com.raycast.macos useHyperKeyIcon -bool false
 
-    write_user_default org.p0deje.Maccy historySize -int 200
-    write_user_default org.p0deje.Maccy pasteByDefault -bool true
-    write_user_default org.p0deje.Maccy popupPosition -string statusItem
-    write_user_default org.p0deje.Maccy removeFormattingByDefault -bool false
-    write_user_default org.p0deje.Maccy searchMode -string fuzzy
-    write_user_default org.p0deje.Maccy showInStatusBar -bool true
+    maccy_plist="${homeDir}/Library/Preferences/org.p0deje.Maccy.plist"
+    install -d -o ${username} -g staff "${homeDir}/Library/Preferences"
+    if [ ! -e "$maccy_plist" ]; then
+      printf '%s\n' \
+        '<?xml version="1.0" encoding="UTF-8"?>' \
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+        '<plist version="1.0"><dict/></plist>' > "$maccy_plist"
+    fi
+    set_maccy_default() {
+      key="$1"
+      type="$2"
+      value="$3"
+      /usr/libexec/PlistBuddy -c "Set :$key $value" "$maccy_plist" 2>/dev/null \
+        || /usr/libexec/PlistBuddy -c "Add :$key $type $value" "$maccy_plist"
+    }
+    set_maccy_default historySize integer 200
+    set_maccy_default pasteByDefault bool true
+    set_maccy_default popupPosition string statusItem
+    set_maccy_default removeFormattingByDefault bool false
+    set_maccy_default searchMode string fuzzy
+    set_maccy_default showInStatusBar bool true
+    chown ${username}:staff "$maccy_plist"
+    launchctl asuser "$(id -u ${username})" sudo --user=${username} -- killall cfprefsd 2>/dev/null || true
 
     write_user_default com.Snipaste SUEnableAutomaticChecks -bool false
 

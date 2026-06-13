@@ -29,7 +29,7 @@ assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "ApplePressAndHoldEna
 
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.raycast.macos" \
   "expected Raycast preferences to be configured"
-assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default org.p0deje.Maccy" \
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "org.p0deje.Maccy.plist" \
   "expected Maccy preferences to be configured"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.Snipaste" \
   "expected Snipaste preferences to be configured"
@@ -37,8 +37,14 @@ if grep -Fq "system.defaults.CustomUserPreferences" "$repo_root/nix-darwin/app-d
   echo "expected app defaults to avoid nix-darwin CustomUserPreferences XML defaults writes" >&2
   exit 1
 fi
-assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default org.p0deje.Maccy historySize -int 200" \
-  "expected Maccy historySize to be written as a typed integer default"
+if grep -Fq "defaults write org.p0deje.Maccy" "$repo_root/nix-darwin/app-defaults.nix"; then
+  echo "expected Maccy defaults to avoid defaults(1), which can hang on this host" >&2
+  exit 1
+fi
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "/usr/libexec/PlistBuddy" \
+  "expected Maccy preferences to be written directly to the plist"
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "maccy_plist=\"\${homeDir}/Library/Preferences/org.p0deje.Maccy.plist\"" \
+  "expected Maccy plist path to be derived from the managed home directory"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "pkgs.duti" \
   "expected duti to be installed for default app handlers"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "sudo -u \${username} duti" \
