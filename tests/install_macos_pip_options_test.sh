@@ -27,7 +27,16 @@ cat >"$tmp/bin/git" <<'SH'
 #!/usr/bin/env bash
 printf '%q ' "$@" >>"${GIT_STUB_LOG}"
 printf '\n' >>"${GIT_STUB_LOG}"
+for arg in "$@"; do
+  if [[ "$arg" == "fetch" && "${GIT_FAIL_FETCH:-0}" == "1" ]]; then
+    echo "simulated fetch failure" >&2
+    exit 1
+  fi
+done
 if [[ "${1-}" == "clone" ]]; then
+  dest="${@: -1}"
+  mkdir -p "${dest:?missing destination}"
+elif [[ "$*" == *" clone "* ]]; then
   dest="${@: -1}"
   mkdir -p "${dest:?missing destination}"
 fi
@@ -63,5 +72,21 @@ fi
 
 if [[ -e "$tmp/home/.config/kitty/old.conf" ]]; then
   echo "install-macos.sh should overwrite a stale non-git kitty config directory" >&2
+  exit 1
+fi
+
+mkdir -p "$tmp/home-existing/.config/kitty/.git"
+printf 'keep\n' >"$tmp/home-existing/.config/kitty/kitty.conf"
+touch "$tmp/home-existing/pf-init-macos"
+
+GIT_STUB_LOG="$tmp/git-existing.log" \
+PIP_STUB_LOG="$tmp/pip-existing.log" \
+GIT_FAIL_FETCH=1 \
+PATH="$tmp/bin:/usr/bin:/bin" \
+HOME="$tmp/home-existing" \
+bash "$repo_root/install-macos.sh" >/dev/null
+
+if [[ ! -e "$tmp/home-existing/.config/kitty/kitty.conf" ]]; then
+  echo "install-macos.sh should keep existing kitty config when fetch fails" >&2
   exit 1
 fi
