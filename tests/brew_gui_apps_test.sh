@@ -4,7 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 homebrew_module="${repo_root}/nix-darwin/homebrew.nix"
 darwin_config="${repo_root}/nix-darwin/configuration.nix"
-gui_module="${repo_root}/modules/mac-gui-app.nix"
+gui_module="${repo_root}/nix-darwin/gui-apps.nix"
+old_gui_module="${repo_root}/modules/mac-gui-app.nix"
 
 assert_contains() {
   local file="$1"
@@ -29,7 +30,13 @@ assert_not_contains() {
 }
 
 assert_contains "$darwin_config" "./homebrew.nix" "expected nix-darwin to import homebrew.nix"
+assert_contains "$darwin_config" "./gui-apps.nix" "expected nix-darwin to import gui-apps.nix"
 assert_contains "$homebrew_module" "enable = true;" "expected nix-darwin homebrew module to be enabled"
+
+if [[ -e "$old_gui_module" ]]; then
+  echo "expected modules/mac-gui-app.nix to be removed after moving GUI app management to nix-darwin" >&2
+  exit 1
+fi
 
 for cask in \
   1password \
@@ -51,3 +58,7 @@ done
 for moved in _1password-gui karabiner-elements kitty maccy raycast vscode; do
   assert_not_contains "$gui_module" "$moved" "expected $moved to move out of Nix GUI packages"
 done
+
+assert_contains "$gui_module" "aerospace" "expected AeroSpace to be managed from nix-darwin GUI module"
+assert_contains "$gui_module" "nerd-fonts.shure-tech-mono" "expected desktop fonts to move into nix-darwin GUI module"
+assert_contains "$gui_module" "sketchybar-app-font" "expected sketchybar app font to move into nix-darwin GUI module"
