@@ -148,6 +148,8 @@ run_init_for() {
   NIX_TEST_BIN_DIR="${tmp}/bin" \
   NIX_HM_BREW_BOOTSTRAP="${tmp}/brew-bootstrap" \
   NIX_HM_ETC_DIR="${tmp}/etc" \
+  NIX_HM_NIX_DAEMON_PROFILE="${tmp}/missing/nix-daemon.sh" \
+  NIX_HM_NIX_DAEMON_PROFILE_DIR="${tmp}/missing/default" \
   PIP_INDEX_URL="https://pypi.example/simple" \
   PIP_TRUSTED_HOST="pypi.example" \
   PIP_POSTFIX="--timeout 60" \

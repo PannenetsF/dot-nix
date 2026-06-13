@@ -114,10 +114,11 @@ install_determinate_pkg_macos() {
 }
 
 source_nix_profile() {
+  local daemon_profile="${NIX_HM_NIX_DAEMON_PROFILE:-/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh}"
   # Multi-user (daemon) install
-  if [[ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]]; then
+  if [[ -f "$daemon_profile" ]]; then
     # shellcheck disable=SC1091
-    . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+    . "$daemon_profile"
     return 0
   fi
 
@@ -265,6 +266,7 @@ ensure_nix_cache_config() {
   local user_conf="$HOME/.config/nix/nix.conf"
   local daemon_conf="/etc/nix/nix.conf"
   local daemon_custom_conf="/etc/nix/nix.custom.conf"
+  local daemon_profile_dir="${NIX_HM_NIX_DAEMON_PROFILE_DIR:-/nix/var/nix/profiles/default}"
   local user_block
   local daemon_block
   local daemon_changed=false
@@ -275,7 +277,7 @@ ensure_nix_cache_config() {
 
   # Multi-user Nix ignores user-provided substituters unless the user is trusted
   # by the daemon or the substituter is trusted daemon-wide.
-  if [[ -d "/nix/var/nix/profiles/default" ]]; then
+  if [[ -d "$daemon_profile_dir" ]]; then
     daemon_block="$(managed_nix_conf_block "$user" 1)"
     if write_managed_nix_conf "$daemon_custom_conf" "$daemon_block"; then
       daemon_changed=true
