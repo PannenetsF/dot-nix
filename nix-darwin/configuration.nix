@@ -1,4 +1,10 @@
 { pkgsUnstable, system, username, homeDir, ... }: {
+  imports = [
+    ./app-defaults.nix
+    ./homebrew.nix
+    ./macos-defaults.nix
+  ];
+
   system.stateVersion = 6;
   system.primaryUser = username;
 

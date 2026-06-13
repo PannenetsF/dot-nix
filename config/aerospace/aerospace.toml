@@ -2,7 +2,7 @@ after-login-command = []
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
-start-at-login = true
+start-at-login = false
 
 enable-normalization-flatten-containers = false
 enable-normalization-opposite-orientation-for-nested-containers = false
@@ -109,7 +109,3 @@ run = ['move-node-to-workspace 5']
 [[on-window-detected]]
 if.window-title-regex-substring = 'Finder'
 run = ['move-node-to-workspace 5']
-
-[[on-window-detected]]
-if.window-title-regex-substring = 'Emacs'
-run = ['move-node-to-workspace 8']

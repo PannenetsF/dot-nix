@@ -76,10 +76,33 @@ install_nix_if_needed() {
     return 0
   fi
 
+  if maybe_source_nix_profile && command -v nix >/dev/null 2>&1; then
+    return 0
+  fi
+
   need_cmd curl
   ensure_proxy_env
 
-  # Determinate Nix Installer (works on macOS + Linux, non-interactive)
+  if is_darwin; then
+    case "${NIX_HM_DARWIN_NIX_INSTALLER:-pkg}" in
+      pkg)
+        install_determinate_pkg_macos
+        ;;
+      cli)
+        install_determinate_cli
+        ;;
+      *)
+        die "unsupported NIX_HM_DARWIN_NIX_INSTALLER: ${NIX_HM_DARWIN_NIX_INSTALLER}"
+        ;;
+    esac
+    return 0
+  fi
+
+  install_determinate_cli
+}
+
+install_determinate_cli() {
+  # Determinate Nix Installer CLI path (works on macOS + Linux, non-interactive)
   # Ref: https://install.determinate.systems/nix
   if [[ "$(id -u)" -eq 0 ]]; then
     curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
@@ -89,11 +112,32 @@ install_nix_if_needed() {
   fi
 }
 
-source_nix_profile() {
+install_determinate_pkg_macos() {
+  local pkg
+  local pkg_dir
+  local pkg_url="${NIX_HM_DETERMINATE_PKG_URL:-https://install.determinate.systems/determinate-pkg/stable/Universal}"
+
+  pkg_dir="$(mktemp -d)"
+  pkg="${pkg_dir}/Determinate.pkg"
+  curl -fsSL "$pkg_url" -o "$pkg"
+
+  if [[ "$(id -u)" -ne 0 ]]; then
+    need_cmd sudo
+    sudo installer -pkg "$pkg" -target /
+  else
+    need_cmd installer
+    installer -pkg "$pkg" -target /
+  fi
+
+  rm -rf "$pkg_dir"
+}
+
+maybe_source_nix_profile() {
+  local daemon_profile="${NIX_HM_NIX_DAEMON_PROFILE:-/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh}"
   # Multi-user (daemon) install
-  if [[ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]]; then
+  if [[ -f "$daemon_profile" ]]; then
     # shellcheck disable=SC1091
-    . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+    . "$daemon_profile"
     return 0
   fi
 
@@ -101,6 +145,14 @@ source_nix_profile() {
   if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
     # shellcheck disable=SC1090
     . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    return 0
+  fi
+
+  return 1
+}
+
+source_nix_profile() {
+  if maybe_source_nix_profile; then
     return 0
   fi
 
@@ -241,6 +293,7 @@ ensure_nix_cache_config() {
   local user_conf="$HOME/.config/nix/nix.conf"
   local daemon_conf="/etc/nix/nix.conf"
   local daemon_custom_conf="/etc/nix/nix.custom.conf"
+  local daemon_profile_dir="${NIX_HM_NIX_DAEMON_PROFILE_DIR:-/nix/var/nix/profiles/default}"
   local user_block
   local daemon_block
   local daemon_changed=false
@@ -251,7 +304,7 @@ ensure_nix_cache_config() {
 
   # Multi-user Nix ignores user-provided substituters unless the user is trusted
   # by the daemon or the substituter is trusted daemon-wide.
-  if [[ -d "/nix/var/nix/profiles/default" ]]; then
+  if [[ -d "$daemon_profile_dir" ]]; then
     daemon_block="$(managed_nix_conf_block "$user" 1)"
     if write_managed_nix_conf "$daemon_custom_conf" "$daemon_block"; then
       daemon_changed=true
@@ -415,6 +468,17 @@ activate_nix_darwin() {
   fi
 }
 
+install_homebrew_if_needed() {
+  local nix_hm_dir="$1"
+  local bootstrap_script="${NIX_HM_BREW_BOOTSTRAP:-$nix_hm_dir/brew/install.sh}"
+
+  if ! is_darwin; then
+    return 0
+  fi
+
+  bash "$bootstrap_script"
+}
+
 activate_home_manager() {
   local nix_hm_dir="$1"
   local system="$2"
@@ -453,6 +517,7 @@ restore_environment() {
   fi
 
   if is_darwin && [[ "$use_home_manager" != true ]]; then
+    install_homebrew_if_needed "$nix_hm_dir"
     activate_nix_darwin "$nix_hm_dir" "$system" "$user"
     return
   fi

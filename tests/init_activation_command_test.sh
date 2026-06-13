@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 make_stub_bin() {
   local bin_dir="$1"
+  local create_nix="${2:-1}"
 
   cat >"${bin_dir}/uname" <<'SH'
 #!/usr/bin/env bash
@@ -15,18 +16,44 @@ case "$1" in
 esac
 SH
 
-  cat >"${bin_dir}/nix" <<'SH'
+  if [[ "$create_nix" == "1" ]]; then
+    cat >"${bin_dir}/nix" <<'SH'
 #!/usr/bin/env bash
 printf '%q ' "$@" >>"${NIX_STUB_LOG}"
 printf '\n' >>"${NIX_STUB_LOG}"
 exit 0
 SH
+  fi
 
   cat >"${bin_dir}/sudo" <<'SH'
 #!/usr/bin/env bash
 printf 'sudo ' >>"${NIX_STUB_LOG}"
 printf '%q ' "$@" >>"${NIX_STUB_LOG}"
 printf '\n' >>"${NIX_STUB_LOG}"
+if [[ "$1" == "installer" ]]; then
+  cat >"${NIX_TEST_BIN_DIR}/nix" <<'NIX'
+#!/usr/bin/env bash
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
+NIX
+  chmod +x "${NIX_TEST_BIN_DIR}/nix"
+fi
+exit 0
+SH
+
+  cat >"${bin_dir}/installer" <<'SH'
+#!/usr/bin/env bash
+printf 'installer ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+cat >"${NIX_TEST_BIN_DIR}/nix" <<'NIX'
+#!/usr/bin/env bash
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
+NIX
+chmod +x "${NIX_TEST_BIN_DIR}/nix"
 exit 0
 SH
 
@@ -58,6 +85,16 @@ SH
 
   cat >"${bin_dir}/curl" <<'SH'
 #!/usr/bin/env bash
+printf 'curl ' >>"${NIX_STUB_LOG}"
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+for ((i = 1; i <= $#; i++)); do
+  if [[ "${!i}" == "-o" ]]; then
+    j=$((i + 1))
+    : >"${!j}"
+    break
+  fi
+done
 exit 0
 SH
 
@@ -116,30 +153,58 @@ SH
   chmod +x "${bin_dir}"/*
 }
 
+make_brew_bootstrap_stub() {
+  local path="$1"
+
+  cat >"$path" <<'SH'
+#!/usr/bin/env bash
+printf 'brew-bootstrap\n' >>"${NIX_STUB_LOG}"
+SH
+  chmod +x "$path"
+}
+
 run_init_for() {
   local os="$1"
   local arch="$2"
   local uid="${3:-0}"
   local create_zshenv="${4:-0}"
+  local create_nix="${5:-1}"
+  local profile_nix="${6:-0}"
   local tmp
   tmp="$(mktemp -d)"
 
-  mkdir -p "${tmp}/bin" "${tmp}/etc" "${tmp}/home/.nix-profile/etc/profile.d"
-  : >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  mkdir -p "${tmp}/bin" "${tmp}/etc" "${tmp}/home/.nix-profile/etc/profile.d" "${tmp}/profile-bin" "${tmp}/nix-daemon-profile"
+  if [[ "$profile_nix" == "1" ]]; then
+    cat >"${tmp}/profile-bin/nix" <<'SH'
+#!/usr/bin/env bash
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
+SH
+    chmod +x "${tmp}/profile-bin/nix"
+    printf 'export PATH=%q:"$PATH"\n' "${tmp}/profile-bin" >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  else
+    : >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  fi
   if [[ "$create_zshenv" == "1" ]]; then
     printf 'legacy zshenv\n' >"${tmp}/etc/zshenv"
   fi
-  make_stub_bin "${tmp}/bin"
+  make_stub_bin "${tmp}/bin" "$create_nix"
+  make_brew_bootstrap_stub "${tmp}/brew-bootstrap"
 
   TEST_UNAME_S="$os" \
   TEST_UNAME_M="$arch" \
   TEST_ID_U="$uid" \
   NIX_STUB_LOG="${tmp}/nix.log" \
+  NIX_TEST_BIN_DIR="${tmp}/bin" \
+  NIX_HM_BREW_BOOTSTRAP="${tmp}/brew-bootstrap" \
   NIX_HM_ETC_DIR="${tmp}/etc" \
+  NIX_HM_NIX_DAEMON_PROFILE="${tmp}/missing/nix-daemon.sh" \
+  NIX_HM_NIX_DAEMON_PROFILE_DIR="${tmp}/nix-daemon-profile" \
   PIP_INDEX_URL="https://pypi.example/simple" \
   PIP_TRUSTED_HOST="pypi.example" \
   PIP_POSTFIX="--timeout 60" \
-  PATH="${tmp}/bin:${PATH}" \
+  PATH="${tmp}/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   HOME="${tmp}/home" \
   bash "${repo_root}/init.sh" >/dev/null
 
@@ -155,6 +220,8 @@ run_init_for() {
 }
 
 darwin_log="$(run_init_for Darwin arm64 501 1)"
+darwin_bootstrap_log="$(run_init_for Darwin arm64 501 0 0)"
+darwin_existing_profile_log="$(run_init_for Darwin arm64 501 0 0 1)"
 darwin_sudo_env_line="$(printf '%s\n' "$darwin_log" | awk '/^sudo env / { print; exit }')"
 darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
   for (i = 1; i <= NF; i++) {
@@ -167,6 +234,36 @@ darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
 }')"
 if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "expected Darwin init to run darwin-rebuild through sudo env" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ "$darwin_bootstrap_log" != *"determinate-pkg/stable/Universal"* ]]; then
+  echo "expected Darwin init without nix to download the Determinate pkg installer" >&2
+  echo "$darwin_bootstrap_log" >&2
+  exit 1
+fi
+if [[ "$darwin_bootstrap_log" != *"Determinate.pkg"* ]]; then
+  echo "expected Darwin pkg installer path to end in Determinate.pkg" >&2
+  echo "$darwin_bootstrap_log" >&2
+  exit 1
+fi
+if [[ "$darwin_bootstrap_log" != *"sudo installer -pkg"* ]]; then
+  echo "expected Darwin init without nix to install Determinate with the macOS pkg" >&2
+  echo "$darwin_bootstrap_log" >&2
+  exit 1
+fi
+if [[ "$darwin_existing_profile_log" == *"determinate-pkg/stable/Universal"* ]]; then
+  echo "expected Darwin init to source an existing nix profile before reinstalling Nix" >&2
+  echo "$darwin_existing_profile_log" >&2
+  exit 1
+fi
+if [[ "$darwin_existing_profile_log" != *"#darwin-rebuild"* ]]; then
+  echo "expected Darwin init with nix only in profile PATH to continue to darwin-rebuild" >&2
+  echo "$darwin_existing_profile_log" >&2
+  exit 1
+fi
+if [[ "$darwin_log" != *"brew-bootstrap"* ]]; then
+  echo "expected Darwin init to bootstrap Homebrew before darwin-rebuild" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
