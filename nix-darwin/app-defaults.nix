@@ -1,30 +1,29 @@
-{ pkgs, username, ... }: {
+{ lib, pkgs, username, ... }: {
   environment.systemPackages = [ pkgs.duti ];
 
-  system.defaults.CustomUserPreferences = {
-    "com.raycast.macos" = {
-      onboardingCompleted = true;
-      onboarding_setupAlias = true;
-      onboarding_setupHotkey = true;
-      raycastPreferredWindowMode = "compact";
-      raycastShouldFollowSystemAppearance = true;
-      showGettingStartedLink = false;
-      useHyperKeyIcon = false;
-    };
+  system.activationScripts.postActivation.text = lib.mkAfter ''
+    write_user_default() {
+      launchctl asuser "$(id -u ${username})" sudo --user=${username} -- defaults write "$@"
+    }
 
-    "org.p0deje.Maccy" = {
-      historySize = 200;
-      pasteByDefault = true;
-      popupPosition = "statusItem";
-      removeFormattingByDefault = false;
-      searchMode = "fuzzy";
-      showInStatusBar = true;
-    };
+    echo >&2 "app defaults..."
+    write_user_default com.raycast.macos onboardingCompleted -bool true
+    write_user_default com.raycast.macos onboarding_setupAlias -bool true
+    write_user_default com.raycast.macos onboarding_setupHotkey -bool true
+    write_user_default com.raycast.macos raycastPreferredWindowMode -string compact
+    write_user_default com.raycast.macos raycastShouldFollowSystemAppearance -bool true
+    write_user_default com.raycast.macos showGettingStartedLink -bool false
+    write_user_default com.raycast.macos useHyperKeyIcon -bool false
 
-    "com.Snipaste" = { SUEnableAutomaticChecks = false; };
-  };
+    write_user_default org.p0deje.Maccy historySize -int 200
+    write_user_default org.p0deje.Maccy pasteByDefault -bool true
+    write_user_default org.p0deje.Maccy popupPosition -string statusItem
+    write_user_default org.p0deje.Maccy removeFormattingByDefault -bool false
+    write_user_default org.p0deje.Maccy searchMode -string fuzzy
+    write_user_default org.p0deje.Maccy showInStatusBar -bool true
 
-  system.activationScripts.defaultApplications.text = ''
+    write_user_default com.Snipaste SUEnableAutomaticChecks -bool false
+
     # Default app handlers
     if command -v duti >/dev/null 2>&1; then
       echo >&2 "default applications..."
