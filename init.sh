@@ -68,6 +68,10 @@ install_nix_if_needed() {
     return 0
   fi
 
+  if maybe_source_nix_profile && command -v nix >/dev/null 2>&1; then
+    return 0
+  fi
+
   need_cmd curl
   ensure_proxy_env
 
@@ -97,9 +101,11 @@ install_determinate_cli() {
 
 install_determinate_pkg_macos() {
   local pkg
+  local pkg_dir
   local pkg_url="${NIX_HM_DETERMINATE_PKG_URL:-https://install.determinate.systems/determinate-pkg/stable/Universal}"
 
-  pkg="$(mktemp -t determinate-nix.XXXXXX.pkg)"
+  pkg_dir="$(mktemp -d)"
+  pkg="${pkg_dir}/Determinate.pkg"
   curl -fsSL "$pkg_url" -o "$pkg"
 
   if [[ "$(id -u)" -ne 0 ]]; then
@@ -110,10 +116,10 @@ install_determinate_pkg_macos() {
     installer -pkg "$pkg" -target /
   fi
 
-  rm -f "$pkg"
+  rm -rf "$pkg_dir"
 }
 
-source_nix_profile() {
+maybe_source_nix_profile() {
   local daemon_profile="${NIX_HM_NIX_DAEMON_PROFILE:-/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh}"
   # Multi-user (daemon) install
   if [[ -f "$daemon_profile" ]]; then
@@ -126,6 +132,14 @@ source_nix_profile() {
   if [[ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]]; then
     # shellcheck disable=SC1090
     . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    return 0
+  fi
+
+  return 1
+}
+
+source_nix_profile() {
+  if maybe_source_nix_profile; then
     return 0
   fi
 

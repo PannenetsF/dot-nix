@@ -130,11 +130,23 @@ run_init_for() {
   local uid="${3:-0}"
   local create_zshenv="${4:-0}"
   local create_nix="${5:-1}"
+  local profile_nix="${6:-0}"
   local tmp
   tmp="$(mktemp -d)"
 
-  mkdir -p "${tmp}/bin" "${tmp}/etc" "${tmp}/home/.nix-profile/etc/profile.d"
-  : >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  mkdir -p "${tmp}/bin" "${tmp}/etc" "${tmp}/home/.nix-profile/etc/profile.d" "${tmp}/profile-bin"
+  if [[ "$profile_nix" == "1" ]]; then
+    cat >"${tmp}/profile-bin/nix" <<'SH'
+#!/usr/bin/env bash
+printf '%q ' "$@" >>"${NIX_STUB_LOG}"
+printf '\n' >>"${NIX_STUB_LOG}"
+exit 0
+SH
+    chmod +x "${tmp}/profile-bin/nix"
+    printf 'export PATH=%q:"$PATH"\n' "${tmp}/profile-bin" >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  else
+    : >"${tmp}/home/.nix-profile/etc/profile.d/nix.sh"
+  fi
   if [[ "$create_zshenv" == "1" ]]; then
     printf 'legacy zshenv\n' >"${tmp}/etc/zshenv"
   fi
@@ -170,6 +182,7 @@ run_init_for() {
 
 darwin_log="$(run_init_for Darwin arm64 501 1)"
 darwin_bootstrap_log="$(run_init_for Darwin arm64 501 0 0)"
+darwin_existing_profile_log="$(run_init_for Darwin arm64 501 0 0 1)"
 darwin_sudo_env_line="$(printf '%s\n' "$darwin_log" | awk '/^sudo env / { print; exit }')"
 darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
   for (i = 1; i <= NF; i++) {
@@ -190,9 +203,24 @@ if [[ "$darwin_bootstrap_log" != *"determinate-pkg/stable/Universal"* ]]; then
   echo "$darwin_bootstrap_log" >&2
   exit 1
 fi
+if [[ "$darwin_bootstrap_log" != *"Determinate.pkg"* ]]; then
+  echo "expected Darwin pkg installer path to end in Determinate.pkg" >&2
+  echo "$darwin_bootstrap_log" >&2
+  exit 1
+fi
 if [[ "$darwin_bootstrap_log" != *"sudo installer -pkg"* ]]; then
   echo "expected Darwin init without nix to install Determinate with the macOS pkg" >&2
   echo "$darwin_bootstrap_log" >&2
+  exit 1
+fi
+if [[ "$darwin_existing_profile_log" == *"determinate-pkg/stable/Universal"* ]]; then
+  echo "expected Darwin init to source an existing nix profile before reinstalling Nix" >&2
+  echo "$darwin_existing_profile_log" >&2
+  exit 1
+fi
+if [[ "$darwin_existing_profile_log" != *"#darwin-rebuild"* ]]; then
+  echo "expected Darwin init with nix only in profile PATH to continue to darwin-rebuild" >&2
+  echo "$darwin_existing_profile_log" >&2
   exit 1
 fi
 if [[ "$darwin_log" != *"brew-bootstrap"* ]]; then
