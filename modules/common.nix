@@ -125,7 +125,9 @@ in {
 
   programs.bash = {
     enable = true;
-    enableCompletion = true;
+    # macOS still ships /bin/bash 3.2. Home Manager's bash-completion hook uses
+    # Bash 4+ syntax, so keep completion off for compatibility with login bash.
+    enableCompletion = false;
     profileExtra = shellProfileInit;
     bashrcExtra = shellProfileInit;
     shellAliases = {
