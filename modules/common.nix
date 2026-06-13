@@ -1,4 +1,45 @@
-{ config, pkgs, pkgsUnstable, lib, ... }: {
+{ config, pkgs, pkgsUnstable, lib, ... }:
+let
+  shellProfileInit = ''
+    # Source Nix profile
+    if [ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
+      . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+    elif [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+      . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    fi
+
+    # Make nix-darwin and Home Manager profile packages available in bash/zsh.
+    case ":$PATH:" in
+      *":/run/current-system/sw/bin:"*) ;;
+      *) export PATH="/run/current-system/sw/bin:$PATH" ;;
+    esac
+    if [ -n "''${USER:-}" ]; then
+      case ":$PATH:" in
+        *":/etc/profiles/per-user/$USER/bin:"*) ;;
+        *) export PATH="/etc/profiles/per-user/$USER/bin:$PATH" ;;
+      esac
+    fi
+    case ":$PATH:" in
+      *":$HOME/.nix-profile/bin:"*) ;;
+      *) export PATH="$HOME/.nix-profile/bin:$PATH" ;;
+    esac
+
+    # Source Home Manager session variables after profile PATH is available.
+    _nix_hm_had_nounset=
+    case $- in
+      *u*) _nix_hm_had_nounset=1; set +u ;;
+    esac
+    if [ -n "''${USER:-}" ] && [ -e "/etc/profiles/per-user/$USER/etc/profile.d/hm-session-vars.sh" ]; then
+      . "/etc/profiles/per-user/$USER/etc/profile.d/hm-session-vars.sh"
+    elif [ -e "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]; then
+      . "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+    fi
+    if [ -n "$_nix_hm_had_nounset" ]; then
+      set -u
+    fi
+    unset _nix_hm_had_nounset
+  '';
+in {
   home = {
     packages = [
       pkgs.lazygit
@@ -47,12 +88,7 @@
       pnpm() { zsh_nvm_lazy_load; pnpm "$@" }
       nvm() { zsh_nvm_lazy_load; nvm "$@" }
 
-      # Source Nix profile
-      if [ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
-        . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
-      elif [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
-        . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-      fi
+      ${shellProfileInit}
 
       # Set TERM with fallback
       if [ "$TERM" != "xterm-kitty" ] && [ "$TERM" != "xterm-256color" ]; then
@@ -85,6 +121,19 @@
       alias hm-update="bash $HOME/.config/nix-hm/init.sh"
       alias hm-upgrade="bash $HOME/.config/nix-hm/init.sh --upgrade"
     '';
+  };
+
+  programs.bash = {
+    enable = true;
+    enableCompletion = true;
+    profileExtra = shellProfileInit;
+    bashrcExtra = shellProfileInit;
+    shellAliases = {
+      work = "cd $HOME/Documents/workspace/ || cd $HOME/workspace";
+      gomounts = "cd $HOME/Documents/workspace/mounts/";
+      hm-update = "bash $HOME/.config/nix-hm/init.sh";
+      hm-upgrade = "bash $HOME/.config/nix-hm/init.sh --upgrade";
+    };
   };
 
   programs.neovim = {
