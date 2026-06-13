@@ -52,6 +52,21 @@
       source = ../config/kitty/saved-session.conf;
       force = true;
     };
+
+    ".config/zed/settings.json" = {
+      source = ../config/zed/settings.json;
+      force = true;
+    };
+
+    ".config/zed/keymap.json" = {
+      source = ../config/zed/keymap.json;
+      force = true;
+    };
+
+    ".config/zed/tasks.json" = {
+      source = ../config/zed/tasks.json;
+      force = true;
+    };
   };
 
   services.skhd = {
