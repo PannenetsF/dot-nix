@@ -71,9 +71,46 @@ install_nix_if_needed() {
   need_cmd curl
   ensure_proxy_env
 
-  # Determinate Nix Installer (works on macOS + Linux, non-interactive)
+  if is_darwin; then
+    case "${NIX_HM_DARWIN_NIX_INSTALLER:-pkg}" in
+      pkg)
+        install_determinate_pkg_macos
+        ;;
+      cli)
+        install_determinate_cli
+        ;;
+      *)
+        die "unsupported NIX_HM_DARWIN_NIX_INSTALLER: ${NIX_HM_DARWIN_NIX_INSTALLER}"
+        ;;
+    esac
+    return 0
+  fi
+
+  install_determinate_cli
+}
+
+install_determinate_cli() {
+  # Determinate Nix Installer CLI path (works on macOS + Linux, non-interactive)
   # Ref: https://install.determinate.systems/nix
   curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
+}
+
+install_determinate_pkg_macos() {
+  local pkg
+  local pkg_url="${NIX_HM_DETERMINATE_PKG_URL:-https://install.determinate.systems/determinate-pkg/stable/Universal}"
+
+  pkg="$(mktemp -t determinate-nix.XXXXXX.pkg)"
+  curl -fsSL "$pkg_url" -o "$pkg"
+
+  if [[ "$(id -u)" -ne 0 ]]; then
+    need_cmd sudo
+    sudo installer -pkg "$pkg" -target /
+  else
+    need_cmd installer
+    installer -pkg "$pkg" -target /
+  fi
+
+  rm -f "$pkg"
 }
 
 source_nix_profile() {
