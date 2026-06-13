@@ -40,6 +40,7 @@ fi
 
 for cask in \
   1password \
+  chatgpt \
   firefox \
   karabiner-elements \
   kitty \
