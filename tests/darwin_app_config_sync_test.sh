@@ -77,6 +77,14 @@ if ! grep -Fq 'AeroSpace.app/Contents/MacOS/AeroSpace' "${darwin_gui_module}"; t
 	echo "expected AeroSpace launchd agent to use the Nix package app binary" >&2
 	exit 1
 fi
+if grep -Fq "system.activationScripts.aerospaceConfig" "${darwin_gui_module}"; then
+	echo "expected AeroSpace config sync to use a nix-darwin activation hook that runs" >&2
+	exit 1
+fi
+if ! grep -Fq "system.activationScripts.postActivation.text" "${darwin_gui_module}"; then
+	echo "expected AeroSpace config sync to run during nix-darwin postActivation" >&2
+	exit 1
+fi
 
 if ! grep -Fq "start-at-login = false" "${repo_root}/config/aerospace/aerospace.toml"; then
 	echo "expected AeroSpace self-managed login startup to be disabled" >&2
