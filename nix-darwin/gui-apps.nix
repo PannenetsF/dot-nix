@@ -1,11 +1,11 @@
-{ pkgs, homeDir, username, ... }: {
+{ lib, pkgs, homeDir, username, ... }: {
   environment.systemPackages = with pkgs; [
     aerospace
     nerd-fonts.shure-tech-mono
     sketchybar-app-font
   ];
 
-  system.activationScripts.aerospaceConfig.text = ''
+  system.activationScripts.postActivation.text = lib.mkAfter ''
     echo >&2 "aerospace config..."
     install -d -o ${username} -g staff "${homeDir}/.config/aerospace"
     ln -sfn "${../config/aerospace/aerospace.toml}" "${homeDir}/.config/aerospace/aerospace.toml"
