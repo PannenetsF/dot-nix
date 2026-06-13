@@ -28,11 +28,11 @@
     # Default app handlers
     if command -v duti >/dev/null 2>&1; then
       echo >&2 "default applications..."
-      launchctl asuser "$(id -u -- ${username})" sudo --user=${username} -- duti -s org.mozilla.firefox http all || true
-      launchctl asuser "$(id -u -- ${username})" sudo --user=${username} -- duti -s org.mozilla.firefox https all || true
-      launchctl asuser "$(id -u -- ${username})" sudo --user=${username} -- duti -s com.apple.Preview public.pdf all || true
-      launchctl asuser "$(id -u -- ${username})" sudo --user=${username} -- duti -s com.microsoft.VSCode public.plain-text all || true
-      launchctl asuser "$(id -u -- ${username})" sudo --user=${username} -- duti -s com.microsoft.VSCode public.source-code all || true
+      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s org.mozilla.firefox http all || true
+      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s org.mozilla.firefox https all || true
+      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s com.apple.Preview public.pdf all || true
+      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s com.microsoft.VSCode public.plain-text all || true
+      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s com.microsoft.VSCode public.source-code all || true
     fi
   '';
 }
