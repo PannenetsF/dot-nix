@@ -9,10 +9,11 @@
     echo >&2 "aerospace config..."
     install -d -o ${username} -g staff "${homeDir}/.config/aerospace"
     ln -sfn "${../config/aerospace/aerospace.toml}" "${homeDir}/.config/aerospace/aerospace.toml"
-    ln -sfn "${../config/aerospace/aerospace.toml}" "${homeDir}/.aerospace.toml"
-    chown -h ${username}:staff "${homeDir}/.config/aerospace/aerospace.toml" "${homeDir}/.aerospace.toml" 2>/dev/null || true
+    rm -f "${homeDir}/.aerospace.toml"
+    chown -h ${username}:staff "${homeDir}/.config/aerospace/aerospace.toml" 2>/dev/null || true
 
     install -d -o ${username} -g staff "${homeDir}/Library/Logs/aerospace"
+    launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.aerospace" 2>/dev/null || true
   '';
 
   launchd.user.agents.aerospace.serviceConfig = {

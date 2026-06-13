@@ -49,7 +49,6 @@ assert_file_exists "config/aerospace/aerospace.toml"
 assert_file_exists "config/skhd/skhdrc"
 assert_file_exists "config/skhd/open_iterm2.sh"
 
-assert_module_mentions "$darwin_gui_module" ".aerospace.toml" "../config/aerospace/aerospace.toml"
 assert_module_mentions "$darwin_gui_module" ".config/aerospace/aerospace.toml" "../config/aerospace/aerospace.toml"
 assert_module_links "$darwin_module" ".skhdrc" "../config/skhd/skhdrc"
 assert_module_links "$darwin_module" ".config/skhd/open_iterm2.sh" "../config/skhd/open_iterm2.sh"
@@ -83,6 +82,14 @@ if grep -Fq "system.activationScripts.aerospaceConfig" "${darwin_gui_module}"; t
 fi
 if ! grep -Fq "system.activationScripts.postActivation.text" "${darwin_gui_module}"; then
 	echo "expected AeroSpace config sync to run during nix-darwin postActivation" >&2
+	exit 1
+fi
+if ! grep -Fq 'rm -f "${homeDir}/.aerospace.toml"' "${darwin_gui_module}"; then
+	echo "expected legacy ~/.aerospace.toml to be removed to avoid AeroSpace ambiguous config errors" >&2
+	exit 1
+fi
+if grep -F 'ln -sfn' "${darwin_gui_module}" | grep -Fq '.aerospace.toml'; then
+	echo "expected nix-darwin GUI module not to create legacy ~/.aerospace.toml" >&2
 	exit 1
 fi
 
