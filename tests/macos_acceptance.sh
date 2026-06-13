@@ -53,6 +53,15 @@ check_path() {
   fi
 }
 
+check_absent() {
+  local path="$1"
+  if [[ -e "$path" ]]; then
+    fail "unexpected path exists: $path"
+  else
+    pass "path absent: $path"
+  fi
+}
+
 check_default() {
   local domain="$1"
   local key="$2"
@@ -114,14 +123,14 @@ for app in \
 done
 
 check_path "${HOME}/.config/aerospace/aerospace.toml"
-check_path "${HOME}/.aerospace.toml"
+check_absent "${HOME}/.aerospace.toml"
 check_path "${HOME}/.config/skhd/skhdrc"
 check_path "${HOME}/.skhdrc"
 check_path "${HOME}/.config/skhd/open_iterm2.sh"
 check_path "${HOME}/.config/karabiner/karabiner.json"
 check_path "${HOME}/Pictures/Screenshots"
 
-if grep -Riq "emacs" "${HOME}/.config/aerospace" "${HOME}/.aerospace.toml" 2>/dev/null; then
+if grep -Riq "emacs" "${HOME}/.config/aerospace" 2>/dev/null; then
   fail "unexpected Emacs reference in AeroSpace config"
 else
   pass "AeroSpace config has no Emacs reference"
