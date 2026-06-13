@@ -67,6 +67,20 @@ check_default() {
   fi
 }
 
+check_plist_value() {
+  local plist="$1"
+  local key="$2"
+  local expected="$3"
+  local actual
+
+  actual="$(/usr/libexec/PlistBuddy -c "Print :${key}" "$plist" 2>/dev/null || true)"
+  if [[ "$actual" == "$expected" ]]; then
+    pass "plist ${plist} ${key} = ${expected}"
+  else
+    fail "plist ${plist} ${key}: expected '${expected}', got '${actual}'"
+  fi
+}
+
 check_launch_agent() {
   local label="$1"
   local uid
@@ -127,7 +141,7 @@ check_default -g KeyRepeat 2
 check_default com.apple.dock autohide 1
 check_default com.apple.finder ShowPathbar 1
 check_default com.raycast.macos raycastPreferredWindowMode compact
-check_default org.p0deje.Maccy historySize 200
+check_plist_value "${HOME}/Library/Preferences/org.p0deje.Maccy.plist" historySize 200
 
 if [[ "$failures" -gt 0 ]]; then
   echo "${failures} acceptance check(s) failed" >&2

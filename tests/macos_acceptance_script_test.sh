@@ -26,4 +26,9 @@ assert_contains "ApplePressAndHoldEnabled" "expected keyboard default check"
 assert_contains "com.apple.dock" "expected Dock default check"
 assert_contains "com.raycast.macos" "expected Raycast defaults check"
 assert_contains "org.p0deje.Maccy" "expected Maccy defaults check"
+assert_contains "/usr/libexec/PlistBuddy" "expected Maccy plist check to avoid hanging defaults reads"
+if grep -Fq "check_default org.p0deje.Maccy" "$script"; then
+  echo "expected Maccy acceptance check to avoid defaults(1), which can hang on this host" >&2
+  exit 1
+fi
 assert_contains "emacs" "expected Emacs absence check"
