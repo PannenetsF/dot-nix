@@ -16,6 +16,11 @@
   nix.enable = false;
   nixpkgs.config.allowUnfree = true;
 
+  # Home Manager owns the user zsh setup and oh-my-zsh already initializes
+  # completion. Avoid a second system-wide compinit from /etc/zshrc.
+  programs.zsh.enableCompletion = false;
+  programs.zsh.enableBashCompletion = false;
+
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
