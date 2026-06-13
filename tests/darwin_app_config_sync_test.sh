@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 darwin_module="${repo_root}/modules/darwin.nix"
+darwin_gui_module="${repo_root}/nix-darwin/gui-apps.nix"
 
 assert_file_exists() {
 	local path="$1"
@@ -13,16 +14,33 @@ assert_file_exists() {
 }
 
 assert_module_links() {
-	local target="$1"
-	local source="$2"
+	local module="$1"
+	local target="$2"
+	local source="$3"
 
-	if ! grep -Fq "\"${target}\"" "${darwin_module}"; then
-		echo "expected modules/darwin.nix to link ${target}" >&2
+	if ! grep -Fq "\"${target}\"" "${module}"; then
+		echo "expected ${module#${repo_root}/} to link ${target}" >&2
 		exit 1
 	fi
 
-	if ! grep -Fq "${source}" "${darwin_module}"; then
-		echo "expected modules/darwin.nix to source ${source}" >&2
+	if ! grep -Fq "${source}" "${module}"; then
+		echo "expected ${module#${repo_root}/} to source ${source}" >&2
+		exit 1
+	fi
+}
+
+assert_module_mentions() {
+	local module="$1"
+	local target="$2"
+	local source="$3"
+
+	if ! grep -Fq "${target}" "${module}"; then
+		echo "expected ${module#${repo_root}/} to mention ${target}" >&2
+		exit 1
+	fi
+
+	if ! grep -Fq "${source}" "${module}"; then
+		echo "expected ${module#${repo_root}/} to source ${source}" >&2
 		exit 1
 	fi
 }
@@ -31,10 +49,10 @@ assert_file_exists "config/aerospace/aerospace.toml"
 assert_file_exists "config/skhd/skhdrc"
 assert_file_exists "config/skhd/open_iterm2.sh"
 
-assert_module_links ".aerospace.toml" "../config/aerospace/aerospace.toml"
-assert_module_links ".config/aerospace/aerospace.toml" "../config/aerospace/aerospace.toml"
-assert_module_links ".skhdrc" "../config/skhd/skhdrc"
-assert_module_links ".config/skhd/open_iterm2.sh" "../config/skhd/open_iterm2.sh"
+assert_module_mentions "$darwin_gui_module" ".aerospace.toml" "../config/aerospace/aerospace.toml"
+assert_module_mentions "$darwin_gui_module" ".config/aerospace/aerospace.toml" "../config/aerospace/aerospace.toml"
+assert_module_links "$darwin_module" ".skhdrc" "../config/skhd/skhdrc"
+assert_module_links "$darwin_module" ".config/skhd/open_iterm2.sh" "../config/skhd/open_iterm2.sh"
 
 assert_module_contains() {
 	local pattern="$1"
@@ -46,12 +64,19 @@ assert_module_contains() {
 	fi
 }
 
-assert_module_contains "launchd.agents.aerospace" \
-	"expected AeroSpace to be managed by a launchd agent"
-assert_module_contains 'Program =' \
-	"expected AeroSpace launchd agent to define a program"
-assert_module_contains 'AeroSpace.app/Contents/MacOS/AeroSpace' \
-	"expected AeroSpace launchd agent to use the Nix package app binary"
+if grep -Fq "launchd.agents.aerospace" "${darwin_module}"; then
+	echo "expected AeroSpace LaunchAgent to move out of Home Manager darwin module" >&2
+	exit 1
+fi
+
+if ! grep -Fq "launchd.user.agents.aerospace" "${darwin_gui_module}"; then
+	echo "expected AeroSpace to be managed by nix-darwin launchd.user.agents" >&2
+	exit 1
+fi
+if ! grep -Fq 'AeroSpace.app/Contents/MacOS/AeroSpace' "${darwin_gui_module}"; then
+	echo "expected AeroSpace launchd agent to use the Nix package app binary" >&2
+	exit 1
+fi
 
 if ! grep -Fq "start-at-login = false" "${repo_root}/config/aerospace/aerospace.toml"; then
 	echo "expected AeroSpace self-managed login startup to be disabled" >&2

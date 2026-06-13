@@ -1,6 +1,7 @@
 { pkgsUnstable, system, username, homeDir, ... }: {
   imports = [
     ./app-defaults.nix
+    ./gui-apps.nix
     ./homebrew.nix
     ./macos-defaults.nix
   ];
