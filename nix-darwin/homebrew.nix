@@ -6,6 +6,7 @@
 
     casks = [
       "1password"
+      "chatgpt"
       "firefox"
       "font-sf-pro"
       "input-source-pro"
