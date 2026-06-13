@@ -15,6 +15,12 @@ if [[ "$bash_enabled" != "true" ]]; then
 	exit 1
 fi
 
+bash_completion="$(nix_eval .#homeConfigurations.aarch64-darwin.config.programs.bash.enableCompletion)"
+if [[ "$bash_completion" != "false" ]]; then
+	echo "expected bash completion to stay disabled for macOS /bin/bash 3.2 compatibility" >&2
+	exit 1
+fi
+
 profile_extra="$(nix_eval --raw .#homeConfigurations.aarch64-darwin.config.programs.bash.profileExtra)"
 if [[ "$profile_extra" != *"/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"* ]]; then
 	echo "expected bash profile to source the Nix daemon profile" >&2
