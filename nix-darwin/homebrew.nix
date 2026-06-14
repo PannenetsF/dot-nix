@@ -75,6 +75,8 @@ in {
             env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" tap dot-nix/local "${localTapPath}"
           launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
             env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" trust dot-nix/local --quiet
+          launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+            env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" untap whatpulse/whatpulse || true
         fi
   '';
 

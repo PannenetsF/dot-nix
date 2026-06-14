@@ -34,6 +34,7 @@ assert_contains "$darwin_config" "./gui-apps.nix" "expected nix-darwin to import
 assert_contains "$homebrew_module" "enable = true;" "expected nix-darwin homebrew module to be enabled"
 assert_contains "$homebrew_module" "\"dot-nix/local\"" "expected local tap to provide patched casks"
 assert_contains "$homebrew_module" "trust dot-nix/local" "expected local tap to be trusted before Homebrew bundle"
+assert_contains "$homebrew_module" "untap whatpulse/whatpulse" "expected stale upstream WhatPulse tap to be removed before Homebrew bundle"
 assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
 assert_not_contains "$homebrew_module" "\"whatpulse/whatpulse\"" "did not expect stale upstream WhatPulse tap"
 assert_not_contains "$homebrew_module" "trust --tap whatpulse/whatpulse" "did not expect trust bootstrap for stale upstream WhatPulse tap"
