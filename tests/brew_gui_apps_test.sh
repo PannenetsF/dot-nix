@@ -32,8 +32,10 @@ assert_not_contains() {
 assert_contains "$darwin_config" "./homebrew.nix" "expected nix-darwin to import homebrew.nix"
 assert_contains "$darwin_config" "./gui-apps.nix" "expected nix-darwin to import gui-apps.nix"
 assert_contains "$homebrew_module" "enable = true;" "expected nix-darwin homebrew module to be enabled"
-assert_contains "$homebrew_module" "\"whatpulse/whatpulse\"" "expected WhatPulse tap to be trusted for cask installation"
-assert_contains "$homebrew_module" "trust --tap whatpulse/whatpulse" "expected WhatPulse tap trust to be bootstrapped before Homebrew bundle"
+assert_contains "$homebrew_module" "\"dot-nix/local\"" "expected local tap to provide patched casks"
+assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
+assert_not_contains "$homebrew_module" "\"whatpulse/whatpulse\"" "did not expect stale upstream WhatPulse tap"
+assert_not_contains "$homebrew_module" "trust --tap whatpulse/whatpulse" "did not expect trust bootstrap for stale upstream WhatPulse tap"
 
 if [[ -e "$old_gui_module" ]]; then
   echo "expected modules/mac-gui-app.nix to be removed after moving GUI app management to nix-darwin" >&2
@@ -52,7 +54,8 @@ for cask in \
   raycast \
   snipaste \
   visual-studio-code \
-  whatpulse/whatpulse/whatpulse; do
+  dot-nix/local/whatpulse-chmodbpf \
+  dot-nix/local/whatpulse; do
   assert_contains "$homebrew_module" "\"$cask\"" "expected $cask to be installed as a Homebrew cask"
 done
 
