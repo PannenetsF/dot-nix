@@ -32,6 +32,8 @@ assert_not_contains() {
 assert_contains "$darwin_config" "./homebrew.nix" "expected nix-darwin to import homebrew.nix"
 assert_contains "$darwin_config" "./gui-apps.nix" "expected nix-darwin to import gui-apps.nix"
 assert_contains "$homebrew_module" "enable = true;" "expected nix-darwin homebrew module to be enabled"
+assert_contains "$homebrew_module" "\"whatpulse/whatpulse\"" "expected WhatPulse tap to be trusted for cask installation"
+assert_contains "$homebrew_module" "trust --tap whatpulse/whatpulse" "expected WhatPulse tap trust to be bootstrapped before Homebrew bundle"
 
 if [[ -e "$old_gui_module" ]]; then
   echo "expected modules/mac-gui-app.nix to be removed after moving GUI app management to nix-darwin" >&2
@@ -47,11 +49,12 @@ for cask in \
   maccy \
   raycast \
   snipaste \
-  visual-studio-code; do
+  visual-studio-code \
+  whatpulse/whatpulse/whatpulse; do
   assert_contains "$homebrew_module" "\"$cask\"" "expected $cask to be installed as a Homebrew cask"
 done
 
-for unwanted in brave inkscape soduto updf whatpulse demumble emacs; do
+for unwanted in brave inkscape soduto updf demumble emacs; do
   assert_not_contains "$homebrew_module" "$unwanted" "did not expect $unwanted in nix-darwin Homebrew config"
   assert_not_contains "$gui_module" "$unwanted" "did not expect $unwanted in Nix GUI packages"
 done
