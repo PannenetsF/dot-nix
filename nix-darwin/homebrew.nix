@@ -17,6 +17,7 @@ in {
     casks = [
       "1password"
       "chatgpt"
+      "cc-switch"
       "firefox"
       "font-sf-pro"
       "input-source-pro"
