@@ -359,6 +359,9 @@ append_env_if_set() {
 
 safe_git_pull() {
   local dir="$1"
+  if ! command -v git >/dev/null 2>&1; then
+    return
+  fi
   if [[ ! -d "$dir/.git" ]]; then
     return
   fi
@@ -371,6 +374,14 @@ safe_git_pull() {
   git -C "$dir" pull --rebase >&2 || true
 }
 
+early_pull_script_repo() {
+  local script_dir="$1"
+  if [[ -f "$script_dir/flake.nix" && -d "$script_dir/.git" ]] && command -v git >/dev/null 2>&1; then
+    safe_git_pull "$script_dir"
+    NIX_HM_EARLY_PULLED_DIR="$script_dir"
+  fi
+}
+
 resolve_nix_hm_dir() {
   local script_dir="$1"
   local nix_hm_dir
@@ -379,11 +390,15 @@ resolve_nix_hm_dir() {
   # `git clone ... ~/.config/nix-hm && bash ~/.config/nix-hm/init.sh`).
   if [[ -f "$script_dir/flake.nix" ]]; then
     nix_hm_dir="$script_dir"
-    safe_git_pull "$nix_hm_dir"
+    if [[ "${NIX_HM_EARLY_PULLED_DIR-}" != "$nix_hm_dir" ]]; then
+      safe_git_pull "$nix_hm_dir"
+    fi
   else
     nix_hm_dir="$HOME/.config/nix-hm"
     if [[ -d "$nix_hm_dir/.git" ]]; then
-      safe_git_pull "$nix_hm_dir"
+      if [[ "${NIX_HM_EARLY_PULLED_DIR-}" != "$nix_hm_dir" ]]; then
+        safe_git_pull "$nix_hm_dir"
+      fi
     else
       rm -rf "$nix_hm_dir"
       git clone https://github.com/PannenetsF/dot-nix.git "$nix_hm_dir" >&2
@@ -585,6 +600,7 @@ main() {
   done
 
   ensure_proxy_env
+  early_pull_script_repo "$script_dir"
 
   # 1. Install Nix when it is missing.
   install_nix_if_needed

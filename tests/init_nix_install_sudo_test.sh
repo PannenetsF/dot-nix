@@ -39,6 +39,9 @@ if [[ "$*" == *"diff --quiet"* ]]; then
   exit 0
 fi
 if [[ "$*" == *"pull --rebase"* ]]; then
+  printf 'git ' >>"$NIX_INSTALL_STUB_LOG"
+  printf '%q ' "$@" >>"$NIX_INSTALL_STUB_LOG"
+  printf '\n' >>"$NIX_INSTALL_STUB_LOG"
   exit 0
 fi
 exit 0
@@ -67,6 +70,9 @@ SH
 
 cat >"$tmp/bin/curl" <<'SH'
 #!/usr/bin/env bash
+printf 'curl ' >>"$NIX_INSTALL_STUB_LOG"
+printf '%q ' "$@" >>"$NIX_INSTALL_STUB_LOG"
+printf '\n' >>"$NIX_INSTALL_STUB_LOG"
 cat <<'INSTALLER'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -91,8 +97,15 @@ SH
 
 chmod +x "$tmp/bin"/*
 
+cat >"$tmp/brew-bootstrap" <<'SH'
+#!/usr/bin/env bash
+printf 'brew-bootstrap\n' >>"$NIX_INSTALL_STUB_LOG"
+SH
+chmod +x "$tmp/brew-bootstrap"
+
 NIX_INSTALL_STUB_LOG="$tmp/install.log" \
 NIX_STUB_BIN="$tmp/bin" \
+NIX_HM_BREW_BOOTSTRAP="$tmp/brew-bootstrap" \
 NIX_HM_ETC_DIR="$tmp/etc" \
 NIX_HM_DARWIN_NIX_INSTALLER=cli \
 PATH="$tmp/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
@@ -100,6 +113,14 @@ HOME="$tmp/home" \
 bash "$repo_root/init.sh" >/dev/null
 
 log="$(cat "$tmp/install.log")"
+git_pull_line="$(grep -n "git .* pull --rebase" "$tmp/install.log" | head -n 1 | cut -d: -f1)"
+curl_line="$(grep -n "^curl " "$tmp/install.log" | head -n 1 | cut -d: -f1)"
+if [[ -z "$git_pull_line" || -z "$curl_line" || "$git_pull_line" -ge "$curl_line" ]]; then
+  echo "expected init.sh to git pull the config repo before installing nix" >&2
+  printf '%s\n' "$log" >&2
+  exit 1
+fi
+
 if [[ "$log" != *"sudo -E sh -s -- install --no-confirm"* ]]; then
   echo "expected init.sh to run Determinate installer through sudo -E sh" >&2
   printf '%s\n' "$log" >&2
