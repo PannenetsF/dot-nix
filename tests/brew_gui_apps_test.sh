@@ -43,6 +43,7 @@ fi
 for cask in \
   1password \
   chatgpt \
+  cc-switch \
   firefox \
   karabiner-elements \
   kitty \
