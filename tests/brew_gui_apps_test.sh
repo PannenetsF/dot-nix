@@ -44,6 +44,7 @@ for cask in \
   1password \
   chatgpt \
   cc-switch \
+  codex \
   firefox \
   karabiner-elements \
   kitty \

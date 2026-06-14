@@ -18,6 +18,7 @@ in {
       "1password"
       "chatgpt"
       "cc-switch"
+      "codex"
       "firefox"
       "font-sf-pro"
       "input-source-pro"
