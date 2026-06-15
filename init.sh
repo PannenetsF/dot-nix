@@ -14,6 +14,37 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
+SUDO_KEEPALIVE_PID=""
+
+stop_sudo_keepalive() {
+  if [[ -n "${SUDO_KEEPALIVE_PID-}" ]]; then
+    kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    SUDO_KEEPALIVE_PID=""
+  fi
+}
+
+start_sudo_keepalive() {
+  if [[ "$(id -u)" -eq 0 || "${NIX_HM_SUDO_KEEPALIVE:-1}" == "0" ]]; then
+    return 0
+  fi
+
+  need_cmd sudo
+  echo "[init.sh] macOS activation needs administrator privileges; asking once now." >&2
+  sudo -v
+
+  (
+    while true; do
+      sleep 60
+      sudo -n -v 2>/dev/null || exit 0
+    done
+  ) &
+  SUDO_KEEPALIVE_PID="$!"
+  trap stop_sudo_keepalive EXIT
+  trap 'stop_sudo_keepalive; exit 130' INT
+  trap 'stop_sudo_keepalive; exit 143' TERM
+}
+
 is_darwin() {
   [[ "$(uname -s)" == "Darwin" ]]
 }
@@ -376,9 +407,20 @@ safe_git_pull() {
 
 early_pull_script_repo() {
   local script_dir="$1"
+  shift
+  local original_args=("$@")
+  local before_head
+  local after_head
+
   if [[ -f "$script_dir/flake.nix" && -d "$script_dir/.git" ]] && command -v git >/dev/null 2>&1; then
+    before_head="$(git -C "$script_dir" rev-parse HEAD 2>/dev/null || true)"
     safe_git_pull "$script_dir"
     NIX_HM_EARLY_PULLED_DIR="$script_dir"
+    after_head="$(git -C "$script_dir" rev-parse HEAD 2>/dev/null || true)"
+    if [[ -n "$before_head" && -n "$after_head" && "$before_head" != "$after_head" && "${NIX_HM_REEXECED_AFTER_PULL-}" != "1" ]]; then
+      echo "[init.sh] Repository updated; restarting with the new init.sh." >&2
+      exec env NIX_HM_REEXECED_AFTER_PULL=1 bash "$script_dir/init.sh" "${original_args[@]}"
+    fi
   fi
 }
 
@@ -571,6 +613,7 @@ main() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+  local original_args=("$@")
   local do_upgrade=false
   local use_host=false
   local use_home_manager=false
@@ -600,7 +643,11 @@ main() {
   done
 
   ensure_proxy_env
-  early_pull_script_repo "$script_dir"
+  early_pull_script_repo "$script_dir" "${original_args[@]}"
+
+  if is_darwin && [[ "$use_home_manager" != true ]]; then
+    start_sudo_keepalive
+  fi
 
   # 1. Install Nix when it is missing.
   install_nix_if_needed

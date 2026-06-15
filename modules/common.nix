@@ -1,5 +1,13 @@
-{ config, pkgs, pkgsUnstable, lib, ... }:
+{
+  config,
+  pkgs,
+  pkgsUnstable,
+  lib,
+  system ? pkgs.stdenv.hostPlatform.system,
+  ...
+}:
 let
+  isDarwin = lib.hasSuffix "-darwin" system;
   shellProfileInit = ''
     # Source Nix profile
     if [ -e "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
@@ -23,6 +31,19 @@ let
       *":$HOME/.nix-profile/bin:"*) ;;
       *) export PATH="$HOME/.nix-profile/bin:$PATH" ;;
     esac
+
+    ${lib.optionalString isDarwin ''
+      # Make Homebrew CLI tools available on macOS.
+      for _nix_hm_brew_path in /usr/local/sbin /usr/local/bin /opt/homebrew/sbin /opt/homebrew/bin; do
+        if [ -d "$_nix_hm_brew_path" ]; then
+          case ":$PATH:" in
+            *":$_nix_hm_brew_path:"*) ;;
+            *) export PATH="$_nix_hm_brew_path:$PATH" ;;
+          esac
+        fi
+      done
+      unset _nix_hm_brew_path
+    ''}
 
     # Source Home Manager session variables after profile PATH is available.
     _nix_hm_had_nounset=

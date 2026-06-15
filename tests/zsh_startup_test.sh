@@ -26,3 +26,13 @@ if [[ "$hm_completion" != "true" ]]; then
   echo "expected Home Manager user zsh completion to remain enabled" >&2
   exit 1
 fi
+
+zsh_init="$(nix_eval --raw .#homeConfigurations.aarch64-darwin.config.programs.zsh.initContent)"
+if [[ "$zsh_init" != *"/opt/homebrew/bin"* || "$zsh_init" != *"/opt/homebrew/sbin"* ]]; then
+  echo "expected zsh startup to include Apple Silicon Homebrew paths" >&2
+  exit 1
+fi
+if [[ "$zsh_init" != *"/usr/local/bin"* || "$zsh_init" != *"/usr/local/sbin"* ]]; then
+  echo "expected zsh startup to include Intel Homebrew paths" >&2
+  exit 1
+fi

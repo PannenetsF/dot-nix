@@ -40,6 +40,14 @@ if [[ "$profile_extra" != *"set +u"* || "$profile_extra" != *"set -u"* ]]; then
 	echo "expected bash profile to source Home Manager session variables with nounset disabled" >&2
 	exit 1
 fi
+if [[ "$profile_extra" != *"/opt/homebrew/bin"* || "$profile_extra" != *"/opt/homebrew/sbin"* ]]; then
+	echo "expected bash profile to include Apple Silicon Homebrew paths" >&2
+	exit 1
+fi
+if [[ "$profile_extra" != *"/usr/local/bin"* || "$profile_extra" != *"/usr/local/sbin"* ]]; then
+	echo "expected bash profile to include Intel Homebrew paths" >&2
+	exit 1
+fi
 
 bashrc_extra="$(nix_eval --raw .#homeConfigurations.aarch64-darwin.config.programs.bash.bashrcExtra)"
 if [[ "$bashrc_extra" != *"hm-session-vars.sh"* ]]; then
