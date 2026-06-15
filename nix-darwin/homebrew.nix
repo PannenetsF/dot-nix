@@ -83,6 +83,10 @@ in {
   homebrew = {
     enable = true;
 
+    caskArgs = {
+      no_quarantine = true;
+    };
+
     taps = [
       "daipeihust/tap"
       "gromgit/fuse"
