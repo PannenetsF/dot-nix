@@ -26,6 +26,7 @@
   },
   "which_key": {
     "enabled": true,
+    "delay_ms": 200,
   },
   "icon_theme": {
     "mode": "system",
