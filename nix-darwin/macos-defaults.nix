@@ -37,7 +37,7 @@
       mineffect = "scale";
       minimize-to-application = true;
       mru-spaces = false;
-      orientation = "bottom";
+      orientation = "left";
       show-recents = false;
       tilesize = 36;
     };

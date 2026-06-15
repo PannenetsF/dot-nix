@@ -20,6 +20,8 @@ assert_contains "$repo_root/nix-darwin/configuration.nix" "./app-defaults.nix" \
 
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "autohide = true;" \
   "expected Dock autohide to be configured"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "orientation = \"left\";" \
+  "expected Dock to be positioned on the left"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "_HIHideMenuBar = true;" \
   "expected menu bar autohide to be configured"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "KeyRepeat = 2;" \
