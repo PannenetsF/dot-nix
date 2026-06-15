@@ -28,6 +28,12 @@ assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "KeyRepeat = 2;" \
   "expected fast keyboard repeat to be configured"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "ApplePressAndHoldEnabled = false;" \
   "expected press-and-hold to be disabled for key repeat"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "Sound = true;" \
+  "expected Sound to be shown in the menu bar"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "NowPlaying = false;" \
+  "expected Now Playing/Music to be hidden from the menu bar"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "\"NSStatusItem VisibleCC Item-0\" = false;" \
+  "expected Spotlight to be hidden from the menu bar"
 
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.raycast.macos" \
   "expected Raycast preferences to be configured"
