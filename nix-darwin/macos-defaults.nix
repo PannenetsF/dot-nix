@@ -66,6 +66,22 @@
       disable-shadow = true;
     };
 
+    controlcenter = {
+      Sound = true;
+      NowPlaying = false;
+    };
+
+    CustomUserPreferences = {
+      "com.apple.controlcenter" = {
+        "NSStatusItem VisibleCC AudioVideoModule" = true;
+        "NSStatusItem VisibleCC NowPlaying" = false;
+      };
+
+      "com.apple.Spotlight" = {
+        "NSStatusItem VisibleCC Item-0" = false;
+      };
+    };
+
     loginwindow.GuestEnabled = false;
   };
 
