@@ -16,6 +16,11 @@
   nix.enable = false;
   nixpkgs.config.allowUnfree = true;
 
+  # Use Touch ID for sudo on local interactive sessions. Reattach keeps the
+  # prompt working from terminal multiplexers such as tmux and screen.
+  security.pam.services.sudo_local.touchIdAuth = true;
+  security.pam.services.sudo_local.reattach = true;
+
   # Home Manager owns the user zsh setup and oh-my-zsh already initializes
   # completion. Avoid a second system-wide compinit from /etc/zshrc.
   programs.zsh.enableCompletion = false;
