@@ -179,7 +179,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - 通过 `sync_config_repo` 安全同步 `https://github.com/PannenetsF/dot-nvim.git`
   到 `$HOME/.config/nvim`。目标不存在就 clone；存在但不是 git repo、dirty、
   staged、untracked 时跳过 pull。
-- 首次运行时安装 `ruff`、`ty`、`jedi-language-server`、`pynvim`，然后运行
+- 首次运行时如果当前 profile 未提供 `ruff`、`ty`、`jedi-language-server`、
+  `pynvim`，会通过 pip fallback 安装它们；随后运行
   `nvim --headless -c 'Lazy' -c 'qa'` 和 `TSUpdateSync`。
 - 锁文件为 `$HOME/pf-init-macos`。
 - `pip3` 不存在时 fallback 到 `python3 -m pip`。
@@ -188,7 +189,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `install-linux-server.sh`
 
 - 同样安全同步 `dot-nvim`。
-- 首次运行安装 Python/Nvim 依赖并初始化 Neovim。
+- 首次运行在当前 profile 未提供 Python/Nvim 依赖时通过 pip fallback 安装，
+  并初始化 Neovim。
 - 锁文件为 `$HOME/pf-init`。
 - Linux 脚本当前默认追加 `--break-system-packages`。
 

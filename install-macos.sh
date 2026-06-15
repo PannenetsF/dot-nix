@@ -43,11 +43,21 @@ sync_config_repo() {
 
 sync_config_repo "nvim config" "https://github.com/PannenetsF/dot-nvim.git" "$HOME/.config/nvim"
 
-if [ -f "$FILE_LOCK" ]; then
-  echo "All py packages are installed yet."
-else
-  pwd
-  env | grep PATH
+python_tools_available() {
+  command -v ruff >/dev/null 2>&1 &&
+    command -v ty >/dev/null 2>&1 &&
+    command -v jedi-language-server >/dev/null 2>&1 &&
+    python3 - <<'PY' >/dev/null 2>&1
+import pynvim
+PY
+}
+
+install_python_tools() {
+  if python_tools_available; then
+    echo "[install-macos.sh] Python/Nvim tools are already available from the profile."
+    return
+  fi
+
   if command -v pip3 >/dev/null 2>&1; then
     PIP_CMD=(pip3)
   else
@@ -59,6 +69,14 @@ else
   fi
 
   "${PIP_CMD[@]}" install ruff ty jedi-language-server pynvim "${PIP_EXTRA[@]}"
+}
+
+if [ -f "$FILE_LOCK" ]; then
+  echo "All py packages are installed yet."
+else
+  pwd
+  env | grep PATH
+  install_python_tools
   nvim --headless -c 'Lazy' -c 'qa'
   nvim --headless -c 'TSUpdateSync' -c 'qa'
   echo hello >> "$FILE_LOCK"
