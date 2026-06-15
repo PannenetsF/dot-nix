@@ -223,6 +223,8 @@ darwin_log="$(run_init_for Darwin arm64 501 1)"
 darwin_bootstrap_log="$(run_init_for Darwin arm64 501 0 0)"
 darwin_existing_profile_log="$(run_init_for Darwin arm64 501 0 0 1)"
 darwin_sudo_env_line="$(printf '%s\n' "$darwin_log" | awk '/^sudo env / { print; exit }')"
+darwin_sudo_validate_line="$(printf '%s\n' "$darwin_log" | awk '/^sudo -v / { print NR; exit }')"
+darwin_sudo_env_line_no="$(printf '%s\n' "$darwin_log" | awk '/^sudo env / { print NR; exit }')"
 darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
   for (i = 1; i <= NF; i++) {
     if ($i ~ /^HOME=/) {
@@ -234,6 +236,11 @@ darwin_root_home="$(printf '%s\n' "$darwin_sudo_env_line" | awk '{
 }')"
 if [[ "$darwin_log" != *"sudo env"* ]]; then
   echo "expected Darwin init to run darwin-rebuild through sudo env" >&2
+  echo "$darwin_log" >&2
+  exit 1
+fi
+if [[ -z "$darwin_sudo_validate_line" || -z "$darwin_sudo_env_line_no" || "$darwin_sudo_validate_line" -ge "$darwin_sudo_env_line_no" ]]; then
+  echo "expected Darwin init to validate sudo once before darwin-rebuild" >&2
   echo "$darwin_log" >&2
   exit 1
 fi
