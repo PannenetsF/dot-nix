@@ -83,10 +83,6 @@ in {
   homebrew = {
     enable = true;
 
-    caskArgs = {
-      no_quarantine = true;
-    };
-
     taps = [
       "daipeihust/tap"
       "gromgit/fuse"
@@ -102,6 +98,8 @@ in {
       "cc-switch"
       "codex"
       "firefox"
+      "font-ubuntu-mono-nerd-font"
+      "font-ubuntu-nerd-font"
       "font-sf-pro"
       "input-source-pro"
       "karabiner-elements"
@@ -110,6 +108,7 @@ in {
       "macfuse"
       "maccy"
       "monitorcontrol"
+      "neovide-app"
       "neteasemusic"
       "nutstore"
       "nvidia-nsight-compute"

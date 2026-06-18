@@ -53,6 +53,11 @@
       force = true;
     };
 
+    ".config/neovide/config.toml" = {
+      source = ../config/neovide/config.toml;
+      force = true;
+    };
+
     ".config/zed/settings.json" = {
       source = ../config/zed/settings.json;
       force = true;
