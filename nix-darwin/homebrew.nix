@@ -107,6 +107,7 @@ in {
       "kitty"
       "macfuse"
       "maccy"
+      "microsoft-edge"
       "monitorcontrol"
       "neovide-app"
       "neteasemusic"

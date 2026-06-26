@@ -53,6 +53,7 @@ for cask in \
   karabiner-elements \
   kitty \
   maccy \
+  microsoft-edge \
   raycast \
   snipaste \
   visual-studio-code \
