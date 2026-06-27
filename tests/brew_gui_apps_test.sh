@@ -33,7 +33,9 @@ assert_contains "$darwin_config" "./homebrew.nix" "expected nix-darwin to import
 assert_contains "$darwin_config" "./gui-apps.nix" "expected nix-darwin to import gui-apps.nix"
 assert_contains "$homebrew_module" "enable = true;" "expected nix-darwin homebrew module to be enabled"
 assert_contains "$homebrew_module" "\"dot-nix/local\"" "expected local tap to provide patched casks"
+assert_contains "$homebrew_module" "\"nikitabobko/tap\"" "expected AeroSpace tap to be declared for Homebrew"
 assert_contains "$homebrew_module" "trust dot-nix/local" "expected local tap to be trusted before Homebrew bundle"
+assert_contains "$homebrew_module" "trust nikitabobko/tap" "expected AeroSpace tap to be trusted before Homebrew bundle"
 assert_contains "$homebrew_module" "untap whatpulse/whatpulse" "expected stale upstream WhatPulse tap to be removed before Homebrew bundle"
 assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
 assert_not_contains "$homebrew_module" "\"whatpulse/whatpulse\"" "did not expect stale upstream WhatPulse tap"
@@ -46,6 +48,7 @@ fi
 
 for cask in \
   1password \
+  nikitabobko/tap/aerospace \
   chatgpt \
   cc-switch \
   codex \
@@ -72,5 +75,6 @@ for moved in _1password-gui karabiner-elements kitty maccy raycast vscode; do
 done
 
 assert_contains "$gui_module" "aerospace" "expected AeroSpace to be managed from nix-darwin GUI module"
+assert_not_contains "$gui_module" "    aerospace" "expected AeroSpace app to be installed by Homebrew, not Nix packages"
 assert_contains "$gui_module" "nerd-fonts.shure-tech-mono" "expected desktop fonts to move into nix-darwin GUI module"
 assert_contains "$gui_module" "sketchybar-app-font" "expected sketchybar app font to move into nix-darwin GUI module"

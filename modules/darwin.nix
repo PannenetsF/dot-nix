@@ -13,6 +13,12 @@
       force = true;
     };
 
+    ".config/skhd/toggle_kitty_dropdown.sh" = {
+      source = ../config/skhd/toggle_kitty_dropdown.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/karabiner/karabiner.json" = {
       source = ../config/karabiner/karabiner.json;
       force = true;

@@ -29,5 +29,7 @@ fi
 "$BREW_BIN" update --quiet || true
 "$BREW_BIN" tap daipeihust/tap || true
 "$BREW_BIN" tap gromgit/fuse || true
+"$BREW_BIN" tap nikitabobko/tap || true
 "$BREW_BIN" trust --formula daipeihust/tap/im-select || true
 "$BREW_BIN" trust --formula gromgit/fuse/sshfs-mac || true
+"$BREW_BIN" trust nikitabobko/tap || true

@@ -76,6 +76,10 @@ in {
           launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
             env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" trust dot-nix/local --quiet
           launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+            env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" tap nikitabobko/tap
+          launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+            env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" trust nikitabobko/tap --quiet
+          launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
             env HOMEBREW_NO_AUTO_UPDATE=1 "${brewBin}" untap whatpulse/whatpulse || true
         fi
   '';
@@ -86,6 +90,7 @@ in {
     taps = [
       "daipeihust/tap"
       "gromgit/fuse"
+      "nikitabobko/tap"
       {
         name = "dot-nix/local";
         clone_target = localTapPath;
@@ -94,6 +99,7 @@ in {
 
     casks = [
       "1password"
+      "nikitabobko/tap/aerospace"
       "chatgpt"
       "cc-switch"
       "codex"
