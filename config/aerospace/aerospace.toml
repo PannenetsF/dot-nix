@@ -2,6 +2,28 @@ after-login-command = []
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
+exec-on-workspace-change = ['/bin/bash', '-lc', '''
+main_monitor_id="$(
+    aerospace list-monitors --format "%{monitor-id}|%{monitor-is-main}" \
+        | awk -F'|' '$2 == "true" { print $1; exit }'
+)"
+[ -n "$main_monitor_id" ] || exit 0
+
+workspace="$(
+    aerospace list-workspaces --monitor "$main_monitor_id" --visible --format "%{workspace}" \
+        | head -n 1
+)"
+[ -n "$workspace" ] || exit 0
+
+aerospace list-windows --all --app-bundle-id com.bytedance.flux.desktop --format "%{window-id}" \
+    | while IFS= read -r window_id; do
+        [ -n "$window_id" ] || continue
+        aerospace layout --window-id "$window_id" floating >/dev/null 2>&1 || true
+        aerospace move-node-to-workspace --window-id "$window_id" "$workspace" >/dev/null 2>&1 || true
+        aerospace move-node-to-monitor --window-id "$window_id" main >/dev/null 2>&1 || true
+    done
+''']
+
 start-at-login = false
 
 enable-normalization-flatten-containers = false
@@ -15,15 +37,18 @@ default-root-container-orientation = 'auto'
 
 key-mapping.preset = 'qwerty'
 
+# BEGIN AUTO-GENERATED WORKSPACE ASSIGNMENTS
+# Replaced in ~/.config/aerospace/aerospace.toml by render-config.py.
 [workspace-to-monitor-force-assignment]
 1 = 'main'
 2 = 'main'
 3 = 'main'
 4 = 'main'
-5 = [3, 'secondary']
-6 = [3, 'secondary']
-7 = [3, 'secondary']
-8 = [2, 'secondary']
+5 = 'secondary'
+6 = 'secondary'
+7 = 'built-in'
+8 = 'built-in'
+# END AUTO-GENERATED WORKSPACE ASSIGNMENTS
 
 [gaps]
 inner.horizontal = 1
@@ -109,3 +134,7 @@ run = ['move-node-to-workspace 5']
 [[on-window-detected]]
 if.window-title-regex-substring = 'Finder'
 run = ['move-node-to-workspace 5']
+
+[[on-window-detected]]
+if.app-id = 'com.bytedance.flux.desktop'
+run = ['layout floating', 'move-node-to-monitor main']

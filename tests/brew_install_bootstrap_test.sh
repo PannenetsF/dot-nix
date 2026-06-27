@@ -22,8 +22,10 @@ for expected in \
   "update --quiet" \
   "tap daipeihust/tap" \
   "tap gromgit/fuse" \
+  "tap nikitabobko/tap" \
   "trust --formula daipeihust/tap/im-select" \
-  "trust --formula gromgit/fuse/sshfs-mac"; do
+  "trust --formula gromgit/fuse/sshfs-mac" \
+  "trust nikitabobko/tap"; do
   if [[ "$brew_log" != *"$expected"* ]]; then
     echo "expected brew/install.sh to run: $expected" >&2
     echo "$brew_log" >&2
