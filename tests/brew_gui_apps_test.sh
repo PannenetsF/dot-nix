@@ -51,7 +51,10 @@ for cask in \
   nikitabobko/tap/aerospace \
   chatgpt \
   cc-switch \
+  claude \
+  claude-code \
   codex \
+  codex-app \
   firefox \
   karabiner-elements \
   kitty \
