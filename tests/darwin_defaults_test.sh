@@ -37,6 +37,10 @@ assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "\"NSStatusItem Visib
 
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.raycast.macos" \
   "expected Raycast preferences to be configured"
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "alwaysAllowCommandDeeplinking" \
+  "expected Raycast command deeplinking preference to be configured"
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "permissions.folders.read:\${homeDir}/Downloads" \
+  "expected Raycast folder permission preference to be derived from the managed home directory"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "org.p0deje.Maccy.plist" \
   "expected Maccy preferences to be configured"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.Snipaste" \

@@ -14,6 +14,13 @@
     write_user_default com.raycast.macos raycastShouldFollowSystemAppearance -bool true
     write_user_default com.raycast.macos showGettingStartedLink -bool false
     write_user_default com.raycast.macos useHyperKeyIcon -bool false
+    write_user_default com.raycast.macos onboardingSkipped -bool true
+    write_user_default com.raycast.macos onboarding_showTasksProgress -bool true
+    write_user_default com.raycast.macos alwaysAllowCommandDeeplinking -dict-add builtin_command_createQuicklink -bool true
+    write_user_default com.raycast.macos "permissions.folders.read:${homeDir}/Desktop" -bool true
+    write_user_default com.raycast.macos "permissions.folders.read:${homeDir}/Documents" -bool true
+    write_user_default com.raycast.macos "permissions.folders.read:${homeDir}/Downloads" -bool true
+    write_user_default com.raycast.macos "permissions.folders.read:cloudStorage" -bool true
 
     maccy_plist="${homeDir}/Library/Preferences/org.p0deje.Maccy.plist"
     install -d -o ${username} -g staff "${homeDir}/Library/Preferences"
