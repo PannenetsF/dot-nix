@@ -1,5 +1,7 @@
 after-login-command = []
 
+exec-on-workspace-change = ['/bin/sh', '-c', 'printf . > /tmp/aerospace-workspace-indicator-dirty']
+
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
 start-at-login = false
