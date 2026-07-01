@@ -164,7 +164,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `~/.config/aerospace/aerospace.toml`，删除旧的 `~/.aerospace.toml`，并用
   `launchd.user.agents.aerospace` 启动 AeroSpace。
 - AeroSpace 启动包装脚本会在启动前重新生成配置。workspace 分配规则是：
-  `1-4` 固定到 `main`，`5-8` 按“非主屏外接屏从左到右，内置屏最后”分配。
+  `1-10` 按屏幕均分，目标顺序为 `main`、非主屏外接屏从左到右、
+  内置屏最后。
 
 `nix-darwin/macos-defaults.nix`
 

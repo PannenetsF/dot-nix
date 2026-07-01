@@ -1,4 +1,4 @@
 cmd + shift - return : open -n -a "Google Chrome"
 
 # Cmd+' toggles the kitty quick access terminal.
-cmd - 0x27 : "$HOME/.config/skhd/toggle_kitty_dropdown.sh"
+cmd - 0x27 : /bin/bash "$HOME/.config/skhd/toggle_kitty_dropdown.sh"
