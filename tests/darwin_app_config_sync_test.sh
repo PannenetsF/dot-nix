@@ -80,6 +80,11 @@ if ! grep -Fq '"$app_path/Contents/MacOS/AeroSpace"' "${darwin_gui_module}"; the
 	echo "expected AeroSpace launchd agent to execute the stable app bundle binary path" >&2
 	exit 1
 fi
+if ! grep -Fq "pgrep -x AeroSpace" "${darwin_gui_module}" ||
+	! grep -Fq 'kill "$pid"' "${darwin_gui_module}"; then
+	echo "expected AeroSpace launch wrapper to clean up duplicate instances before launch" >&2
+	exit 1
+fi
 if ! grep -Fq '/Applications/AeroSpace.app' "${darwin_gui_module}"; then
 	echo "expected AeroSpace launchd agent to use the Homebrew-installed app path" >&2
 	exit 1
