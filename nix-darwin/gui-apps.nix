@@ -1,6 +1,8 @@
 { lib, pkgs, homeDir, username, ... }:
 let
   aerospaceConfigTemplate = ../config/aerospace/aerospace.toml;
+  aerospaceIndicatorStart = ../config/aerospace/start_workspace_indicator.sh;
+  aerospaceIndicatorSource = ../config/aerospace/workspace_indicator.swift;
   renderAerospaceConfig = pkgs.writeShellScript "render-aerospace-config" ''
     exec ${pkgs.python3}/bin/python3 ${
       ../config/aerospace/render-config.py
@@ -29,6 +31,9 @@ let
 
     exec "$app_path/Contents/MacOS/AeroSpace"
   '';
+  startAerospaceWorkspaceIndicator = pkgs.writeShellScript "start-aerospace-workspace-indicator" ''
+    exec "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
+  '';
 in {
   environment.systemPackages = with pkgs; [
     nerd-fonts.shure-tech-mono
@@ -41,11 +46,28 @@ in {
     if ! "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "${homeDir}/.config/aerospace/aerospace.toml"; then
       cp "${aerospaceConfigTemplate}" "${homeDir}/.config/aerospace/aerospace.toml"
     fi
+    install -m 0755 "${aerospaceIndicatorStart}" "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
+    install -m 0644 "${aerospaceIndicatorSource}" "${homeDir}/.config/aerospace/workspace_indicator.swift"
+    chown ${username}:staff \
+      "${homeDir}/.config/aerospace/start_workspace_indicator.sh" \
+      "${homeDir}/.config/aerospace/workspace_indicator.swift" 2>/dev/null || true
+    install -d -o ${username} -g staff "${homeDir}/Library/Caches/dot-nix"
+    if [ -x /usr/bin/swiftc ]; then
+      launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+        /usr/bin/swiftc "${homeDir}/.config/aerospace/workspace_indicator.swift" \
+        -o "${homeDir}/Library/Caches/dot-nix/aerospace-workspace-indicator" 2>/dev/null || true
+    fi
+    rm -f \
+      "${homeDir}/.config/aerospace/show_workspace_hud.sh" \
+      "${homeDir}/.config/aerospace/show_workspace_hud.swift" \
+      "${homeDir}/.config/aerospace/update_workspace_indicator.sh" \
+      "${homeDir}/Library/Caches/dot-nix/aerospace-workspace-hud"
     rm -f "${homeDir}/.aerospace.toml"
     chown ${username}:staff "${homeDir}/.config/aerospace/aerospace.toml" 2>/dev/null || true
 
     install -d -o ${username} -g staff "${homeDir}/Library/Logs/aerospace"
     launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.aerospace" 2>/dev/null || true
+    launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.aerospace-workspace-indicator" 2>/dev/null || true
   '';
 
   launchd.user.agents.aerospace.serviceConfig = {
@@ -55,5 +77,14 @@ in {
     RunAtLoad = true;
     StandardOutPath = "${homeDir}/Library/Logs/aerospace/aerospace.out.log";
     StandardErrorPath = "${homeDir}/Library/Logs/aerospace/aerospace.err.log";
+  };
+
+  launchd.user.agents.aerospaceWorkspaceIndicator.serviceConfig = {
+    Label = "org.nix-community.home.aerospace-workspace-indicator";
+    Program = "${startAerospaceWorkspaceIndicator}";
+    KeepAlive = { SuccessfulExit = false; };
+    RunAtLoad = true;
+    StandardOutPath = "${homeDir}/Library/Logs/aerospace/workspace-indicator.out.log";
+    StandardErrorPath = "${homeDir}/Library/Logs/aerospace/workspace-indicator.err.log";
   };
 }
