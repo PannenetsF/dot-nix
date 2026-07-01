@@ -23,6 +23,10 @@ let
       exit 1
     fi
 
+    for pid in $(pgrep -x AeroSpace 2>/dev/null || true); do
+      kill "$pid" 2>/dev/null || true
+    done
+
     exec "$app_path/Contents/MacOS/AeroSpace"
   '';
 in {
