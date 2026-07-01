@@ -10,8 +10,7 @@ from ctypes import POINTER, byref, c_bool, c_double, c_int32, c_uint32
 
 BEGIN_MARKER = "# BEGIN AUTO-GENERATED WORKSPACE ASSIGNMENTS"
 END_MARKER = "# END AUTO-GENERATED WORKSPACE ASSIGNMENTS"
-MAIN_WORKSPACES = ("1", "2", "3", "4")
-SIDE_WORKSPACES = ("5", "6", "7", "8")
+WORKSPACES = tuple(str(index) for index in range(1, 11))
 
 
 class CGPoint(ctypes.Structure):
@@ -102,9 +101,9 @@ def load_displays():
     return load_displays_from_env() or load_displays_from_coregraphics() or []
 
 
-def side_targets(displays):
+def assignment_targets(displays):
     if not displays:
-        return []
+        return ["main"]
 
     external_targets = []
     built_in_target = None
@@ -116,15 +115,15 @@ def side_targets(displays):
             continue
         external_targets.append(display["seq"])
 
-    targets = external_targets
+    targets = ["main", *external_targets]
     if built_in_target:
         targets.append(built_in_target)
 
-    if len(targets) > len(SIDE_WORKSPACES):
+    if len(targets) > len(WORKSPACES):
         if built_in_target:
-            targets = targets[: len(SIDE_WORKSPACES) - 1] + [built_in_target]
+            targets = targets[: len(WORKSPACES) - 1] + [built_in_target]
         else:
-            targets = targets[: len(SIDE_WORKSPACES)]
+            targets = targets[: len(WORKSPACES)]
     return targets
 
 
@@ -146,8 +145,7 @@ def distribute(workspaces, targets):
 
 
 def generate_assignment_block(displays):
-    assignments = [(workspace, "main") for workspace in MAIN_WORKSPACES]
-    assignments.extend(distribute(SIDE_WORKSPACES, side_targets(displays)))
+    assignments = distribute(WORKSPACES, assignment_targets(displays))
 
     lines = [
         BEGIN_MARKER,
