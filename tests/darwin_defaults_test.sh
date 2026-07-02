@@ -20,8 +20,8 @@ assert_contains "$repo_root/nix-darwin/configuration.nix" "./app-defaults.nix" \
 
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "autohide = true;" \
   "expected Dock autohide to be configured"
-assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "orientation = \"left\";" \
-  "expected Dock to be positioned on the left"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "orientation = \"bottom\";" \
+  "expected Dock to be positioned on the bottom for AeroSpace hidden-window parking"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "_HIHideMenuBar = true;" \
   "expected menu bar autohide to be configured"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "KeyRepeat = 2;" \
@@ -34,6 +34,8 @@ assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "NowPlaying = false;"
   "expected Now Playing/Music to be hidden from the menu bar"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "\"NSStatusItem VisibleCC Item-0\" = false;" \
   "expected Spotlight to be hidden from the menu bar"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "spans-displays = true;" \
+  "expected Displays have separate Spaces to be disabled for AeroSpace stability"
 
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.raycast.macos" \
   "expected Raycast preferences to be configured"

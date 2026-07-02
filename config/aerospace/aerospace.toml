@@ -1,3 +1,5 @@
+config-version = 2
+
 after-login-command = []
 
 exec-on-workspace-change = ['/bin/sh', '-c', 'printf . > /tmp/aerospace-workspace-indicator-dirty']
@@ -5,6 +7,8 @@ exec-on-workspace-change = ['/bin/sh', '-c', 'printf . > /tmp/aerospace-workspac
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
 start-at-login = false
+automatically-unhide-macos-hidden-apps = false
+persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
 enable-normalization-flatten-containers = false
 enable-normalization-opposite-orientation-for-nested-containers = false
