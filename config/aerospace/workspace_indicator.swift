@@ -19,6 +19,54 @@ struct MonitorState {
     let appEntries: [String]
 }
 
+final class WorkspaceChipView: NSView {
+    private let workspace: String
+    private let selected: Bool
+
+    init(workspace: String, selected: Bool) {
+        self.workspace = workspace
+        self.selected = selected
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: workspace.count > 1 ? 30 : 24),
+            heightAnchor.constraint(equalToConstant: 24),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        if selected {
+            NSColor.white.withAlphaComponent(0.16).setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8).fill()
+        }
+
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: selected ? .semibold : .medium)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white.withAlphaComponent(selected ? 0.95 : 0.44),
+            .paragraphStyle: paragraph,
+        ]
+        let attributed = NSAttributedString(string: workspace, attributes: attributes)
+        let textSize = attributed.size()
+        let textRect = NSRect(
+            x: bounds.midX - textSize.width / 2,
+            y: bounds.midY - textSize.height / 2 - 0.5,
+            width: textSize.width,
+            height: textSize.height
+        )
+        attributed.draw(in: textRect)
+    }
+}
+
 final class IndicatorView: NSView {
     private let workspaceStack = NSStackView()
     private let iconStack = NSStackView()
@@ -27,29 +75,29 @@ final class IndicatorView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.black.withAlphaComponent(0.34).cgColor
-        layer?.cornerRadius = 13
+        layer?.backgroundColor = NSColor.black.withAlphaComponent(0.16).cgColor
+        layer?.cornerRadius = 10
         layer?.borderWidth = 1
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        layer?.borderColor = NSColor.white.withAlphaComponent(0.07).cgColor
 
         workspaceStack.orientation = .horizontal
         workspaceStack.alignment = .centerY
-        workspaceStack.spacing = 5
+        workspaceStack.spacing = 2
         workspaceStack.translatesAutoresizingMaskIntoConstraints = false
 
         iconStack.orientation = .horizontal
         iconStack.alignment = .centerY
-        iconStack.spacing = 5
+        iconStack.spacing = 2
         iconStack.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(workspaceStack)
         addSubview(iconStack)
 
         NSLayoutConstraint.activate([
-            workspaceStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            workspaceStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             workspaceStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconStack.leadingAnchor.constraint(equalTo: workspaceStack.trailingAnchor, constant: 10),
-            iconStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -10),
+            iconStack.leadingAnchor.constraint(equalTo: workspaceStack.trailingAnchor, constant: 5),
+            iconStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6),
             iconStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
@@ -78,21 +126,7 @@ final class IndicatorView: NSView {
     }
 
     private func workspaceView(_ workspace: String, selected: Bool) -> NSView {
-        let label = NSTextField(labelWithString: workspace)
-        label.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: selected ? .semibold : .medium)
-        label.textColor = NSColor.white.withAlphaComponent(selected ? 0.95 : 0.44)
-        label.alignment = .center
-        label.wantsLayer = true
-        label.layer?.cornerRadius = 8
-        label.layer?.backgroundColor = selected
-            ? NSColor.white.withAlphaComponent(0.18).cgColor
-            : NSColor.clear.cgColor
-        label.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            label.widthAnchor.constraint(equalToConstant: workspace.count > 1 ? 30 : 24),
-            label.heightAnchor.constraint(equalToConstant: 24),
-        ])
-        return label
+        WorkspaceChipView(workspace: workspace, selected: selected)
     }
 
     private func iconView(for entry: String) -> NSView {
@@ -140,9 +174,56 @@ final class IndicatorView: NSView {
     }
 }
 
+final class CenterHudView: NSView {
+    var workspace = "" {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.withAlphaComponent(0.30).cgColor
+        layer?.cornerRadius = 20
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let font = NSFont.monospacedDigitSystemFont(ofSize: workspace.count > 1 ? 42 : 46, weight: .semibold)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.92),
+            .paragraphStyle: paragraph,
+        ]
+        let attributed = NSAttributedString(string: workspace, attributes: attributes)
+        let textSize = attributed.size()
+        let textRect = NSRect(
+            x: bounds.midX - textSize.width / 2,
+            y: bounds.midY - textSize.height / 2 - 1,
+            width: textSize.width,
+            height: textSize.height
+        )
+        attributed.draw(in: textRect)
+    }
+}
+
 final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var panelsByScreenName: [String: NSPanel] = [:]
     private var viewsByScreenName: [String: IndicatorView] = [:]
+    private var centerPanelsByScreenName: [String: NSPanel] = [:]
+    private var centerViewsByScreenName: [String: CenterHudView] = [:]
+    private var centerHideWorkItemsByScreenName: [String: DispatchWorkItem] = [:]
+    private var visibleWorkspaceByScreenName: [String: String] = [:]
     private var dirtyWatcher: DispatchSourceFileSystemObject?
     private var dirtyFileDescriptor: CInt = -1
     private var queryInFlight = false
@@ -381,6 +462,12 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             guard let monitorState = statesByMonitor[screen.localizedName] else {
                 continue
             }
+            if let previousWorkspace = visibleWorkspaceByScreenName[screen.localizedName],
+               previousWorkspace != monitorState.workspace {
+                showCenterHud(workspace: monitorState.workspace, on: screen)
+            }
+            visibleWorkspaceByScreenName[screen.localizedName] = monitorState.workspace
+
             let panel = panel(for: screen)
             viewsByScreenName[screen.localizedName]?.update(
                 workspace: monitorState.workspace,
@@ -402,7 +489,7 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             return panel
         }
 
-        let size = NSSize(width: 190, height: 38)
+        let size = NSSize(width: 170, height: 32)
         let view = IndicatorView(frame: NSRect(origin: .zero, size: size))
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
@@ -428,14 +515,79 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         let iconCount = min(max(appCount, 0), 8)
         let workspaceWidth = workspaces.reduce(CGFloat(0)) { total, workspace in
             total + CGFloat(workspace.count > 1 ? 30 : 24)
-        } + CGFloat(max(workspaces.count - 1, 0) * 5)
-        let iconWidth = CGFloat(iconCount * 25)
-        let width = 20 + workspaceWidth + (iconCount > 0 ? 10 : 0) + iconWidth
-        let size = NSSize(width: max(width, 86), height: 38)
+        } + CGFloat(max(workspaces.count - 1, 0) * 2)
+        let iconWidth = CGFloat(iconCount * 20 + max(iconCount - 1, 0) * 2)
+        let width = 12 + workspaceWidth + (iconCount > 0 ? 5 : 0) + iconWidth
+        let size = NSSize(width: max(width, 76), height: 32)
         let margin: CGFloat = 12
         let origin = NSPoint(
             x: frame.minX + margin,
             y: frame.maxY - size.height - margin
+        )
+        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+    }
+
+    private func showCenterHud(workspace: String, on screen: NSScreen) {
+        let panel = centerPanel(for: screen)
+        centerViewsByScreenName[screen.localizedName]?.workspace = workspace
+        positionCenter(panel: panel, on: screen, workspace: workspace)
+
+        centerHideWorkItemsByScreenName[screen.localizedName]?.cancel()
+        panel.alphaValue = 0
+        panel.orderFrontRegardless()
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.10
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+        }
+
+        let hideWorkItem = DispatchWorkItem { [weak panel] in
+            guard let panel else { return }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.18
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                panel.animator().alphaValue = 0
+            }, completionHandler: {
+                panel.orderOut(nil)
+            })
+        }
+        centerHideWorkItemsByScreenName[screen.localizedName] = hideWorkItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.58, execute: hideWorkItem)
+    }
+
+    private func centerPanel(for screen: NSScreen) -> NSPanel {
+        if let panel = centerPanelsByScreenName[screen.localizedName] {
+            return panel
+        }
+
+        let size = NSSize(width: 92, height: 76)
+        let view = CenterHudView(frame: NSRect(origin: .zero, size: size))
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = true
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .transient]
+        panel.contentView = view
+
+        centerPanelsByScreenName[screen.localizedName] = panel
+        centerViewsByScreenName[screen.localizedName] = view
+        return panel
+    }
+
+    private func positionCenter(panel: NSPanel, on screen: NSScreen, workspace: String) {
+        let frame = screen.frame
+        let size = NSSize(width: workspace.count > 1 ? 102 : 86, height: 74)
+        let origin = NSPoint(
+            x: frame.midX - size.width / 2,
+            y: frame.midY - size.height / 2
         )
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
     }
@@ -446,6 +598,14 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             panel.close()
             panelsByScreenName.removeValue(forKey: screenName)
             viewsByScreenName.removeValue(forKey: screenName)
+        }
+        for (screenName, panel) in centerPanelsByScreenName where !connectedNames.contains(screenName) {
+            centerHideWorkItemsByScreenName[screenName]?.cancel()
+            panel.close()
+            centerPanelsByScreenName.removeValue(forKey: screenName)
+            centerViewsByScreenName.removeValue(forKey: screenName)
+            centerHideWorkItemsByScreenName.removeValue(forKey: screenName)
+            visibleWorkspaceByScreenName.removeValue(forKey: screenName)
         }
     }
 }

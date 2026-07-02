@@ -37,7 +37,7 @@
       mineffect = "scale";
       minimize-to-application = true;
       mru-spaces = false;
-      orientation = "left";
+      orientation = "bottom";
       show-recents = false;
       tilesize = 36;
     };
@@ -79,6 +79,10 @@
 
       "com.apple.Spotlight" = {
         "NSStatusItem VisibleCC Item-0" = false;
+      };
+
+      "com.apple.spaces" = {
+        spans-displays = true;
       };
     };
 
