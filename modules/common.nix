@@ -74,6 +74,7 @@ in {
       pkgsUnstable.clang-tools
       pkgsUnstable.fzf
       pkgsUnstable.ripgrep
+      pkgsUnstable.tree-sitter
       pkgs.vim-language-server
       pkgs.universal-ctags
     ];
