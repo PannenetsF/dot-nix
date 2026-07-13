@@ -224,6 +224,7 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var centerViewsByScreenName: [String: CenterHudView] = [:]
     private var centerHideWorkItemsByScreenName: [String: DispatchWorkItem] = [:]
     private var visibleWorkspaceByScreenName: [String: String] = [:]
+    private var lastStatesByMonitorName: [String: MonitorState] = [:]
     private var dirtyWatcher: DispatchSourceFileSystemObject?
     private var dirtyFileDescriptor: CInt = -1
     private var queryInFlight = false
@@ -231,20 +232,63 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var pendingRefreshWorkItem: DispatchWorkItem?
     private var appEntriesByWorkspaceCache: [String: [String]] = [:]
     private var lastSignature = ""
+    private var lastScreenLayoutSignature = ""
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        lastScreenLayoutSignature = screenLayoutSignature()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenParametersChanged(_:)),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(screenParametersChanged(_:)),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(screenParametersChanged(_:)),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
         watchDirtyFile()
         refresh()
         Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
             self?.refresh()
         }
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.checkScreenLayout()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
         dirtyWatcher?.cancel()
         if dirtyFileDescriptor >= 0 {
             close(dirtyFileDescriptor)
         }
+    }
+
+    @objc private func screenParametersChanged(_ notification: Notification) {
+        handleScreenLayoutChanged()
+    }
+
+    private func checkScreenLayout() {
+        let signature = screenLayoutSignature()
+        if signature != lastScreenLayoutSignature {
+            handleScreenLayoutChanged(signature: signature)
+        }
+    }
+
+    private func handleScreenLayoutChanged(signature: String? = nil) {
+        lastScreenLayoutSignature = signature ?? screenLayoutSignature()
+        lastSignature = ""
+        repositionPanelsFromCachedStates()
+        refresh()
     }
 
     private func watchDirtyFile() {
@@ -447,15 +491,19 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             return
         }
 
-        let signature = states.map { state in
+        let stateSignature = states.map { state in
             "\(state.monitorName)|\(state.workspace)|\(state.workspaces.joined(separator: ","))|\(state.appEntries.joined(separator: ","))"
         }.joined(separator: "\n")
+        let layoutSignature = screenLayoutSignature()
+        let signature = "\(stateSignature)\n\(layoutSignature)"
         guard signature != lastSignature || panelsByScreenName.values.contains(where: { !$0.isVisible }) else {
             return
         }
         lastSignature = signature
+        lastScreenLayoutSignature = layoutSignature
 
         let statesByMonitor = Dictionary(uniqueKeysWithValues: states.map { ($0.monitorName, $0) })
+        lastStatesByMonitorName = statesByMonitor
 
         removePanelsForDisconnectedScreens()
         for screen in NSScreen.screens {
@@ -482,6 +530,41 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             )
             panel.orderFrontRegardless()
         }
+    }
+
+    private func repositionPanelsFromCachedStates() {
+        guard !lastStatesByMonitorName.isEmpty else {
+            return
+        }
+
+        removePanelsForDisconnectedScreens()
+        for screen in NSScreen.screens {
+            guard let monitorState = lastStatesByMonitorName[screen.localizedName] else {
+                continue
+            }
+            let panel = panel(for: screen)
+            viewsByScreenName[screen.localizedName]?.update(
+                workspace: monitorState.workspace,
+                workspaces: monitorState.workspaces,
+                appEntries: monitorState.appEntries
+            )
+            position(
+                panel: panel,
+                on: screen,
+                workspaces: monitorState.workspaces,
+                appCount: monitorState.appEntries.count
+            )
+            panel.orderFrontRegardless()
+        }
+    }
+
+    private func screenLayoutSignature() -> String {
+        NSScreen.screens.map { screen in
+            let frame = screen.frame
+            return "\(screen.localizedName)|\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width)),\(Int(frame.height))"
+        }
+        .sorted()
+        .joined(separator: "\n")
     }
 
     private func panel(for screen: NSScreen) -> NSPanel {
