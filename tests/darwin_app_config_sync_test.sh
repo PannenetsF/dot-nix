@@ -61,6 +61,16 @@ assert_module_links "$darwin_module" ".skhdrc" "../config/skhd/skhdrc"
 assert_module_links "$darwin_module" ".config/skhd/open_iterm2.sh" "../config/skhd/open_iterm2.sh"
 assert_module_links "$darwin_module" ".config/skhd/toggle_kitty_dropdown.sh" "../config/skhd/toggle_kitty_dropdown.sh"
 
+if grep -Fq '".config/zed/settings.json"' "${darwin_module}"; then
+	echo "expected Zed settings to stay writable instead of being linked into the Nix store" >&2
+	exit 1
+fi
+if ! grep -Fq "prepareZedSettings" "${darwin_module}" ||
+	! grep -Fq "../config/zed/settings.json" "${darwin_module}"; then
+	echo "expected modules/darwin.nix to initialize writable Zed settings from tracked config" >&2
+	exit 1
+fi
+
 assert_module_contains() {
 	local pattern="$1"
 	local message="$2"
