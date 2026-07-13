@@ -17,6 +17,24 @@ assert_contains "$repo_root/nix-darwin/configuration.nix" "./macos-defaults.nix"
   "expected nix-darwin configuration to import macOS defaults"
 assert_contains "$repo_root/nix-darwin/configuration.nix" "./app-defaults.nix" \
   "expected nix-darwin configuration to import app defaults"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "services.openssh.enable = true;" \
+  "expected macOS OpenSSH server to be enabled"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "networking.wakeOnLan.enable = true;" \
+  "expected Wake-on-network to be enabled"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "pmset -c sleep 0 displaysleep 0 disksleep 0" \
+  "expected AC power to keep the machine awake for SSH access"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "launchd.daemons.acPowerCaffeinate" \
+  "expected caffeinate to be managed as a system daemon"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "/usr/bin/caffeinate -s" \
+  "expected caffeinate to prevent system sleep while on AC power"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "remoteManagementCurtainMode" \
+  "expected Remote Management to be configured for curtain-mode clients"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "ARD_AllLocalUsers -bool false" \
+  "expected Remote Management to allow only specified users"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "VNCLegacyConnectionsEnabled -bool false" \
+  "expected legacy VNC password access to be disabled"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "dscl . -create /Users/\${username} naprivs -1073741569" \
+  "expected the login user to receive full Apple Remote Desktop privileges"
 
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "autohide = true;" \
   "expected Dock autohide to be configured"
