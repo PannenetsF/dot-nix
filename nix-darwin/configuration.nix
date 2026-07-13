@@ -26,6 +26,35 @@
   programs.zsh.enableCompletion = false;
   programs.zsh.enableBashCompletion = false;
 
+  services.openssh.enable = true;
+  networking.wakeOnLan.enable = true;
+
+  system.activationScripts.acPowerSshAvailability.text = ''
+    echo "configuring AC power SSH availability..." >&2
+    pmset -c sleep 0 displaysleep 0 disksleep 0 womp 1 tcpkeepalive 1 ttyskeepawake 1 standby 0 powernap 1
+  '';
+
+  launchd.daemons.acPowerCaffeinate = {
+    command = "/usr/bin/caffeinate -s";
+    serviceConfig = {
+      KeepAlive = true;
+      RunAtLoad = true;
+    };
+  };
+
+  system.activationScripts.remoteManagementCurtainMode.text = ''
+    echo "configuring Remote Management for curtain mode..." >&2
+    defaults write /Library/Preferences/com.apple.RemoteManagement ARD_AllLocalUsers -bool false
+    defaults write /Library/Preferences/com.apple.RemoteManagement ARD_AllLocalUsersPrivs -int 0
+    defaults write /Library/Preferences/com.apple.RemoteManagement LoadRemoteManagementMenuExtra -bool false
+    defaults write /Library/Preferences/com.apple.RemoteManagement ScreenSharingReqPermEnabled -bool false
+    defaults write /Library/Preferences/com.apple.RemoteManagement VNCLegacyConnectionsEnabled -bool false
+    dscl . -create /Users/${username} naprivs -1073741569
+    launchctl enable system/com.apple.screensharing
+    launchctl load -wF /System/Library/LaunchDaemons/com.apple.screensharing.plist >/dev/null 2>&1 || true
+    launchctl kickstart -k system/com.apple.screensharing >/dev/null 2>&1 || true
+  '';
+
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
