@@ -64,11 +64,6 @@
       force = true;
     };
 
-    ".config/zed/settings.json" = {
-      source = ../config/zed/settings.json;
-      force = true;
-    };
-
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;
@@ -89,6 +84,24 @@
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       mkdir -p "${config.home.homeDirectory}/Library/Logs/skhd" \
         "${config.home.homeDirectory}/Pictures/Screenshots"
+    '';
+
+  home.activation.prepareZedSettings =
+    lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+      zed_config_dir="${config.home.homeDirectory}/.config/zed"
+      zed_settings="$zed_config_dir/settings.json"
+      mkdir -p "$zed_config_dir"
+
+      if [ -L "$zed_settings" ]; then
+        rm -f "$zed_settings"
+      fi
+
+      if [ ! -e "$zed_settings" ]; then
+        cp ${../config/zed/settings.json} "$zed_settings"
+      fi
+
+      chmod u+w "$zed_settings" 2>/dev/null || true
+      unset zed_config_dir zed_settings
     '';
 
   home.activation.prepareKittyConfig =
