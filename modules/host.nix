@@ -11,8 +11,10 @@ in {
   home.packages = (with pkgs; [
     aerc
     automake
+    bash-language-server
     cmake
     docker
+    dockerfile-language-server-nodejs
     gcc
     git-filter-repo
     gnuplot
@@ -22,10 +24,12 @@ in {
     hugo
     ispell
     jq
+    ltex-ls
     libgccjit
     libsodium
     lnav
     luarocks
+    lua-language-server
     mermaid-cli
     neofetch
     ninja
@@ -35,6 +39,8 @@ in {
     pythonEnv
     shfmt
     stylua
+    vscode-langservers-extracted
+    yaml-language-server
   ]) ++ (with pkgsUnstable; [ gh go tokei tree-sitter ty ])
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin
     ((with pkgs; [ colima rar sketchybar terminal-notifier yabai ])
