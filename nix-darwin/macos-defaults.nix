@@ -5,6 +5,7 @@
       InitialKeyRepeat = 12;
       KeyRepeat = 2;
       AppleKeyboardUIMode = 3;
+      "com.apple.keyboard.fnState" = true;
       AppleShowAllExtensions = true;
       AppleShowScrollBars = "Automatic";
       AppleSpacesSwitchOnActivate = false;
@@ -92,5 +93,21 @@
   system.activationScripts.ensureScreenshotDirectory.text = ''
     mkdir -p ${homeDir}/Pictures/Screenshots
     chown ${username}:staff ${homeDir}/Pictures ${homeDir}/Pictures/Screenshots 2>/dev/null || true
+  '';
+
+  system.activationScripts.refreshFunctionKeyMode.text = ''
+    /usr/bin/defaults write ${homeDir}/Library/Preferences/.GlobalPreferences com.apple.keyboard.fnState -bool true
+    chown ${username}:staff ${homeDir}/Library/Preferences/.GlobalPreferences.plist 2>/dev/null || true
+
+    user_uid="$(id -u ${username} 2>/dev/null || true)"
+    if [ -n "$user_uid" ]; then
+      for label in \
+        org.pqrs.service.agent.Karabiner-Core-Service-rev2 \
+        org.pqrs.service.agent.karabiner_console_user_server \
+        org.pqrs.service.agent.Karabiner-Menu \
+        org.pqrs.service.agent.Karabiner-NotificationWindow; do
+        launchctl asuser "$user_uid" launchctl kickstart -k "gui/$user_uid/$label" 2>/dev/null || true
+      done
+    fi
   '';
 }
