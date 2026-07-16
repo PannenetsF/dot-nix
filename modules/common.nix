@@ -142,6 +142,11 @@ in {
       alias gomounts="cd $HOME/Documents/workspace/mounts/"
       alias hm-update="bash $HOME/.config/nix-hm/init.sh"
       alias hm-upgrade="bash $HOME/.config/nix-hm/init.sh --upgrade"
+
+      # Machine-local zsh customizations. Keep tokens and private aliases out of git.
+      if [ -r "$HOME/.config/nix-hm/local.zsh" ]; then
+        . "$HOME/.config/nix-hm/local.zsh"
+      fi
     '';
   };
 

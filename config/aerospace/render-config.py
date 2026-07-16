@@ -3,6 +3,7 @@ import ctypes
 import json
 import os
 import platform
+import subprocess
 import sys
 import tempfile
 from ctypes import POINTER, byref, c_bool, c_double, c_int32, c_uint32
@@ -47,6 +48,48 @@ def load_displays_from_env():
             }
         )
     return sorted(displays, key=lambda display: display["seq"])
+
+
+def load_displays_from_aerospace():
+    aerospace = "/opt/homebrew/bin/aerospace"
+    if platform.system() != "Darwin" or not os.path.exists(aerospace):
+        return None
+
+    try:
+        output = subprocess.check_output(
+            [
+                aerospace,
+                "list-monitors",
+                "--format",
+                "%{monitor-id}\t%{monitor-name}\t%{monitor-is-main}",
+            ],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=1,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+    displays = []
+    for line in output.splitlines():
+        parts = line.split("\t", maxsplit=2)
+        if len(parts) != 3:
+            continue
+        monitor_id, monitor_name, is_main = parts
+        try:
+            seq = int(monitor_id)
+        except ValueError:
+            continue
+        lower_name = monitor_name.lower()
+        displays.append(
+            {
+                "seq": seq,
+                "main": is_main == "true",
+                "built_in": "built-in" in lower_name or "retina display" in lower_name,
+            }
+        )
+
+    return sorted(displays, key=lambda display: display["seq"]) or None
 
 
 def load_displays_from_coregraphics():
@@ -98,7 +141,19 @@ def load_displays_from_coregraphics():
 
 
 def load_displays():
-    return load_displays_from_env() or load_displays_from_coregraphics() or []
+    env_displays = load_displays_from_env()
+    if env_displays is not None:
+        return "env", env_displays
+
+    aerospace_displays = load_displays_from_aerospace()
+    if aerospace_displays is not None:
+        return "aerospace", aerospace_displays
+
+    coregraphics_displays = load_displays_from_coregraphics()
+    if coregraphics_displays is not None:
+        return "coregraphics", coregraphics_displays
+
+    return "none", []
 
 
 def assignment_targets(displays):
@@ -167,6 +222,38 @@ def replace_generated_block(template, block):
     return template[:begin] + block + template[end:]
 
 
+def extract_generated_block(content):
+    begin = content.find(BEGIN_MARKER)
+    end = content.find(END_MARKER)
+    if begin == -1 or end == -1 or end < begin:
+        return None
+    end += len(END_MARKER)
+    return content[begin:end]
+
+
+def assignment_block_has_external_targets(block):
+    for line in block.splitlines():
+        if "=" not in line or line.lstrip().startswith("#"):
+            continue
+        _, value = line.split("=", maxsplit=1)
+        if value.strip() != "'main'":
+            return True
+    return False
+
+
+def should_preserve_existing_block(source, displays, output_path):
+    if source != "coregraphics" or len(displays) != 1 or not os.path.exists(output_path):
+        return False
+
+    try:
+        with open(output_path, "r", encoding="utf-8") as output_file:
+            existing_block = extract_generated_block(output_file.read())
+    except OSError:
+        return False
+
+    return existing_block is not None and assignment_block_has_external_targets(existing_block)
+
+
 def atomic_write(path, content):
     directory = os.path.dirname(path)
     os.makedirs(directory, exist_ok=True)
@@ -191,7 +278,13 @@ def main(argv):
     with open(template_path, "r", encoding="utf-8") as template_file:
         template = template_file.read()
 
-    rendered = replace_generated_block(template, generate_assignment_block(load_displays()))
+    source, displays = load_displays()
+    if should_preserve_existing_block(source, displays, output_path):
+        with open(output_path, "r", encoding="utf-8") as output_file:
+            existing_block = extract_generated_block(output_file.read())
+        rendered = replace_generated_block(template, existing_block)
+    else:
+        rendered = replace_generated_block(template, generate_assignment_block(displays))
     atomic_write(output_path, rendered)
     return 0
 

@@ -14,6 +14,7 @@ let
     config_dir="${homeDir}/.config/aerospace"
     config_file="$config_dir/aerospace.toml"
     app_path="/Applications/AeroSpace.app"
+    cli_path="/opt/homebrew/bin/aerospace"
 
     install -d "$config_dir"
     if ! "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
@@ -28,6 +29,19 @@ let
     for pid in $(pgrep -x AeroSpace 2>/dev/null || true); do
       kill "$pid" 2>/dev/null || true
     done
+
+    (
+      for _ in $(seq 1 20); do
+        sleep 0.5
+        if [ -x "$cli_path" ] && "$cli_path" list-monitors --format '%{monitor-id}' >/dev/null 2>&1; then
+          if "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
+            "$cli_path" reload-config --no-gui >/dev/null 2>&1 || true
+            /bin/sh -c 'printf . > /tmp/aerospace-workspace-indicator-dirty' >/dev/null 2>&1 || true
+          fi
+          break
+        fi
+      done
+    ) &
 
     exec "$app_path/Contents/MacOS/AeroSpace"
   '';
