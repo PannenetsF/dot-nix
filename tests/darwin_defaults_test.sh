@@ -46,6 +46,12 @@ assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "KeyRepeat = 2;" \
   "expected fast keyboard repeat to be configured"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "ApplePressAndHoldEnabled = false;" \
   "expected press-and-hold to be disabled for key repeat"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "\"com.apple.keyboard.fnState\" = true;" \
+  "expected F1-F12 to behave as standard function keys"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "refreshFunctionKeyMode" \
+  "expected activation to refresh function key mode for Karabiner"
+assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "Karabiner-Core-Service-rev2" \
+  "expected Karabiner to be restarted after function key defaults are applied"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "Sound = true;" \
   "expected Sound to be shown in the menu bar"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "NowPlaying = false;" \
