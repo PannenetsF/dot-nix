@@ -62,6 +62,7 @@
     extraSpecialArgs = {
       inherit pkgsUnstable system username homeDir;
       isHost = true;
+      isDocker = false;
     };
     users.${username} = import ../home.nix;
   };

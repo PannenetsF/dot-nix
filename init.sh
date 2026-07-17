@@ -616,9 +616,13 @@ main() {
   local original_args=("$@")
   local do_upgrade=false
   local use_host=false
+  local use_docker=false
   local use_home_manager=false
   if [[ "${NIX_HM_PROFILE-}" == "host" ]]; then
     use_host=true
+  fi
+  if [[ "${NIX_HM_PROFILE-}" == "docker" ]]; then
+    use_docker=true
   fi
   if [[ "${NIX_HM_USE_HOME_MANAGER-}" == "1" ]]; then
     use_home_manager=true
@@ -632,6 +636,9 @@ main() {
       --host)
         use_host=true
         ;;
+      --docker)
+        use_docker=true
+        ;;
       --home-manager)
         use_home_manager=true
         ;;
@@ -641,6 +648,10 @@ main() {
     esac
     shift
   done
+
+  if [[ "$use_host" == true && "$use_docker" == true ]]; then
+    die "--host and --docker are mutually exclusive"
+  fi
 
   ensure_proxy_env
   early_pull_script_repo "$script_dir" "${original_args[@]}"
@@ -679,8 +690,14 @@ main() {
 
   local system
   system="$(system_from_host)"
-  if [[ "$use_host" == true && "$system" == *-linux ]]; then
-    system="${system}-host"
+  if [[ "$system" == *-linux ]]; then
+    if [[ "$use_docker" == true ]]; then
+      system="${system}-docker"
+    elif [[ "$use_host" == true ]]; then
+      system="${system}-host"
+    fi
+  elif [[ "$use_docker" == true ]]; then
+    die "--docker is only supported on Linux"
   fi
 
   if [[ "$do_upgrade" == true ]]; then

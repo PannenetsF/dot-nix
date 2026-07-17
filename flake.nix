@@ -64,7 +64,7 @@
           inherit username;
           homeDir = if effectiveHome != "" then effectiveHome else inferredHome;
         };
-      mkHomeConfig = { system, isHost ? false, }:
+      mkHomeConfig = { system, isHost ? false, isDocker ? false, }:
         let
           userHome = mkUserHome system;
           pkgs = mkPkgs system;
@@ -75,6 +75,7 @@
             inherit pkgsUnstable;
             inherit system;
             inherit isHost;
+            inherit isDocker;
             inherit (userHome) username homeDir;
           };
 
@@ -119,6 +120,14 @@
         "aarch64-linux-host" = mkHomeConfig {
           system = "aarch64-linux";
           isHost = true;
+        };
+        "x86_64-linux-docker" = mkHomeConfig {
+          system = "x86_64-linux";
+          isDocker = true;
+        };
+        "aarch64-linux-docker" = mkHomeConfig {
+          system = "aarch64-linux";
+          isDocker = true;
         };
         "x86_64-darwin" = mkHomeConfig {
           system = "x86_64-darwin";
