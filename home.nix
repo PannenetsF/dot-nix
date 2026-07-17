@@ -1,5 +1,5 @@
 { config, pkgs, pkgsUnstable, lib, system, username, homeDir, isHost ? false
-, ... }: {
+, isDocker ? false, ... }: {
   # NOTE: Home Manager expects `home.homeDirectory` to be an absolute path.
   # flake.nix derives these values once from NIX_HM_* / USER / HOME and passes
   # them here explicitly. Keep this module free of direct environment reads.
@@ -25,10 +25,21 @@
         "home.homeDirectory is empty or not absolute; please set HOME or NIX_HM_HOME before evaluating";
   };
 
+  # Layering:
+  #   modules/common.nix    -- shared shell/CLI base, always imported.
+  #   modules/host.nix       -- heavy dev toolchain, opt-in via isHost. A Docker
+  #                             container stays lean, so isDocker forces it off.
+  #   modules/linux.nix      -- Linux desktop / server layer (runs the network-
+  #                             dependent install-linux-server.sh).
+  #   modules/linux-docker.nix -- Linux container layer (no network activation).
+  #   modules/darwin.nix     -- macOS user layer.
   imports = [ ./modules/common.nix ]
-    ++ lib.optionals isHost [ ./modules/host.nix ]
+    ++ lib.optionals (isHost && !isDocker) [ ./modules/host.nix ]
     ++ (if builtins.match ".*-linux" system != null then
-      [ ./modules/linux.nix ]
+      (if isDocker then
+        [ ./modules/linux-docker.nix ]
+      else
+        [ ./modules/linux.nix ])
     else
       [ ]) ++ (if builtins.match ".*-darwin" system != null then
         [ ./modules/darwin.nix ]
