@@ -2,8 +2,9 @@ import AppKit
 import Dispatch
 
 private let dirtyPath = CommandLine.arguments.dropFirst().first
-    ?? "/tmp/aerospace-workspace-indicator-dirty-\(getuid())"
+    ?? "/tmp/aerospace-workspace-indicator-dirty"
 private let aerospacePath = "/opt/homebrew/bin/aerospace"
+private let reconfigurePath = ProcessInfo.processInfo.environment["AEROSPACE_RECONFIGURE"]
 private let debugEnabled = ProcessInfo.processInfo.environment["AEROSPACE_INDICATOR_DEBUG"] == "1"
 
 private func debugLog(_ message: String) {
@@ -13,6 +14,10 @@ private func debugLog(_ message: String) {
 }
 
 struct MonitorState {
+    // AeroSpace's 1-based, left-to-right monitor sequence number. This is the
+    // join key against NSScreen, which is stable even when two displays report
+    // the same localized name (e.g. two identical "DELL U2720Q" monitors).
+    let monitorID: Int
     let monitorName: String
     let workspace: String
     let workspaces: [String]
@@ -218,18 +223,24 @@ final class CenterHudView: NSView {
 }
 
 final class IndicatorApp: NSObject, NSApplicationDelegate {
-    private var panelsByScreenName: [String: NSPanel] = [:]
-    private var viewsByScreenName: [String: IndicatorView] = [:]
-    private var centerPanelsByScreenName: [String: NSPanel] = [:]
-    private var centerViewsByScreenName: [String: CenterHudView] = [:]
-    private var centerHideWorkItemsByScreenName: [String: DispatchWorkItem] = [:]
-    private var visibleWorkspaceByScreenName: [String: String] = [:]
-    private var lastStatesByMonitorName: [String: MonitorState] = [:]
+    // All per-display state is keyed by CGDirectDisplayID. That identifier is
+    // unique and stable for the life of a physical display, so it survives two
+    // monitors reporting the same localizedName (e.g. two identical DELLs) and
+    // the same name later mapping to a different display after a reconnect.
+    private var panelsByDisplay: [CGDirectDisplayID: NSPanel] = [:]
+    private var viewsByDisplay: [CGDirectDisplayID: IndicatorView] = [:]
+    private var centerPanelsByDisplay: [CGDirectDisplayID: NSPanel] = [:]
+    private var centerViewsByDisplay: [CGDirectDisplayID: CenterHudView] = [:]
+    private var centerHideWorkItemsByDisplay: [CGDirectDisplayID: DispatchWorkItem] = [:]
+    private var visibleWorkspaceByDisplay: [CGDirectDisplayID: String] = [:]
+    private var lastStatesByDisplay: [CGDirectDisplayID: MonitorState] = [:]
     private var dirtyWatcher: DispatchSourceFileSystemObject?
     private var dirtyFileDescriptor: CInt = -1
     private var queryInFlight = false
     private var queryAgain = false
     private var pendingRefreshWorkItem: DispatchWorkItem?
+    private var pendingLayoutWorkItem: DispatchWorkItem?
+    private var pendingReconfigureWorkItem: DispatchWorkItem?
     private var appEntriesByWorkspaceCache: [String: [String]] = [:]
     private var lastSignature = ""
     private var lastScreenLayoutSignature = ""
@@ -270,31 +281,83 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         dirtyWatcher?.cancel()
         if dirtyFileDescriptor >= 0 {
             close(dirtyFileDescriptor)
+            dirtyFileDescriptor = -1
         }
     }
 
     @objc private func screenParametersChanged(_ notification: Notification) {
-        handleScreenLayoutChanged()
+        scheduleLayoutChange()
     }
 
     private func checkScreenLayout() {
-        let signature = screenLayoutSignature()
-        if signature != lastScreenLayoutSignature {
-            handleScreenLayoutChanged(signature: signature)
+        if screenLayoutSignature() != lastScreenLayoutSignature {
+            scheduleLayoutChange()
         }
     }
 
-    private func handleScreenLayoutChanged(signature: String? = nil) {
-        lastScreenLayoutSignature = signature ?? screenLayoutSignature()
+    // Wake and dock/undock events arrive as a burst of screen-parameter
+    // notifications while the displays re-enumerate one at a time. Coalesce them
+    // so the panels are rebuilt once, after the layout settles, instead of
+    // thrashing (and tearing down panels for displays that are only transiently
+    // absent) on every intermediate notification.
+    private func scheduleLayoutChange() {
+        pendingLayoutWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.pendingLayoutWorkItem = nil
+            self?.handleScreenLayoutChanged()
+        }
+        pendingLayoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: workItem)
+    }
+
+    private func handleScreenLayoutChanged() {
+        let signature = screenLayoutSignature()
+        let changed = signature != lastScreenLayoutSignature
+        lastScreenLayoutSignature = signature
         lastSignature = ""
         repositionPanelsFromCachedStates()
+        if changed {
+            triggerReconfigure()
+        }
         refresh()
     }
 
+    // AeroSpace does not re-apply workspace-to-monitor-force-assignment when a
+    // monitor reconnects (upstream issue #520). The nix-darwin launchd agent
+    // passes a helper via AEROSPACE_RECONFIGURE that re-renders the config for
+    // the current displays and issues reload-config. Debounce it so a single
+    // settled layout change triggers exactly one re-home.
+    private func triggerReconfigure() {
+        guard let reconfigurePath, !reconfigurePath.isEmpty else { return }
+        pendingReconfigureWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: reconfigurePath)
+            do {
+                try process.run()
+            } catch {
+                debugLog("reconfigure failed to launch: \(error)")
+            }
+        }
+        pendingReconfigureWorkItem = workItem
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.2, execute: workItem)
+    }
+
     private func watchDirtyFile() {
+        dirtyWatcher?.cancel()
+        if dirtyFileDescriptor >= 0 {
+            close(dirtyFileDescriptor)
+            dirtyFileDescriptor = -1
+        }
+
         FileManager.default.createFile(atPath: dirtyPath, contents: nil)
         dirtyFileDescriptor = open(dirtyPath, O_EVTONLY)
         guard dirtyFileDescriptor >= 0 else {
+            // The file could not be opened; try again shortly rather than going
+            // permanently deaf to workspace-change events.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.watchDirtyFile()
+            }
             return
         }
 
@@ -304,8 +367,16 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             queue: DispatchQueue.main
         )
         watcher.setEventHandler { [weak self] in
-            debugLog("dirty event")
-            self?.scheduleRefresh()
+            guard let self else { return }
+            let events = watcher.data
+            debugLog("dirty event \(events.rawValue)")
+            // If the file is replaced or removed the file descriptor still
+            // points at the old inode, so re-establish the watch on the new
+            // path. Otherwise just refresh.
+            if events.contains(.delete) || events.contains(.rename) {
+                self.watchDirtyFile()
+            }
+            self.scheduleRefresh()
         }
         watcher.setCancelHandler { [weak self] in
             guard let self else { return }
@@ -327,7 +398,6 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             return
         }
 
-        pendingRefreshWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             self?.pendingRefreshWorkItem = nil
             self?.refresh()
@@ -346,24 +416,27 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         let cachedAppEntries = appEntriesByWorkspaceCache
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let workspaceStart = Date()
-            let workspaceStates = self?.loadWorkspaceStates(appEntriesByWorkspace: cachedAppEntries) ?? []
+            let workspaceStates = self?.loadWorkspaceStates(appEntriesByWorkspace: cachedAppEntries)
             let workspaceElapsedMs = Int(Date().timeIntervalSince(workspaceStart) * 1000)
             DispatchQueue.main.async {
                 guard let self else { return }
-                debugLog("workspaces loaded \(workspaceStates.count) monitor states in \(workspaceElapsedMs)ms")
+                debugLog("workspaces loaded \(workspaceStates?.count.description ?? "nil") monitor states in \(workspaceElapsedMs)ms")
                 self.apply(states: workspaceStates)
             }
 
             let windowStart = Date()
             let appEntriesByWorkspace = self?.loadWindowEntries() ?? [:]
             let windowElapsedMs = Int(Date().timeIntervalSince(windowStart) * 1000)
-            let states = workspaceStates.map { state in
-                MonitorState(
-                    monitorName: state.monitorName,
-                    workspace: state.workspace,
-                    workspaces: state.workspaces,
-                    appEntries: appEntriesByWorkspace[state.workspace] ?? state.appEntries
-                )
+            let states: [MonitorState]? = workspaceStates.map { loaded in
+                loaded.map { state in
+                    MonitorState(
+                        monitorID: state.monitorID,
+                        monitorName: state.monitorName,
+                        workspace: state.workspace,
+                        workspaces: state.workspaces,
+                        appEntries: appEntriesByWorkspace[state.workspace] ?? state.appEntries
+                    )
+                }
             }
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -381,56 +454,66 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func loadWorkspaceStates(appEntriesByWorkspace: [String: [String]]) -> [MonitorState] {
+    // Returns nil when the AeroSpace query fails (not running yet, timed out).
+    // Callers must treat nil differently from an empty result so a transient
+    // failure on wake does not blank the indicator.
+    private func loadWorkspaceStates(appEntriesByWorkspace: [String: [String]]) -> [MonitorState]? {
         let workspaceArgs = [
             "list-workspaces",
             "--all",
             "--format",
             "%{monitor-id}%{tab}%{monitor-name}%{tab}%{workspace}%{tab}%{workspace-is-visible}",
         ]
-        let workspaceOutput = runAerospace(workspaceArgs)
+        guard let workspaceOutput = runAerospace(workspaceArgs) else {
+            return nil
+        }
 
-        var monitorNames: [String] = []
-        var visibleWorkspaceByMonitor: [String: String] = [:]
-        var workspacesByMonitor: [String: [String]] = [:]
+        var monitorOrder: [Int] = []
+        var namesByMonitor: [Int: String] = [:]
+        var visibleWorkspaceByMonitor: [Int: String] = [:]
+        var workspacesByMonitor: [Int: [String]] = [:]
 
         for line in workspaceOutput.split(separator: "\n") {
             let parts = line.split(separator: "\t", maxSplits: 3, omittingEmptySubsequences: false)
-            guard parts.count == 4 else { continue }
+            guard parts.count == 4, let monitorID = Int(parts[0]) else { continue }
             let monitorName = String(parts[1])
             let workspace = String(parts[2])
             let isVisible = String(parts[3]) == "true"
 
-            if workspacesByMonitor[monitorName] == nil {
-                monitorNames.append(monitorName)
-                workspacesByMonitor[monitorName] = []
+            if workspacesByMonitor[monitorID] == nil {
+                monitorOrder.append(monitorID)
+                workspacesByMonitor[monitorID] = []
+                namesByMonitor[monitorID] = monitorName
             }
-            workspacesByMonitor[monitorName]?.append(workspace)
+            workspacesByMonitor[monitorID]?.append(workspace)
             if isVisible {
-                visibleWorkspaceByMonitor[monitorName] = workspace
+                visibleWorkspaceByMonitor[monitorID] = workspace
             }
         }
 
-        return monitorNames.compactMap { monitorName in
-            guard let workspace = visibleWorkspaceByMonitor[monitorName] else {
+        return monitorOrder.compactMap { monitorID in
+            guard let workspace = visibleWorkspaceByMonitor[monitorID] else {
                 return nil
             }
             return MonitorState(
-                monitorName: monitorName,
+                monitorID: monitorID,
+                monitorName: namesByMonitor[monitorID] ?? "",
                 workspace: workspace,
-                workspaces: workspacesByMonitor[monitorName] ?? [],
+                workspaces: workspacesByMonitor[monitorID] ?? [],
                 appEntries: appEntriesByWorkspace[workspace] ?? []
             )
         }
     }
 
     private func loadWindowEntries() -> [String: [String]] {
-        let windowOutput = runAerospace([
+        guard let windowOutput = runAerospace([
             "list-windows",
             "--all",
             "--format",
             "%{workspace}%{tab}%{app-bundle-path}%{tab}%{app-name}",
-        ])
+        ]) else {
+            return [:]
+        }
 
         var appEntriesByWorkspace: [String: [String]] = [:]
         var seenApps = Set<String>()
@@ -453,23 +536,39 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         return appEntriesByWorkspace
     }
 
-    private func runAerospace(_ arguments: [String], timeout: TimeInterval = 1.0) -> String {
+    // Returns nil when the command could not be run to completion (binary
+    // missing, launch error, or timeout). An empty String means the command
+    // succeeded with no output.
+    private func runAerospace(_ arguments: [String], timeout: TimeInterval = 1.0) -> String? {
         guard FileManager.default.isExecutableFile(atPath: aerospacePath) else {
-            return ""
+            return nil
         }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: aerospacePath)
         process.arguments = arguments
 
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+
+        // Drain both pipes concurrently so a child that writes more than the
+        // pipe buffer before exiting cannot deadlock against waitUntilExit.
+        let outData = DispatchQueue(label: "aerospace.stdout")
+        let errData = DispatchQueue(label: "aerospace.stderr")
+        var collected = Data()
+        outData.async {
+            collected = outPipe.fileHandleForReading.readDataToEndOfFile()
+        }
+        errData.async {
+            _ = errPipe.fileHandleForReading.readDataToEndOfFile()
+        }
 
         do {
             try process.run()
         } catch {
-            return ""
+            return nil
         }
 
         let finished = DispatchSemaphore(value: 0)
@@ -479,45 +578,48 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         }
         if finished.wait(timeout: .now() + timeout) == .timedOut {
             process.terminate()
-            return ""
+            return nil
         }
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8) ?? ""
+        outData.sync {}
+        return String(data: collected, encoding: .utf8) ?? ""
     }
 
-    private func apply(states: [MonitorState]) {
-        guard !states.isEmpty else {
+    private func apply(states: [MonitorState]?) {
+        // nil = query failed (aerospace not ready). Keep whatever is on screen
+        // rather than tearing panels down. An empty array is the same: never
+        // blank the display on a transient hiccup.
+        guard let states, !states.isEmpty else {
             return
         }
 
         let stateSignature = states.map { state in
-            "\(state.monitorName)|\(state.workspace)|\(state.workspaces.joined(separator: ","))|\(state.appEntries.joined(separator: ","))"
+            "\(state.monitorID)|\(state.monitorName)|\(state.workspace)|\(state.workspaces.joined(separator: ","))|\(state.appEntries.joined(separator: ","))"
         }.joined(separator: "\n")
         let layoutSignature = screenLayoutSignature()
         let signature = "\(stateSignature)\n\(layoutSignature)"
-        guard signature != lastSignature || panelsByScreenName.values.contains(where: { !$0.isVisible }) else {
+        guard signature != lastSignature || panelsByDisplay.values.contains(where: { !$0.isVisible }) else {
             return
         }
         lastSignature = signature
         lastScreenLayoutSignature = layoutSignature
 
-        let statesByMonitor = Dictionary(uniqueKeysWithValues: states.map { ($0.monitorName, $0) })
-        lastStatesByMonitorName = statesByMonitor
+        let resolved = resolveStatesToScreens(states)
+        lastStatesByDisplay = resolved.reduce(into: [:]) { acc, pair in
+            acc[displayID(of: pair.screen)] = pair.state
+        }
 
         removePanelsForDisconnectedScreens()
-        for screen in NSScreen.screens {
-            guard let monitorState = statesByMonitor[screen.localizedName] else {
-                continue
-            }
-            if let previousWorkspace = visibleWorkspaceByScreenName[screen.localizedName],
+        for (screen, monitorState) in resolved {
+            let display = displayID(of: screen)
+            if let previousWorkspace = visibleWorkspaceByDisplay[display],
                previousWorkspace != monitorState.workspace {
                 showCenterHud(workspace: monitorState.workspace, on: screen)
             }
-            visibleWorkspaceByScreenName[screen.localizedName] = monitorState.workspace
+            visibleWorkspaceByDisplay[display] = monitorState.workspace
 
             let panel = panel(for: screen)
-            viewsByScreenName[screen.localizedName]?.update(
+            viewsByDisplay[display]?.update(
                 workspace: monitorState.workspace,
                 workspaces: monitorState.workspaces,
                 appEntries: monitorState.appEntries
@@ -533,17 +635,17 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     }
 
     private func repositionPanelsFromCachedStates() {
-        guard !lastStatesByMonitorName.isEmpty else {
+        guard !lastStatesByDisplay.isEmpty else {
             return
         }
 
         removePanelsForDisconnectedScreens()
         for screen in NSScreen.screens {
-            guard let monitorState = lastStatesByMonitorName[screen.localizedName] else {
+            guard let monitorState = lastStatesByDisplay[displayID(of: screen)] else {
                 continue
             }
             let panel = panel(for: screen)
-            viewsByScreenName[screen.localizedName]?.update(
+            viewsByDisplay[displayID(of: screen)]?.update(
                 workspace: monitorState.workspace,
                 workspaces: monitorState.workspaces,
                 appEntries: monitorState.appEntries
@@ -558,17 +660,64 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         }
     }
 
+    // Match AeroSpace monitor states to the physical NSScreens. AeroSpace names
+    // usually equal NSScreen.localizedName, so match by name first. When a name
+    // is ambiguous (two identical monitors) or absent, fall back to AeroSpace's
+    // 1-based left-to-right monitor-id, which lines up with the screens sorted
+    // by origin.
+    private func resolveStatesToScreens(_ states: [MonitorState]) -> [(screen: NSScreen, state: MonitorState)] {
+        var statesByName: [String: [MonitorState]] = [:]
+        var statesBySeq: [Int: MonitorState] = [:]
+        for state in states {
+            statesByName[state.monitorName, default: []].append(state)
+            statesBySeq[state.monitorID] = state
+        }
+
+        let orderedScreens = NSScreen.screens.sorted { lhs, rhs in
+            if lhs.frame.minX != rhs.frame.minX {
+                return lhs.frame.minX < rhs.frame.minX
+            }
+            return lhs.frame.minY < rhs.frame.minY
+        }
+
+        var result: [(screen: NSScreen, state: MonitorState)] = []
+        var usedMonitorIDs = Set<Int>()
+        for (index, screen) in orderedScreens.enumerated() {
+            let seq = index + 1
+            var match: MonitorState?
+            if let byName = statesByName[screen.localizedName], byName.count == 1 {
+                match = byName.first
+            } else if let byName = statesByName[screen.localizedName], byName.count > 1 {
+                // Duplicate names: disambiguate by sequence number.
+                match = byName.first { $0.monitorID == seq } ?? statesBySeq[seq]
+            } else {
+                match = statesBySeq[seq]
+            }
+            guard let state = match, !usedMonitorIDs.contains(state.monitorID) else {
+                continue
+            }
+            usedMonitorIDs.insert(state.monitorID)
+            result.append((screen, state))
+        }
+        return result
+    }
+
+    private func displayID(of screen: NSScreen) -> CGDirectDisplayID {
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+    }
+
     private func screenLayoutSignature() -> String {
         NSScreen.screens.map { screen in
             let frame = screen.frame
-            return "\(screen.localizedName)|\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width)),\(Int(frame.height))"
+            return "\(displayID(of: screen))|\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width)),\(Int(frame.height))"
         }
         .sorted()
         .joined(separator: "\n")
     }
 
     private func panel(for screen: NSScreen) -> NSPanel {
-        if let panel = panelsByScreenName[screen.localizedName] {
+        let display = displayID(of: screen)
+        if let panel = panelsByDisplay[display] {
             return panel
         }
 
@@ -580,6 +729,10 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
+        // NSPanel defaults to isReleasedWhenClosed = true, which combined with
+        // the strong reference held here would over-release the panel when we
+        // tear it down on disconnect. Keep ownership with ARC.
+        panel.isReleasedWhenClosed = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
@@ -588,8 +741,8 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .transient]
         panel.contentView = view
 
-        panelsByScreenName[screen.localizedName] = panel
-        viewsByScreenName[screen.localizedName] = view
+        panelsByDisplay[display] = panel
+        viewsByDisplay[display] = view
         return panel
     }
 
@@ -611,11 +764,12 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     }
 
     private func showCenterHud(workspace: String, on screen: NSScreen) {
+        let display = displayID(of: screen)
         let panel = centerPanel(for: screen)
-        centerViewsByScreenName[screen.localizedName]?.workspace = workspace
+        centerViewsByDisplay[display]?.workspace = workspace
         positionCenter(panel: panel, on: screen, workspace: workspace)
 
-        centerHideWorkItemsByScreenName[screen.localizedName]?.cancel()
+        centerHideWorkItemsByDisplay[display]?.cancel()
         panel.alphaValue = 0
         panel.orderFrontRegardless()
 
@@ -635,12 +789,13 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
                 panel.orderOut(nil)
             })
         }
-        centerHideWorkItemsByScreenName[screen.localizedName] = hideWorkItem
+        centerHideWorkItemsByDisplay[display] = hideWorkItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.58, execute: hideWorkItem)
     }
 
     private func centerPanel(for screen: NSScreen) -> NSPanel {
-        if let panel = centerPanelsByScreenName[screen.localizedName] {
+        let display = displayID(of: screen)
+        if let panel = centerPanelsByDisplay[display] {
             return panel
         }
 
@@ -652,6 +807,7 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
+        panel.isReleasedWhenClosed = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
@@ -660,8 +816,8 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .transient]
         panel.contentView = view
 
-        centerPanelsByScreenName[screen.localizedName] = panel
-        centerViewsByScreenName[screen.localizedName] = view
+        centerPanelsByDisplay[display] = panel
+        centerViewsByDisplay[display] = view
         return panel
     }
 
@@ -676,19 +832,19 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     }
 
     private func removePanelsForDisconnectedScreens() {
-        let connectedNames = Set(NSScreen.screens.map(\.localizedName))
-        for (screenName, panel) in panelsByScreenName where !connectedNames.contains(screenName) {
-            panel.close()
-            panelsByScreenName.removeValue(forKey: screenName)
-            viewsByScreenName.removeValue(forKey: screenName)
+        let connected = Set(NSScreen.screens.map { displayID(of: $0) })
+        for (display, panel) in panelsByDisplay where !connected.contains(display) {
+            panel.orderOut(nil)
+            panelsByDisplay.removeValue(forKey: display)
+            viewsByDisplay.removeValue(forKey: display)
+            visibleWorkspaceByDisplay.removeValue(forKey: display)
         }
-        for (screenName, panel) in centerPanelsByScreenName where !connectedNames.contains(screenName) {
-            centerHideWorkItemsByScreenName[screenName]?.cancel()
-            panel.close()
-            centerPanelsByScreenName.removeValue(forKey: screenName)
-            centerViewsByScreenName.removeValue(forKey: screenName)
-            centerHideWorkItemsByScreenName.removeValue(forKey: screenName)
-            visibleWorkspaceByScreenName.removeValue(forKey: screenName)
+        for (display, panel) in centerPanelsByDisplay where !connected.contains(display) {
+            centerHideWorkItemsByDisplay[display]?.cancel()
+            panel.orderOut(nil)
+            centerPanelsByDisplay.removeValue(forKey: display)
+            centerViewsByDisplay.removeValue(forKey: display)
+            centerHideWorkItemsByDisplay.removeValue(forKey: display)
         }
     }
 }
