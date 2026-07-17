@@ -3,10 +3,34 @@ let
   aerospaceConfigTemplate = ../config/aerospace/aerospace.toml;
   aerospaceIndicatorStart = ../config/aerospace/start_workspace_indicator.sh;
   aerospaceIndicatorSource = ../config/aerospace/workspace_indicator.swift;
+  dirtyFile = "/tmp/aerospace-workspace-indicator-dirty";
   renderAerospaceConfig = pkgs.writeShellScript "render-aerospace-config" ''
     exec ${pkgs.python3}/bin/python3 ${
       ../config/aerospace/render-config.py
     } "$@"
+  '';
+  # Re-render the workspace->monitor assignments for the *currently connected*
+  # monitors and nudge AeroSpace to re-home its workspaces. AeroSpace does not
+  # re-apply workspace-to-monitor-force-assignment when a monitor reconnects
+  # (upstream issue #520), so an explicit reload-config is required after the
+  # display layout changes. Safe to run repeatedly; used at startup and on every
+  # (debounced) display change reported by the workspace indicator.
+  reconfigureAerospace = pkgs.writeShellScript "reconfigure-aerospace" ''
+    set -eu
+    config_dir="${homeDir}/.config/aerospace"
+    config_file="$config_dir/aerospace.toml"
+    cli_path="/opt/homebrew/bin/aerospace"
+
+    install -d "$config_dir"
+    if ! "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
+      echo >&2 "reconfigure-aerospace: failed to render $config_file"
+      exit 0
+    fi
+
+    if [ -x "$cli_path" ] && "$cli_path" list-monitors --format '%{monitor-id}' >/dev/null 2>&1; then
+      "$cli_path" reload-config --no-gui >/dev/null 2>&1 || true
+    fi
+    /bin/sh -c 'printf . > "$0"' "${dirtyFile}" >/dev/null 2>&1 || true
   '';
   startAerospace = pkgs.writeShellScript "start-aerospace" ''
     set -eu
@@ -34,10 +58,7 @@ let
       for _ in $(seq 1 20); do
         sleep 0.5
         if [ -x "$cli_path" ] && "$cli_path" list-monitors --format '%{monitor-id}' >/dev/null 2>&1; then
-          if "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
-            "$cli_path" reload-config --no-gui >/dev/null 2>&1 || true
-            /bin/sh -c 'printf . > /tmp/aerospace-workspace-indicator-dirty' >/dev/null 2>&1 || true
-          fi
+          "${reconfigureAerospace}" || true
           break
         fi
       done
@@ -45,9 +66,10 @@ let
 
     exec "$app_path/Contents/MacOS/AeroSpace"
   '';
-  startAerospaceWorkspaceIndicator = pkgs.writeShellScript "start-aerospace-workspace-indicator" ''
-    exec "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
-  '';
+  startAerospaceWorkspaceIndicator =
+    pkgs.writeShellScript "start-aerospace-workspace-indicator" ''
+      exec "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
+    '';
 in {
   environment.systemPackages = with pkgs; [
     nerd-fonts.shure-tech-mono
@@ -98,7 +120,15 @@ in {
     Program = "${startAerospaceWorkspaceIndicator}";
     KeepAlive = { SuccessfulExit = false; };
     RunAtLoad = true;
-    StandardOutPath = "${homeDir}/Library/Logs/aerospace/workspace-indicator.out.log";
-    StandardErrorPath = "${homeDir}/Library/Logs/aerospace/workspace-indicator.err.log";
+    EnvironmentVariables = {
+      # The indicator already observes screen-parameter/wake notifications, so it
+      # is the natural place to trigger a re-render + reload-config when the
+      # display layout changes (lid close/open, undock, power-loss reconnect).
+      AEROSPACE_RECONFIGURE = "${reconfigureAerospace}";
+    };
+    StandardOutPath =
+      "${homeDir}/Library/Logs/aerospace/workspace-indicator.out.log";
+    StandardErrorPath =
+      "${homeDir}/Library/Logs/aerospace/workspace-indicator.err.log";
   };
 }
