@@ -33,6 +33,22 @@ def quote_toml_value(value):
     return f"'{escaped}'"
 
 
+def format_assignment(target):
+    """Render a single workspace assignment value.
+
+    AeroSpace resolves an array of monitor descriptions to the *first* one that
+    matches a connected monitor (see MonitorDescription.swift). We always append
+    ``'main'`` as the final fallback so that when the primary monitor is absent
+    -- after closing the lid, undocking, or a power-loss reconnect renumbers the
+    displays -- the workspace lands on the main monitor instead of being
+    stranded on a monitor that no longer exists. ``'main'`` itself never needs a
+    fallback because there is always exactly one main monitor.
+    """
+    if target == "main":
+        return "'main'"
+    return f"[{quote_toml_value(target)}, 'main']"
+
+
 def load_displays_from_env():
     raw = os.environ.get("AEROSPACE_MONITORS_JSON")
     if not raw:
@@ -208,7 +224,7 @@ def generate_assignment_block(displays):
         "[workspace-to-monitor-force-assignment]",
     ]
     for workspace, target in assignments:
-        lines.append(f"{workspace} = {quote_toml_value(target)}")
+        lines.append(f"{workspace} = {format_assignment(target)}")
     lines.append(END_MARKER)
     return "\n".join(lines)
 

@@ -30,10 +30,10 @@ assert_contains() {
 
 assert_contains "1 = 'main'" "expected workspace 1 on the main display"
 assert_contains "4 = 'main'" "expected workspace 4 on the main display"
-assert_contains "5 = 1" "expected workspace 5 on the first non-main external display"
-assert_contains "7 = 1" "expected workspace 7 on the first non-main external display"
-assert_contains "8 = 'built-in'" "expected workspace 8 on the built-in display"
-assert_contains "10 = 'built-in'" "expected workspace 10 on the built-in display"
+assert_contains "5 = [1, 'main']" "expected workspace 5 on the first non-main external display with a main fallback"
+assert_contains "7 = [1, 'main']" "expected workspace 7 on the first non-main external display with a main fallback"
+assert_contains "8 = ['built-in', 'main']" "expected workspace 8 on the built-in display with a main fallback"
+assert_contains "10 = ['built-in', 'main']" "expected workspace 10 on the built-in display with a main fallback"
 assert_contains "start-at-login = false" "expected normal AeroSpace settings to remain"
 
 four_display_rendered="${tmp_dir}/four-display.toml"
@@ -50,12 +50,12 @@ AEROSPACE_MONITORS_JSON='[
 rendered="${four_display_rendered}"
 assert_contains "1 = 'main'" "expected workspace 1 on the main display with four displays"
 assert_contains "3 = 'main'" "expected workspace 3 on the main display with four displays"
-assert_contains "4 = 1" "expected workspace 4 on the first non-main external display"
-assert_contains "6 = 1" "expected workspace 6 on the first non-main external display"
-assert_contains "7 = 4" "expected workspace 7 on the second non-main external display"
-assert_contains "8 = 4" "expected workspace 8 on the second non-main external display"
-assert_contains "9 = 'built-in'" "expected workspace 9 on the built-in display"
-assert_contains "10 = 'built-in'" "expected workspace 10 on the built-in display"
+assert_contains "4 = [1, 'main']" "expected workspace 4 on the first non-main external display with a main fallback"
+assert_contains "6 = [1, 'main']" "expected workspace 6 on the first non-main external display with a main fallback"
+assert_contains "7 = [4, 'main']" "expected workspace 7 on the second non-main external display with a main fallback"
+assert_contains "8 = [4, 'main']" "expected workspace 8 on the second non-main external display with a main fallback"
+assert_contains "9 = ['built-in', 'main']" "expected workspace 9 on the built-in display with a main fallback"
+assert_contains "10 = ['built-in', 'main']" "expected workspace 10 on the built-in display with a main fallback"
 
 solo_rendered="${tmp_dir}/solo.toml"
 AEROSPACE_MONITORS_JSON='[

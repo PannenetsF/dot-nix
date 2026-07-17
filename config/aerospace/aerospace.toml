@@ -23,17 +23,20 @@ key-mapping.preset = 'qwerty'
 
 # BEGIN AUTO-GENERATED WORKSPACE ASSIGNMENTS
 # Replaced in ~/.config/aerospace/aerospace.toml by render-config.py.
+# Each value is a fallback list resolved left-to-right to the first connected
+# monitor, so a closed lid / undock / power-loss reconnect degrades to 'main'
+# instead of stranding a workspace on a monitor that is no longer present.
 [workspace-to-monitor-force-assignment]
 1 = 'main'
 2 = 'main'
 3 = 'main'
 4 = 'main'
-5 = 'secondary'
-6 = 'secondary'
-7 = 'built-in'
-8 = 'built-in'
-9 = 'built-in'
-10 = 'built-in'
+5 = ['secondary', 'main']
+6 = ['secondary', 'main']
+7 = ['built-in', 'main']
+8 = ['built-in', 'main']
+9 = ['built-in', 'main']
+10 = ['built-in', 'main']
 # END AUTO-GENERATED WORKSPACE ASSIGNMENTS
 
 [gaps]
