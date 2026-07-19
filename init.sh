@@ -24,8 +24,14 @@ stop_sudo_keepalive() {
   fi
 }
 
+# Optional: pre-authenticate sudo up front and keep the timestamp warm so the
+# later darwin-rebuild does not prompt again. This only helps when sudo actually
+# caches credentials. On managed Macs with `timestamp_timeout=0`, or with
+# Touch-ID-only auth, the pre-auth cannot be reused and would just add a second
+# prompt. So it is opt-in (NIX_HM_SUDO_KEEPALIVE=1); by default darwin-rebuild
+# issues the single sudo prompt itself.
 start_sudo_keepalive() {
-  if [[ "$(id -u)" -eq 0 || "${NIX_HM_SUDO_KEEPALIVE:-1}" == "0" ]]; then
+  if [[ "$(id -u)" -eq 0 || "${NIX_HM_SUDO_KEEPALIVE:-0}" != "1" ]]; then
     return 0
   fi
 
@@ -514,6 +520,7 @@ activate_nix_darwin() {
   prepare_nix_darwin_activation
   if [[ "$(id -u)" -ne 0 ]]; then
     need_cmd sudo
+    echo "[init.sh] nix-darwin activation needs administrator privileges (password or Touch ID)." >&2
     local env_args
     darwin_env_args "$user"
     sudo env "${env_args[@]}" \
