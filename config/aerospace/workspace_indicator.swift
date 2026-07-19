@@ -241,6 +241,7 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var pendingRefreshWorkItem: DispatchWorkItem?
     private var pendingLayoutWorkItem: DispatchWorkItem?
     private var pendingReconfigureWorkItem: DispatchWorkItem?
+    private var reconfigureProcess: Process?
     private var appEntriesByWorkspaceCache: [String: [String]] = [:]
     private var lastSignature = ""
     private var lastScreenLayoutSignature = ""
@@ -330,11 +331,19 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private func triggerReconfigure() {
         guard let reconfigurePath, !reconfigurePath.isEmpty else { return }
         pendingReconfigureWorkItem?.cancel()
-        let workItem = DispatchWorkItem {
+        let workItem = DispatchWorkItem { [weak self] in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: reconfigurePath)
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            // Retain the process until it exits and reap it via the termination
+            // handler so it never lingers as a zombie.
+            process.terminationHandler = { _ in
+                DispatchQueue.main.async { self?.reconfigureProcess = nil }
+            }
             do {
                 try process.run()
+                DispatchQueue.main.async { self?.reconfigureProcess = process }
             } catch {
                 debugLog("reconfigure failed to launch: \(error)")
             }
@@ -539,6 +548,13 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     // Returns nil when the command could not be run to completion (binary
     // missing, launch error, or timeout). An empty String means the command
     // succeeded with no output.
+    //
+    // IMPORTANT: completion is observed via `terminationHandler`, NOT a
+    // `waitUntilExit()` call parked on a background thread. A parked
+    // waitUntilExit leaks one thread per timed-out call (aerospace can take
+    // >timeout right after wake or when the WM is busy); over days those
+    // threads saturate the dispatch pool and the indicator silently freezes.
+    // On timeout the child is escalated SIGTERM -> SIGKILL so it cannot linger.
     private func runAerospace(_ arguments: [String], timeout: TimeInterval = 1.0) -> String? {
         guard FileManager.default.isExecutableFile(atPath: aerospacePath) else {
             return nil
@@ -549,21 +565,12 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         process.arguments = arguments
 
         let outPipe = Pipe()
-        let errPipe = Pipe()
         process.standardOutput = outPipe
-        process.standardError = errPipe
+        // Discard stderr via /dev/null so there is no second pipe to drain.
+        process.standardError = FileHandle.nullDevice
 
-        // Drain both pipes concurrently so a child that writes more than the
-        // pipe buffer before exiting cannot deadlock against waitUntilExit.
-        let outData = DispatchQueue(label: "aerospace.stdout")
-        let errData = DispatchQueue(label: "aerospace.stderr")
-        var collected = Data()
-        outData.async {
-            collected = outPipe.fileHandleForReading.readDataToEndOfFile()
-        }
-        errData.async {
-            _ = errPipe.fileHandleForReading.readDataToEndOfFile()
-        }
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
 
         do {
             try process.run()
@@ -571,18 +578,23 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             return nil
         }
 
-        let finished = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .utility).async {
-            process.waitUntilExit()
-            finished.signal()
-        }
-        if finished.wait(timeout: .now() + timeout) == .timedOut {
+        var timedOut = false
+        if exited.wait(timeout: .now() + timeout) == .timedOut {
             process.terminate()
-            return nil
+            if exited.wait(timeout: .now() + 0.3) == .timedOut {
+                kill(process.processIdentifier, SIGKILL)
+                _ = exited.wait(timeout: .now() + 0.5)
+            }
+            timedOut = true
         }
 
-        outData.sync {}
-        return String(data: collected, encoding: .utf8) ?? ""
+        // The child has exited (or been killed), so its write end of the pipe
+        // is closed and this read returns immediately at EOF. Output for the
+        // list-* commands is well under the pipe buffer, so a synchronous read
+        // after exit cannot deadlock -- and there is no background reader thread
+        // that could leak.
+        let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+        return timedOut ? nil : (String(data: data, encoding: .utf8) ?? "")
     }
 
     private func apply(states: [MonitorState]?) {
