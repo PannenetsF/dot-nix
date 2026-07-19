@@ -127,14 +127,6 @@ if [[ "$log" != *"sudo -E sh -s -- install --no-confirm"* ]]; then
   exit 1
 fi
 
-sudo_validate_line="$(grep -n "^sudo -v " "$tmp/install.log" | head -n 1 | cut -d: -f1)"
-sudo_install_line="$(grep -n "sudo -E sh -s -- install --no-confirm" "$tmp/install.log" | head -n 1 | cut -d: -f1)"
-if [[ -z "$sudo_validate_line" || -z "$sudo_install_line" || "$sudo_validate_line" -ge "$sudo_install_line" ]]; then
-  echo "expected init.sh to validate sudo before running the Determinate installer" >&2
-  printf '%s\n' "$log" >&2
-  exit 1
-fi
-
 if [[ "$log" != *"#darwin-rebuild"* ]]; then
   echo "expected init.sh to continue into nix-darwin activation after installing nix" >&2
   printf '%s\n' "$log" >&2

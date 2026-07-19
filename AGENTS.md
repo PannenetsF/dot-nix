@@ -57,7 +57,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 8. macOS 默认先运行 `brew/install.sh` 确保 Homebrew 和必要 tap 可用，然后通过
    `nix run .#darwin-rebuild -- switch --flake .#<system> --impure` 激活
    nix-darwin。非 root 运行时会通过 `sudo env` 传入 `NIX_HM_USER` 和
-   `NIX_HM_HOME`。
+   `NIX_HM_HOME`。这一次 `sudo` 就是唯一的管理员授权点；不再默认预授权
+   （`sudo -v`），因为在 `timestamp_timeout=0` 或仅 Touch ID 的机器上凭据无法
+   复用，预授权只会多弹一次。需要提前预授权 + keepalive 时设
+   `NIX_HM_SUDO_KEEPALIVE=1`。
 9. Linux 或 macOS `--home-manager` 路径会执行
    `nix run nixpkgs#home-manager -- switch -b backup --flake .#<system>`。
 
@@ -65,6 +68,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 
 - `NIX_HM_USER` / `NIX_HM_HOME`：显式指定 flake 评估时的用户和 home 目录。
 - `DEBUG=1`：打开 shell trace，并传给 `NIX_HM_DEBUG`。
+- `NIX_HM_SUDO_KEEPALIVE=1`：可选，提前 `sudo -v` 预授权并 keepalive；默认关闭，
+  让 `darwin-rebuild` 自己发起唯一一次 sudo 提示。
 - `NIX_HM_USE_HOME_MANAGER=1`：macOS 上跳过 nix-darwin，使用 Home Manager。
 - `NIX_HM_BREW_BOOTSTRAP`：替换 Homebrew bootstrap 脚本，测试里常用。
 - `PIP_POSTFIX`、`PIP_INDEX_URL`、`PIP_TRUSTED_HOST` 等：会保留给激活脚本使用。
