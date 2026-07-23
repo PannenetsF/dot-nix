@@ -22,14 +22,30 @@ let
     cli_path="/opt/homebrew/bin/aerospace"
 
     install -d "$config_dir"
+    if [ ! -x "$cli_path" ]; then
+      echo >&2 "reconfigure-aerospace: $cli_path is missing; keeping existing config"
+      exit 0
+    fi
+
+    has_monitors=
+    for _ in $(seq 1 20); do
+      if "$cli_path" list-monitors --format '%{monitor-id}' >/dev/null 2>&1; then
+        has_monitors=1
+        break
+      fi
+      sleep 0.25
+    done
+    if [ -z "$has_monitors" ]; then
+      echo >&2 "reconfigure-aerospace: monitors unavailable; keeping existing config"
+      exit 0
+    fi
+
     if ! "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
       echo >&2 "reconfigure-aerospace: failed to render $config_file"
       exit 0
     fi
 
-    if [ -x "$cli_path" ] && "$cli_path" list-monitors --format '%{monitor-id}' >/dev/null 2>&1; then
-      "$cli_path" reload-config --no-gui >/dev/null 2>&1 || true
-    fi
+    "$cli_path" reload-config --no-gui >/dev/null 2>&1 || true
     /bin/sh -c 'printf . > "$0"' "${dirtyFile}" >/dev/null 2>&1 || true
   '';
   startAerospace = pkgs.writeShellScript "start-aerospace" ''
