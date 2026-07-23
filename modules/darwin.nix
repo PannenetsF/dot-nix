@@ -64,6 +64,12 @@
       force = true;
     };
 
+    ".local/bin/agent-open-neovide" = {
+      source = ../config/neovide/agent-open-neovide.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;

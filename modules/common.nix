@@ -186,6 +186,8 @@ in {
     PATH = "$HOME/.local/bin:$PATH";
     LC_ALL = "C.UTF-8";
     COLORTERM = "truecolor";
+    EDITOR = "nvim";
+    VISUAL = "nvim";
   };
 
   programs.home-manager.enable = true;
