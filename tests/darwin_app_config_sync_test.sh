@@ -119,6 +119,10 @@ if ! grep -Fq "KeepAlive = { SuccessfulExit = false; };" "${darwin_gui_module}";
 	echo "expected AeroSpace launchd agent to restart only after unsuccessful exits" >&2
 	exit 1
 fi
+if ! grep -Fq "monitors unavailable; keeping existing config" "${darwin_gui_module}"; then
+	echo "expected AeroSpace reconfigure to preserve config until monitor state is readable" >&2
+	exit 1
+fi
 if grep -Fq "system.activationScripts.aerospaceConfig" "${darwin_gui_module}"; then
 	echo "expected AeroSpace config sync to use a nix-darwin activation hook that runs" >&2
 	exit 1
