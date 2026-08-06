@@ -57,6 +57,24 @@ assert_contains "8 = [4, 'main']" "expected workspace 8 on the second non-main e
 assert_contains "9 = ['built-in', 'main']" "expected workspace 9 on the built-in display with a main fallback"
 assert_contains "10 = ['built-in', 'main']" "expected workspace 10 on the built-in display with a main fallback"
 
+hp_preferred_rendered="${tmp_dir}/hp-preferred.toml"
+AEROSPACE_MONITORS_JSON='[
+  {"seq": 1, "name": "Built-in Retina Display", "main": true, "built_in": true},
+  {"seq": 2, "name": "DELL U2720Q", "main": false, "built_in": false},
+  {"seq": 3, "name": "HP Z27k G3", "main": false, "built_in": false}
+]' python3 \
+  "${repo_root}/config/aerospace/render-config.py" \
+  "${repo_root}/config/aerospace/aerospace.toml" \
+  "${hp_preferred_rendered}"
+
+rendered="${hp_preferred_rendered}"
+assert_contains "1 = [3, 'main']" "expected workspace 1 on the HP display even when built-in is main"
+assert_contains "4 = [3, 'main']" "expected workspace 4 on the HP display even when built-in is main"
+assert_contains "5 = [2, 'main']" "expected workspace 5 on the DELL display when HP is preferred"
+assert_contains "7 = [2, 'main']" "expected workspace 7 on the DELL display when HP is preferred"
+assert_contains "8 = ['built-in', 'main']" "expected workspace 8 on the built-in display when HP is preferred"
+assert_contains "10 = ['built-in', 'main']" "expected workspace 10 on the built-in display when HP is preferred"
+
 solo_rendered="${tmp_dir}/solo.toml"
 AEROSPACE_MONITORS_JSON='[
   {"seq": 1, "main": true, "built_in": true}
