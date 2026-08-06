@@ -12,6 +12,7 @@ from ctypes import POINTER, byref, c_bool, c_double, c_int32, c_uint32
 BEGIN_MARKER = "# BEGIN AUTO-GENERATED WORKSPACE ASSIGNMENTS"
 END_MARKER = "# END AUTO-GENERATED WORKSPACE ASSIGNMENTS"
 WORKSPACES = tuple(str(index) for index in range(1, 11))
+PREFERRED_PRIMARY_MONITOR_NAMES = ("hp z27k g3",)
 
 
 class CGPoint(ctypes.Structure):
@@ -59,6 +60,7 @@ def load_displays_from_env():
         displays.append(
             {
                 "seq": int(item["seq"]),
+                "name": str(item.get("name", "")),
                 "main": bool(item.get("main", False)),
                 "built_in": bool(item.get("built_in", False)),
             }
@@ -100,6 +102,7 @@ def load_displays_from_aerospace():
         displays.append(
             {
                 "seq": seq,
+                "name": monitor_name,
                 "main": is_main == "true",
                 "built_in": "built-in" in lower_name or "retina display" in lower_name,
             }
@@ -143,6 +146,7 @@ def load_displays_from_coregraphics():
         displays.append(
             {
                 "display_id": int(display_id),
+                "name": "",
                 "x": float(bounds.origin.x),
                 "y": float(bounds.origin.y),
                 "main": display_id == main_display_id,
@@ -176,17 +180,29 @@ def assignment_targets(displays):
     if not displays:
         return ["main"]
 
+    primary_display = preferred_primary_display(displays)
+    if primary_display is None:
+        primary_display = next(
+            (display for display in displays if display["main"]), displays[0]
+        )
+
+    primary_target = (
+        primary_display["seq"]
+        if is_preferred_primary_display(primary_display)
+        else "main"
+    )
+
     external_targets = []
     built_in_target = None
     for display in displays:
-        if display["main"]:
+        if display is primary_display:
             continue
         if display["built_in"]:
             built_in_target = "built-in"
             continue
         external_targets.append(display["seq"])
 
-    targets = ["main", *external_targets]
+    targets = [primary_target, *external_targets]
     if built_in_target:
         targets.append(built_in_target)
 
@@ -196,6 +212,17 @@ def assignment_targets(displays):
         else:
             targets = targets[: len(WORKSPACES)]
     return targets
+
+
+def is_preferred_primary_display(display):
+    name = display.get("name", "").lower()
+    return any(preferred in name for preferred in PREFERRED_PRIMARY_MONITOR_NAMES)
+
+
+def preferred_primary_display(displays):
+    return next(
+        (display for display in displays if is_preferred_primary_display(display)), None
+    )
 
 
 def distribute(workspaces, targets):
