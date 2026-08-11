@@ -284,8 +284,21 @@ def assignment_block_has_external_targets(block):
     return False
 
 
+def assignment_state_path(output_path):
+    return f"{output_path}.assignments.json"
+
+
+def load_assignment_state(output_path):
+    try:
+        with open(assignment_state_path(output_path), encoding="utf-8") as state_file:
+            state = json.load(state_file)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return state if isinstance(state, dict) else None
+
+
 def should_preserve_existing_block(source, displays, output_path):
-    if source != "coregraphics" or len(displays) != 1 or not os.path.exists(output_path):
+    if not os.path.exists(output_path):
         return False
 
     try:
@@ -294,7 +307,37 @@ def should_preserve_existing_block(source, displays, output_path):
     except OSError:
         return False
 
-    return existing_block is not None and assignment_block_has_external_targets(existing_block)
+    if existing_block is None:
+        return False
+
+    assignments = load_assignment_state(output_path)
+
+    # CoreGraphics can confirm that displays exist, but its left-to-right
+    # sequence is not AeroSpace's monitor index and it has no monitor names.
+    # Preserve the last authoritative mapping until AeroSpace is queryable.
+    # An AeroSpace/env snapshot is authoritative even when it has fewer
+    # displays: a stable unplugged topology must replace stale numeric IDs.
+    if assignments is not None:
+        return source not in ("aerospace", "env")
+
+    # Compatibility for the first activation after upgrading from the older
+    # renderer, before the structured assignment sidecar has been created.
+    return (
+        source == "coregraphics"
+        and len(displays) == 1
+        and assignment_block_has_external_targets(existing_block)
+    )
+
+
+def assignment_patterns(target):
+    return [target] if target == "main" else [target, "main"]
+
+
+def generate_assignments(displays):
+    return {
+        workspace: assignment_patterns(target)
+        for workspace, target in distribute(WORKSPACES, assignment_targets(displays))
+    }
 
 
 def atomic_write(path, content):
@@ -312,6 +355,10 @@ def atomic_write(path, content):
             os.unlink(tmp_path)
 
 
+def atomic_write_json(path, value):
+    atomic_write(path, json.dumps(value, indent=2, sort_keys=True))
+
+
 def main(argv):
     if len(argv) != 3:
         print("usage: render-config.py TEMPLATE OUTPUT", file=sys.stderr)
@@ -326,9 +373,13 @@ def main(argv):
         with open(output_path, "r", encoding="utf-8") as output_file:
             existing_block = extract_generated_block(output_file.read())
         rendered = replace_generated_block(template, existing_block)
+        assignments = load_assignment_state(output_path)
     else:
         rendered = replace_generated_block(template, generate_assignment_block(displays))
+        assignments = generate_assignments(displays)
     atomic_write(output_path, rendered)
+    if assignments is not None:
+        atomic_write_json(assignment_state_path(output_path), assignments)
     return 0
 
 

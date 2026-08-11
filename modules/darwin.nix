@@ -24,6 +24,11 @@
       force = true;
     };
 
+    ".config/alacritty/alacritty.toml" = {
+      source = ../config/alacritty/alacritty.toml;
+      force = true;
+    };
+
     ".config/kitty/kitty.conf" = {
       source = ../config/kitty/kitty.conf;
       force = true;

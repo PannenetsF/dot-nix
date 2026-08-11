@@ -2,6 +2,8 @@
 set -euo pipefail
 
 failures=0
+aerospace_patched_version="0.21.3-Beta-pf.1"
+aerospace_release_commit="3121c4ba5862a49d834a2df301739ac95c08cc4a"
 
 if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
   # shellcheck disable=SC1091
@@ -50,6 +52,18 @@ check_path() {
     pass "path exists: $path"
   else
     fail "missing path: $path"
+  fi
+}
+
+check_binary_contains() {
+  local path="$1"
+  local expected="$2"
+  local label="$3"
+
+  if [[ -x "$path" ]] && /usr/bin/strings "$path" | grep -F "$expected" >/dev/null; then
+    pass "$label contains $expected"
+  else
+    fail "$label does not contain $expected"
   fi
 }
 
@@ -107,9 +121,12 @@ require_darwin || true
 check_command nix
 check_command brew
 check_command duti
+check_command alacritty
+check_command aerospace
 
 for app in \
   "1Password" \
+  "AeroSpace" \
   "Firefox" \
   "Karabiner-Elements" \
   "kitty" \
@@ -129,10 +146,25 @@ check_path "${HOME}/.skhdrc"
 check_path "${HOME}/.config/skhd/open_iterm2.sh"
 check_path "${HOME}/.config/skhd/toggle_kitty_dropdown.sh"
 check_path "${HOME}/.config/karabiner/karabiner.json"
+check_path "${HOME}/.config/alacritty/alacritty.toml"
 check_path "${HOME}/.config/kitty/kitty.conf"
 check_path "${HOME}/.config/kitty/tab_bar.py"
 check_path "${HOME}/.config/kitty/theme.conf"
+check_path "/Applications/Nix Apps/Alacritty.app"
 check_path "${HOME}/Pictures/Screenshots"
+
+installed_aerospace_cask="$(brew list --cask --versions aerospace-patched 2>/dev/null || true)"
+if [[ "$installed_aerospace_cask" == "aerospace-patched ${aerospace_patched_version}" ]]; then
+  pass "patched AeroSpace cask version: ${aerospace_patched_version}"
+else
+  fail "patched AeroSpace cask: expected '${aerospace_patched_version}', got '${installed_aerospace_cask}'"
+fi
+
+check_binary_contains "/Applications/AeroSpace.app/Contents/MacOS/AeroSpace" \
+  "$aerospace_release_commit" "AeroSpace app"
+aerospace_cli="$(command -v aerospace || true)"
+check_binary_contains "$aerospace_cli" \
+  "$aerospace_release_commit" "AeroSpace CLI"
 
 if grep -Riq "emacs" "${HOME}/.config/aerospace" 2>/dev/null; then
   fail "unexpected Emacs reference in AeroSpace config"

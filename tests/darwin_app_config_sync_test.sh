@@ -53,6 +53,7 @@ assert_file_exists "config/skhd/skhdrc"
 assert_file_exists "config/skhd/open_iterm2.sh"
 assert_file_exists "config/skhd/toggle_kitty_dropdown.sh"
 assert_file_exists "config/neovide/agent-open-neovide.sh"
+assert_file_exists "config/alacritty/alacritty.toml"
 
 assert_module_mentions "$darwin_gui_module" ".config/aerospace/aerospace.toml" "../config/aerospace/aerospace.toml"
 assert_module_mentions "$darwin_gui_module" "render-aerospace-config" "../config/aerospace/render-config.py"
@@ -62,6 +63,7 @@ assert_module_links "$darwin_module" ".skhdrc" "../config/skhd/skhdrc"
 assert_module_links "$darwin_module" ".config/skhd/open_iterm2.sh" "../config/skhd/open_iterm2.sh"
 assert_module_links "$darwin_module" ".config/skhd/toggle_kitty_dropdown.sh" "../config/skhd/toggle_kitty_dropdown.sh"
 assert_module_links "$darwin_module" ".local/bin/agent-open-neovide" "../config/neovide/agent-open-neovide.sh"
+assert_module_links "$darwin_module" ".config/alacritty/alacritty.toml" "../config/alacritty/alacritty.toml"
 
 if grep -Fq '".config/zed/settings.json"' "${darwin_module}"; then
 	echo "expected Zed settings to stay writable instead of being linked into the Nix store" >&2
@@ -107,6 +109,16 @@ if ! grep -Fq "pgrep -x AeroSpace" "${darwin_gui_module}" ||
 fi
 if ! grep -Fq '/Applications/AeroSpace.app' "${darwin_gui_module}"; then
 	echo "expected AeroSpace launchd agent to use the Homebrew-installed app path" >&2
+	exit 1
+fi
+
+if grep -Fq 'AeroSpace-patched.app' "${darwin_gui_module}" ||
+	grep -Fq '/usr/bin/ditto "$patched_app" "$app_path"' "${darwin_gui_module}"; then
+	echo "expected the packaged AeroSpace release to replace the cache restoration workaround" >&2
+	exit 1
+fi
+if ! grep -Fq 'dot-nix/local/aerospace-patched' "${darwin_gui_module}"; then
+	echo "expected the AeroSpace launch wrapper to reference the patched Homebrew cask" >&2
 	exit 1
 fi
 if grep -Fq '/Applications/Nix Apps/AeroSpace.app' "${darwin_gui_module}"; then

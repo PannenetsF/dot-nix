@@ -1,8 +1,10 @@
-{ lib, pkgs, homeDir, username, ... }:
+{ config, lib, pkgs, pkgsUnstable, homeDir, username, ... }:
 let
   aerospaceConfigTemplate = ../config/aerospace/aerospace.toml;
   aerospaceIndicatorStart = ../config/aerospace/start_workspace_indicator.sh;
   aerospaceIndicatorSource = ../config/aerospace/workspace_indicator.swift;
+  aerospaceRehomeSource = ../config/aerospace/rehome-workspaces.py;
+  aerospaceCli = "${config.homebrew.brewPrefix}/aerospace";
   dirtyFile = "/tmp/aerospace-workspace-indicator-dirty";
   renderAerospaceConfig = pkgs.writeShellScript "render-aerospace-config" ''
     exec ${pkgs.python3}/bin/python3 ${
@@ -10,16 +12,16 @@ let
     } "$@"
   '';
   # Re-render the workspace->monitor assignments for the *currently connected*
-  # monitors and nudge AeroSpace to re-home its workspaces. AeroSpace does not
+  # monitors and explicitly re-home its workspaces. AeroSpace does not
   # re-apply workspace-to-monitor-force-assignment when a monitor reconnects
-  # (upstream issue #520), so an explicit reload-config is required after the
-  # display layout changes. Safe to run repeatedly; used at startup and on every
-  # (debounced) display change reported by the workspace indicator.
+  # (upstream issue #520), so reload-config alone is insufficient after display
+  # layout changes. Safe to run repeatedly; used at startup and on every
+  # debounced display change reported by the workspace indicator.
   reconfigureAerospace = pkgs.writeShellScript "reconfigure-aerospace" ''
     set -eu
     config_dir="${homeDir}/.config/aerospace"
     config_file="$config_dir/aerospace.toml"
-    cli_path="/opt/homebrew/bin/aerospace"
+    cli_path="${aerospaceCli}"
 
     install -d "$config_dir"
     if [ ! -x "$cli_path" ]; then
@@ -28,10 +30,22 @@ let
     fi
 
     has_monitors=
-    for _ in $(seq 1 20); do
-      if "$cli_path" list-monitors --format '%{monitor-id}' >/dev/null 2>&1; then
-        has_monitors=1
-        break
+    previous_topology=
+    stable_samples=0
+    for _ in $(seq 1 30); do
+      topology=$("$cli_path" list-monitors \
+        --format '%{monitor-id}|%{monitor-name}|%{monitor-is-main}' 2>/dev/null || true)
+      if [ -n "$topology" ]; then
+        if [ "$topology" = "$previous_topology" ]; then
+          stable_samples=$((stable_samples + 1))
+        else
+          previous_topology="$topology"
+          stable_samples=1
+        fi
+        if [ "$stable_samples" -ge 3 ]; then
+          has_monitors=1
+          break
+        fi
       fi
       sleep 0.25
     done
@@ -45,7 +59,15 @@ let
       exit 0
     fi
 
-    "$cli_path" reload-config --no-gui >/dev/null 2>&1 || true
+    if ! "$cli_path" reload-config --no-gui; then
+      echo >&2 "reconfigure-aerospace: reload-config failed"
+      exit 1
+    fi
+    if ! ${pkgs.python3}/bin/python3 "${aerospaceRehomeSource}" \
+      "$config_file.assignments.json" "$cli_path"; then
+      echo >&2 "reconfigure-aerospace: workspace re-home failed"
+      exit 1
+    fi
     /bin/sh -c 'printf . > "$0"' "${dirtyFile}" >/dev/null 2>&1 || true
   '';
   startAerospace = pkgs.writeShellScript "start-aerospace" ''
@@ -54,7 +76,7 @@ let
     config_dir="${homeDir}/.config/aerospace"
     config_file="$config_dir/aerospace.toml"
     app_path="/Applications/AeroSpace.app"
-    cli_path="/opt/homebrew/bin/aerospace"
+    cli_path="${aerospaceCli}"
 
     install -d "$config_dir"
     if ! "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
@@ -62,7 +84,7 @@ let
     fi
 
     if [ ! -x "$app_path/Contents/MacOS/AeroSpace" ]; then
-      echo >&2 "AeroSpace.app is missing. Install it with Homebrew cask nikitabobko/tap/aerospace."
+      echo >&2 "AeroSpace.app is missing. Install Homebrew cask dot-nix/local/aerospace-patched."
       exit 1
     fi
 
@@ -87,10 +109,11 @@ let
       exec "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
     '';
 in {
-  environment.systemPackages = with pkgs; [
-    nerd-fonts.shure-tech-mono
-    sketchybar-app-font
-  ];
+  environment.systemPackages =
+    (with pkgs; [ nerd-fonts.shure-tech-mono sketchybar-app-font ])
+    # The Homebrew cask is disabled after 2026-09-01 because it fails
+    # Gatekeeper checks, so keep Alacritty on the current Nix package.
+    ++ [ pkgsUnstable.alacritty ];
 
   system.activationScripts.postActivation.text = lib.mkAfter ''
     echo >&2 "aerospace config..."
@@ -115,7 +138,10 @@ in {
       "${homeDir}/.config/aerospace/update_workspace_indicator.sh" \
       "${homeDir}/Library/Caches/dot-nix/aerospace-workspace-hud"
     rm -f "${homeDir}/.aerospace.toml"
-    chown ${username}:staff "${homeDir}/.config/aerospace/aerospace.toml" 2>/dev/null || true
+    chown ${username}:staff \
+      "${homeDir}/.config/aerospace/aerospace.toml" \
+      "${homeDir}/.config/aerospace/aerospace.toml.assignments.json" \
+      2>/dev/null || true
 
     install -d -o ${username} -g staff "${homeDir}/Library/Logs/aerospace"
     launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.aerospace" 2>/dev/null || true

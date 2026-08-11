@@ -22,12 +22,18 @@ for expected in \
   "update --quiet" \
   "tap daipeihust/tap" \
   "tap gromgit/fuse" \
-  "tap nikitabobko/tap" \
   "trust --formula daipeihust/tap/im-select" \
-  "trust --formula gromgit/fuse/sshfs-mac" \
-  "trust nikitabobko/tap"; do
+  "trust --formula gromgit/fuse/sshfs-mac"; do
   if [[ "$brew_log" != *"$expected"* ]]; then
     echo "expected brew/install.sh to run: $expected" >&2
+    echo "$brew_log" >&2
+    exit 1
+  fi
+done
+
+for unexpected in "tap nikitabobko/tap" "trust nikitabobko/tap"; do
+  if [[ "$brew_log" == *"$unexpected"* ]]; then
+    echo "did not expect brew/install.sh to run: $unexpected" >&2
     echo "$brew_log" >&2
     exit 1
   fi
