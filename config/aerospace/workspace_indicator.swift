@@ -242,6 +242,7 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var pendingLayoutWorkItem: DispatchWorkItem?
     private var pendingReconfigureWorkItem: DispatchWorkItem?
     private var reconfigureProcess: Process?
+    private var reconfigureAgain = false
     private var appEntriesByWorkspaceCache: [String: [String]] = [:]
     private var lastSignature = ""
     private var lastScreenLayoutSignature = ""
@@ -325,31 +326,43 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
 
     // AeroSpace does not re-apply workspace-to-monitor-force-assignment when a
     // monitor reconnects (upstream issue #520). The nix-darwin launchd agent
-    // passes a helper via AEROSPACE_RECONFIGURE that re-renders the config for
-    // the current displays and issues reload-config. Debounce it so a single
-    // settled layout change triggers exactly one re-home.
+    // passes a helper via AEROSPACE_RECONFIGURE that waits for a stable display
+    // snapshot, re-renders the config, and explicitly re-homes every workspace.
+    // Coalesce changes while a helper is already running into one later retry.
     private func triggerReconfigure() {
         guard let reconfigurePath, !reconfigurePath.isEmpty else { return }
+        if reconfigureProcess != nil {
+            reconfigureAgain = true
+            return
+        }
         pendingReconfigureWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingReconfigureWorkItem = nil
             let process = Process()
             process.executableURL = URL(fileURLWithPath: reconfigurePath)
             process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            // Retain the process until it exits and reap it via the termination
-            // handler so it never lingers as a zombie.
-            process.terminationHandler = { _ in
-                DispatchQueue.main.async { self?.reconfigureProcess = nil }
+            process.standardError = FileHandle.standardError
+            process.terminationHandler = { [weak self] _ in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.reconfigureProcess = nil
+                    if self.reconfigureAgain {
+                        self.reconfigureAgain = false
+                        self.triggerReconfigure()
+                    }
+                }
             }
             do {
                 try process.run()
-                DispatchQueue.main.async { self?.reconfigureProcess = process }
+                self.reconfigureProcess = process
             } catch {
+                self.reconfigureProcess = nil
                 debugLog("reconfigure failed to launch: \(error)")
             }
         }
         pendingReconfigureWorkItem = workItem
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.2, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
     }
 
     private func watchDirtyFile() {

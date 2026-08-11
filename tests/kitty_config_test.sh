@@ -42,6 +42,8 @@ assert_contains "modules/darwin.nix" '".config/kitty/theme.conf"' \
 	"expected Home Manager to manage ~/.config/kitty/theme.conf"
 assert_contains "modules/darwin.nix" "../config/kitty/kitty.conf" \
 	"expected Home Manager to source kitty config from this repo"
+assert_contains "config/kitty/kitty.conf" "font_family      UbuntuMono Nerd Font Mono" \
+	"expected Kitty to use the strict monospaced UbuntuMono Nerd Font family"
 
 if grep -Fq "dot-kitty" "${repo_root}/install-macos.sh"; then
 	echo "expected install-macos.sh not to fetch dot-kitty during activation" >&2

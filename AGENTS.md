@@ -137,7 +137,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `modules/darwin.nix`
 
 - Home Manager 的 macOS 用户层配置：
-  - 链接 `skhd`、`karabiner`、`kitty`、`zed`、`neovide` 配置；
+  - 链接 `skhd`、`karabiner`、`kitty`、`alacritty`、`zed`、`neovide` 配置；
   - 启用 `services.skhd`，配置来自 `config/skhd/skhdrc`；
   - 创建 `~/Library/Logs/skhd` 和 `~/Pictures/Screenshots`；
   - 激活前把 `zed/settings.json` 从 symlink 复制成可写文件，并清理旧的
@@ -185,14 +185,20 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   用于 patched WhatPulse cask，并 trust `dot-nix/local`。
 - GUI app cask 例如 `1password`、`chatgpt`、`claude`、`claude-code`、`codex`、
   `firefox`、`kitty`、`maccy`、`microsoft-edge`、`obsidian`、`raycast`、
-  `visual-studio-code`、`zed`、`zotero`，以及 `nikitabobko/tap/aerospace`
-  和本地 tap 的 `whatpulse` 系列在这里维护。
+  `visual-studio-code`、`zed`、`zotero`，以及本地 tap 的 AeroSpace/WhatPulse
+  系列在这里维护。
+- AeroSpace 使用本地 tap 的 `dot-nix/local/aerospace-patched` cask。固定 Release
+  `v0.21.3-Beta-pf.1` 来自 `PannenetsF/AeroSpace`，同时安装匹配版本的 universal
+  App、CLI、补全和 man page；cask 源文件为
+  `config/homebrew/Casks/aerospace-patched.rb`。不要恢复“官方 cask + 启动时从 cache
+  覆盖 App 二进制”的旧方案，否则 App/CLI 可能再次版本错配。
 
 `nix-darwin/gui-apps.nix`
 
 - 管理适合 Nix 安装或 system launchd 管理的 GUI 辅助项。
-- 当前包括 `nerd-fonts.shure-tech-mono`、`sketchybar-app-font`
-  （AeroSpace 本身由 Homebrew cask 安装，不在 Nix 包里）。
+- 当前包括 `nerd-fonts.shure-tech-mono`、`sketchybar-app-font` 和来自
+  `pkgsUnstable` 的 Alacritty
+  （AeroSpace 本身由本地 patched Homebrew cask 安装，不在 Nix 包里）。
 - 用 `config/aerospace/render-config.py` 从 `config/aerospace/aerospace.toml`
   模板生成 `~/.config/aerospace/aerospace.toml`，安装并（用 `swiftc`）编译
   workspace 指示器，删除旧的 `~/.aerospace.toml` 和已废弃的 HUD 脚本，并用
@@ -260,6 +266,8 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
   - `config/skhd/skhdrc`、`config/skhd/open_iterm2.sh`、
     `config/skhd/toggle_kitty_dropdown.sh`
   - `config/karabiner/karabiner.json`
+  - `config/homebrew/Casks/aerospace-patched.rb`
+  - `config/alacritty/alacritty.toml`
   - `config/kitty/*`、`config/neovide/config.toml`
   - `config/zed/*`
 - Kitty theme 上游通过 `.gitmodules` 中的 `config/kitty/kitty-themes` submodule
@@ -322,6 +330,8 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
 - macOS 用户环境 / 激活 PATH：`bash tests/darwin_user_env_test.sh`、
   `bash tests/darwin_activation_nvim_path_test.sh`
 - AeroSpace 配置渲染：`bash tests/aerospace_render_config_test.sh`
+- AeroSpace 自定义 cask：`bash tests/aerospace_custom_cask_test.sh`
+- Alacritty：`bash tests/alacritty_config_test.sh`
 - app config sync：`bash tests/darwin_app_config_sync_test.sh`
 - Kitty：`bash tests/kitty_config_test.sh`
 - Python 工具 profile / pip 兼容：`bash tests/install_python_tools_profile_test.sh`、
