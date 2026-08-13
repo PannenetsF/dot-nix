@@ -37,6 +37,15 @@ check_command() {
   fi
 }
 
+check_command_absent() {
+  local name="$1"
+  if command -v "$name" >/dev/null 2>&1; then
+    fail "unexpected command available: $name"
+  else
+    pass "command absent: $name"
+  fi
+}
+
 check_app() {
   local app="$1"
   if [[ -d "/Applications/${app}.app" || -d "${HOME}/Applications/${app}.app" ]]; then
@@ -69,7 +78,7 @@ check_binary_contains() {
 
 check_absent() {
   local path="$1"
-  if [[ -e "$path" ]]; then
+  if [[ -e "$path" || -L "$path" ]]; then
     fail "unexpected path exists: $path"
   else
     pass "path absent: $path"
@@ -121,8 +130,9 @@ require_darwin || true
 check_command nix
 check_command brew
 check_command duti
-check_command alacritty
 check_command aerospace
+check_command_absent alacritty
+check_command_absent wezterm
 
 for app in \
   "1Password" \
@@ -146,12 +156,22 @@ check_path "${HOME}/.skhdrc"
 check_path "${HOME}/.config/skhd/open_iterm2.sh"
 check_path "${HOME}/.config/skhd/toggle_kitty_dropdown.sh"
 check_path "${HOME}/.config/karabiner/karabiner.json"
-check_path "${HOME}/.config/alacritty/alacritty.toml"
+check_absent "${HOME}/.config/alacritty/alacritty.toml"
+check_absent "${HOME}/.config/wezterm/wezterm.lua"
 check_path "${HOME}/.config/kitty/kitty.conf"
 check_path "${HOME}/.config/kitty/tab_bar.py"
 check_path "${HOME}/.config/kitty/theme.conf"
-check_path "/Applications/Nix Apps/Alacritty.app"
+check_absent "/Applications/Nix Apps/Alacritty.app"
+check_absent "/Applications/WezTerm.app"
 check_path "${HOME}/Pictures/Screenshots"
+
+for removed_cask in wezterm wezterm@nightly; do
+  if brew list --cask --versions "$removed_cask" >/dev/null 2>&1; then
+    fail "removed cask remains installed: $removed_cask"
+  else
+    pass "cask absent: $removed_cask"
+  fi
+done
 
 installed_aerospace_cask="$(brew list --cask --versions aerospace-patched 2>/dev/null || true)"
 if [[ "$installed_aerospace_cask" == "aerospace-patched ${aerospace_patched_version}" ]]; then
