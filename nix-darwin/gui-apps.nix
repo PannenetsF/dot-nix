@@ -1,4 +1,4 @@
-{ config, lib, pkgs, pkgsUnstable, homeDir, username, ... }:
+{ config, lib, pkgs, homeDir, username, ... }:
 let
   aerospaceConfigTemplate = ../config/aerospace/aerospace.toml;
   aerospaceIndicatorStart = ../config/aerospace/start_workspace_indicator.sh;
@@ -109,11 +109,10 @@ let
       exec "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
     '';
 in {
-  environment.systemPackages =
-    (with pkgs; [ nerd-fonts.shure-tech-mono sketchybar-app-font ])
-    # The Homebrew cask is disabled after 2026-09-01 because it fails
-    # Gatekeeper checks, so keep Alacritty on the current Nix package.
-    ++ [ pkgsUnstable.alacritty ];
+  environment.systemPackages = with pkgs; [
+    nerd-fonts.shure-tech-mono
+    sketchybar-app-font
+  ];
 
   system.activationScripts.postActivation.text = lib.mkAfter ''
     echo >&2 "aerospace config..."
