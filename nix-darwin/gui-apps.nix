@@ -51,21 +51,26 @@ let
     done
     if [ -z "$has_monitors" ]; then
       echo >&2 "reconfigure-aerospace: monitors unavailable; keeping existing config"
-      exit 0
-    fi
-
-    if ! "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file"; then
-      echo >&2 "reconfigure-aerospace: failed to render $config_file"
-      exit 0
-    fi
-
-    if ! "$cli_path" reload-config --no-gui; then
-      echo >&2 "reconfigure-aerospace: reload-config failed"
       exit 1
     fi
-    if ! ${pkgs.python3}/bin/python3 "${aerospaceRehomeSource}" \
-      "$config_file.assignments.json" "$cli_path"; then
-      echo >&2 "reconfigure-aerospace: workspace re-home failed"
+
+    # The AeroSpace server socket can briefly disappear while displays are
+    # re-enumerated. Re-render on every attempt so numeric monitor IDs cannot
+    # go stale between a failed reload and the eventual workspace re-home.
+    configured=
+    for attempt in $(seq 1 8); do
+      if "${renderAerospaceConfig}" "${aerospaceConfigTemplate}" "$config_file" \
+        && "$cli_path" reload-config --no-gui \
+        && ${pkgs.python3}/bin/python3 "${aerospaceRehomeSource}" \
+          "$config_file.assignments.json" "$cli_path"; then
+        configured=1
+        break
+      fi
+      echo >&2 "reconfigure-aerospace: attempt $attempt failed; retrying"
+      sleep 0.25
+    done
+    if [ -z "$configured" ]; then
+      echo >&2 "reconfigure-aerospace: reload or workspace re-home failed"
       exit 1
     fi
     /bin/sh -c 'printf . > "$0"' "${dirtyFile}" >/dev/null 2>&1 || true

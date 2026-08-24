@@ -135,6 +135,18 @@ if ! grep -Fq "monitors unavailable; keeping existing config" "${darwin_gui_modu
 	echo "expected AeroSpace reconfigure to preserve config until monitor state is readable" >&2
 	exit 1
 fi
+if ! grep -Fq 'for attempt in $(seq 1 8)' "${darwin_gui_module}" ||
+	! grep -Fq 'attempt $attempt failed; retrying' "${darwin_gui_module}"; then
+	echo "expected AeroSpace reload and workspace re-home to retry transient socket failures" >&2
+	exit 1
+fi
+if ! grep -Fq 'triggerReconfigure(isRetry: true)' \
+	"${repo_root}/config/aerospace/workspace_indicator.swift" ||
+	! grep -Fq 'process.terminationStatus' \
+	"${repo_root}/config/aerospace/workspace_indicator.swift"; then
+	echo "expected the workspace indicator to retry a failed reconfigure helper" >&2
+	exit 1
+fi
 if grep -Fq "system.activationScripts.aerospaceConfig" "${darwin_gui_module}"; then
 	echo "expected AeroSpace config sync to use a nix-darwin activation hook that runs" >&2
 	exit 1

@@ -243,6 +243,7 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var pendingReconfigureWorkItem: DispatchWorkItem?
     private var reconfigureProcess: Process?
     private var reconfigureAgain = false
+    private var reconfigureRetryCount = 0
     private var appEntriesByWorkspaceCache: [String: [String]] = [:]
     private var lastSignature = ""
     private var lastScreenLayoutSignature = ""
@@ -329,11 +330,14 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     // passes a helper via AEROSPACE_RECONFIGURE that waits for a stable display
     // snapshot, re-renders the config, and explicitly re-homes every workspace.
     // Coalesce changes while a helper is already running into one later retry.
-    private func triggerReconfigure() {
+    private func triggerReconfigure(isRetry: Bool = false) {
         guard let reconfigurePath, !reconfigurePath.isEmpty else { return }
         if reconfigureProcess != nil {
             reconfigureAgain = true
             return
+        }
+        if !isRetry {
+            reconfigureRetryCount = 0
         }
         pendingReconfigureWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
@@ -343,13 +347,19 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             process.executableURL = URL(fileURLWithPath: reconfigurePath)
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.standardError
-            process.terminationHandler = { [weak self] _ in
+            process.terminationHandler = { [weak self] process in
                 DispatchQueue.main.async {
                     guard let self else { return }
                     self.reconfigureProcess = nil
                     if self.reconfigureAgain {
                         self.reconfigureAgain = false
                         self.triggerReconfigure()
+                    } else if process.terminationStatus == 0 {
+                        self.reconfigureRetryCount = 0
+                    } else if self.reconfigureRetryCount < 5 {
+                        self.reconfigureRetryCount += 1
+                        debugLog("reconfigure exited \(process.terminationStatus); retry \(self.reconfigureRetryCount)")
+                        self.triggerReconfigure(isRetry: true)
                     }
                 }
             }
@@ -362,7 +372,8 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             }
         }
         pendingReconfigureWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
+        let delay = isRetry ? min(Double(reconfigureRetryCount), 5.0) : 0.2
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
     private func watchDirtyFile() {
