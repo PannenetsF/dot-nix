@@ -117,13 +117,29 @@ alt-shift-k = ['join-with up', 'mode main']
 alt-shift-l = ['join-with right', 'mode main']
 
 [[on-window-detected]]
-if.app-id = 'com.googlecode.iterm2'
+if.app-id = 'com.microsoft.edgemac'
 run = ['move-node-to-workspace 1']
 
 [[on-window-detected]]
-if.window-title-regex-substring = 'Zed'
-run = ['move-node-to-workspace 5']
+if.app-id = 'net.kovidgoyal.kitty'
+run = ['move-node-to-workspace 2']
 
 [[on-window-detected]]
-if.window-title-regex-substring = 'Finder'
-run = ['move-node-to-workspace 5']
+if.app-id = 'com.anthropic.claudefordesktop'
+run = ['move-node-to-workspace 4']
+
+[[on-window-detected]]
+if.app-id = 'com.stablyai.orca'
+run = ['move-node-to-workspace 4']
+
+[[on-window-detected]]
+if.app-id = 'com.electron.lark'
+run = ['move-node-to-workspace 7']
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = ['move-node-to-workspace 7']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+run = ['move-node-to-workspace 9']
