@@ -132,17 +132,20 @@ run = ['move-node-to-workspace 4']
 if.app-id = 'com.stablyai.orca'
 run = ['move-node-to-workspace 4']
 
-# Lark modal popups (user card, etc.) are separate com.electron.lark windows
-# titled "ModalWebViewWidget - ...". Float them where they open; otherwise the
-# app-level routing below sends them to workspace 7, away from the main window.
+# Lark/Feishu: float every window first, then route the main window to WS7.
+# Modal popups (user card, etc.) are com.electron.lark windows whose title
+# Electron sets AFTER creation, so title matching at detection time is
+# unreliable. Floating first keeps modals where they open regardless; only the
+# main window (native title "飞书", set at creation) matches the second rule.
 [[on-window-detected]]
 if.app-id = 'com.electron.lark'
-if.window-title-regex-substring = 'ModalWebViewWidget'
 run = ['layout floating']
+check-further-callbacks = true
 
 [[on-window-detected]]
 if.app-id = 'com.electron.lark'
-run = ['move-node-to-workspace 7']
+if.window-title-regex-substring = '飞书'
+run = ['layout tiling', 'move-node-to-workspace 7']
 
 [[on-window-detected]]
 if.app-id = 'com.electron.lark.helper'
