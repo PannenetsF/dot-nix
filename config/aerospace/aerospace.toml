@@ -46,12 +46,15 @@ key-mapping.preset = 'qwerty'
 # END AUTO-GENERATED WORKSPACE ASSIGNMENTS
 
 [gaps]
-inner.horizontal = 1
-inner.vertical = 1
-outer.top = [{ monitor.'built-in' = 0}, 0]
-outer.left = 1
-outer.bottom = 1
-outer.right = 1
+# Kept wider than the JankyBorders width (5.0, see nix-darwin/gui-apps.nix) so
+# the focused window's outline sits in the gap instead of being painted over
+# the neighbouring window.
+inner.horizontal = 8
+inner.vertical = 8
+outer.top = [{ monitor.'built-in' = 8 }, 8]
+outer.left = 8
+outer.bottom = 8
+outer.right = 8
 
 [exec]
 inherit-env-vars = true
