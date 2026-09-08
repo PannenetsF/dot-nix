@@ -5,6 +5,7 @@ let
   aerospaceIndicatorSource = ../config/aerospace/workspace_indicator.swift;
   aerospaceRehomeSource = ../config/aerospace/rehome-workspaces.py;
   aerospaceCli = "${config.homebrew.brewPrefix}/aerospace";
+  bordersCli = "${config.homebrew.brewPrefix}/borders";
   dirtyFile = "/tmp/aerospace-workspace-indicator-dirty";
   renderAerospaceConfig = pkgs.writeShellScript "render-aerospace-config" ''
     exec ${pkgs.python3}/bin/python3 ${
@@ -113,6 +114,31 @@ let
     pkgs.writeShellScript "start-aerospace-workspace-indicator" ''
       exec "${homeDir}/.config/aerospace/start_workspace_indicator.sh"
     '';
+  # AeroSpace intentionally ships no focused-window highlight (macOS exposes no
+  # public API for third-party window borders), so JankyBorders supplies it as
+  # a separate always-on daemon. The active color is gruvbox bright yellow
+  # (color11, matching this repo's terminal theme) rather than a neutral white:
+  # a near-white outline disappears against light window chrome, which defeats
+  # the point of a focus indicator.
+  startBorders = pkgs.writeShellScript "start-borders" ''
+    set -eu
+
+    borders_bin="${bordersCli}"
+
+    # Homebrew installs this formula during activation; on a first run the
+    # binary can still be missing. Exit 0 so launchd does not restart-loop,
+    # and let the next activation kickstart pick it up.
+    if [ ! -x "$borders_bin" ]; then
+      echo >&2 "borders is missing. Install Homebrew formula felixkratz/formulae/borders."
+      exit 0
+    fi
+
+    exec "$borders_bin" \
+      active_color=0xfffabd2f \
+      inactive_color=0x00000000 \
+      width=5.0 \
+      hidpi=on
+  '';
 in {
   environment.systemPackages = with pkgs; [
     nerd-fonts.shure-tech-mono
@@ -150,6 +176,7 @@ in {
     install -d -o ${username} -g staff "${homeDir}/Library/Logs/aerospace"
     launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.aerospace" 2>/dev/null || true
     launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.aerospace-workspace-indicator" 2>/dev/null || true
+    launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.borders" 2>/dev/null || true
   '';
 
   launchd.user.agents.aerospace.serviceConfig = {
@@ -176,5 +203,13 @@ in {
       "${homeDir}/Library/Logs/aerospace/workspace-indicator.out.log";
     StandardErrorPath =
       "${homeDir}/Library/Logs/aerospace/workspace-indicator.err.log";
+  };
+  launchd.user.agents.borders.serviceConfig = {
+    Label = "org.nix-community.home.borders";
+    Program = "${startBorders}";
+    KeepAlive = { SuccessfulExit = false; };
+    RunAtLoad = true;
+    StandardOutPath = "${homeDir}/Library/Logs/aerospace/borders.out.log";
+    StandardErrorPath = "${homeDir}/Library/Logs/aerospace/borders.err.log";
   };
 }

@@ -101,3 +101,12 @@ assert_contains "$gui_module" 'config.homebrew.brewPrefix' "expected AeroSpace C
 assert_not_contains "$gui_module" "/opt/homebrew/bin/aerospace" "did not expect an Apple-Silicon-only AeroSpace CLI path"
 assert_contains "$gui_module" "nerd-fonts.shure-tech-mono" "expected desktop fonts to move into nix-darwin GUI module"
 assert_contains "$gui_module" "sketchybar-app-font" "expected sketchybar app font to move into nix-darwin GUI module"
+
+# JankyBorders supplies the focused-window highlight AeroSpace cannot draw.
+assert_contains "$homebrew_module" '"felixkratz/formulae"' "expected the JankyBorders tap to be declared"
+assert_contains "$homebrew_module" '"felixkratz/formulae/borders"' "expected borders to be installed as a Homebrew formula"
+assert_contains "$homebrew_module" "trust felixkratz/formulae" "expected the JankyBorders tap to be trusted; brew bundle refuses to load formulae from untrusted taps"
+assert_contains "$gui_module" 'bordersCli = "${config.homebrew.brewPrefix}/borders"' "expected the borders CLI path to follow the active Homebrew architecture"
+assert_not_contains "$gui_module" "/opt/homebrew/bin/borders" "did not expect an Apple-Silicon-only borders CLI path"
+assert_contains "$gui_module" "org.nix-community.home.borders" "expected a launchd agent for the borders daemon"
+assert_contains "$gui_module" "active_color=" "expected the borders daemon to be configured with an active color"

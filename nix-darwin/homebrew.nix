@@ -98,6 +98,12 @@ in {
             /usr/bin/git -C "$tap_checkout" pull --ff-only -q origin main
           brew_as_user trust dot-nix/local --quiet
 
+          # Third-party taps must be trusted before `brew bundle` will install
+          # from them; an untrusted tap fails silently mid-bundle, leaving the
+          # tap present but the formula missing.
+          brew_as_user tap felixkratz/formulae
+          brew_as_user trust felixkratz/formulae --quiet
+
           # Fetch and verify both the replacement and rollback artifact before
           # removing the upstream cask. If installation still fails, make the
           # rollback result explicit rather than hiding a second failure.
@@ -157,6 +163,7 @@ in {
 
     taps = [
       "daipeihust/tap"
+      "felixkratz/formulae"
       "gromgit/fuse"
       {
         name = "dot-nix/local";
@@ -204,7 +211,14 @@ in {
       "zotero"
     ];
 
-    brews = [ "daipeihust/tap/im-select" "gromgit/fuse/sshfs-mac" ];
+    brews = [
+      "daipeihust/tap/im-select"
+      # JankyBorders draws the focused-window outline AeroSpace deliberately
+      # does not: macOS has no public API for it, so the border has to come
+      # from a separate always-on daemon.
+      "felixkratz/formulae/borders"
+      "gromgit/fuse/sshfs-mac"
+    ];
 
     global = {
       autoUpdate = false;

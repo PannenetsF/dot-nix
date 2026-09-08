@@ -35,6 +35,7 @@ assert_contains "7 = [1, 'main']" "expected workspace 7 on the first non-main ex
 assert_contains "8 = ['built-in', 'main']" "expected workspace 8 on the built-in display with a main fallback"
 assert_contains "10 = ['built-in', 'main']" "expected workspace 10 on the built-in display with a main fallback"
 assert_contains "start-at-login = false" "expected normal AeroSpace settings to remain"
+assert_contains "on-focus-changed = ['move-mouse window-lazy-center']" "expected the pointer to follow the focused window as a focus indicator"
 
 four_display_rendered="${tmp_dir}/four-display.toml"
 AEROSPACE_MONITORS_JSON='[
