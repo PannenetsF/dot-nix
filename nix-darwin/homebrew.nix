@@ -200,7 +200,15 @@ in {
       "raycast"
       "scroll-reverser"
       "sf-symbols"
-      "skim"
+      # Install without a com.apple.quarantine xattr. Otherwise, once Skim is a
+      # file's default handler, opening a PDF through LaunchServices triggers
+      # Gatekeeper's "Apple could not verify ... is free of malware" prompt;
+      # opening the same file from within Skim bypasses LaunchServices and stays
+      # silent. Declared per-cask so it also holds across cask upgrades.
+      {
+        name = "skim";
+        args = { no_quarantine = true; };
+      }
       "snipaste"
       "tencent-lemon"
       "visual-studio-code"
