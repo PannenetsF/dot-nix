@@ -85,6 +85,15 @@
       "com.apple.spaces" = {
         spans-displays = true;
       };
+
+      # Do not attach a com.apple.quarantine xattr to downloaded files. Without
+      # this, once an app like Skim is a file's default handler, opening a
+      # download through LaunchServices triggers Gatekeeper's "Apple could not
+      # verify ... is free of malware" prompt. Trade-off: this disables the
+      # first-open Gatekeeper check for all downloads, not just PDFs.
+      "com.apple.LaunchServices" = {
+        LSQuarantine = false;
+      };
     };
 
     loginwindow.GuestEnabled = false;
