@@ -226,6 +226,7 @@ in {
       # from a separate always-on daemon.
       "felixkratz/formulae/borders"
       "gromgit/fuse/sshfs-mac"
+      "herdr"
     ];
 
     global = {
