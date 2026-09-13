@@ -31,8 +31,7 @@ in {
       version "6.2.1"
       sha256 :no_check
 
-      url "https://releases.whatpulse.org/latest/macos-arm/whatpulse-mac-arm-latest.dmg",
-          verified: "releases.whatpulse.org/latest/macos-arm/"
+      url "https://releases.whatpulse.org/latest/macos-arm/whatpulse-mac-arm-latest.dmg"
       name "WhatPulse"
       desc "Activity and productivity tracker"
       homepage "https://whatpulse.org"

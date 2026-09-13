@@ -4,8 +4,7 @@ cask "aerospace-patched" do
   version "0.21.3-Beta-pf.1"
   sha256 "125ea00f5ece3ce55d14fd5b584fa2f5f1717a460894b526fd0c0a611a11dac1"
 
-  url "https://github.com/PannenetsF/AeroSpace/releases/download/v#{version}/AeroSpace-v#{version}.zip",
-      verified: "github.com/PannenetsF/AeroSpace/"
+  url "https://github.com/PannenetsF/AeroSpace/releases/download/v#{version}/AeroSpace-v#{version}.zip"
   name "AeroSpace (pf patched)"
   desc "AeroSpace with the pf multi-monitor hide-corner patch"
   homepage "https://github.com/PannenetsF/AeroSpace"
@@ -13,9 +12,14 @@ cask "aerospace-patched" do
   conflicts_with cask: ["aerospace", "aerospace-dev"]
   depends_on macos: :ventura
 
-  postflight do
-    system "xattr -d com.apple.quarantine #{staged_path}/AeroSpace-v#{version}/bin/aerospace"
-    system "xattr -d com.apple.quarantine #{appdir}/AeroSpace.app"
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args:         ["-d", "com.apple.quarantine",
+                       "{{staged_path}}/AeroSpace-v{{version}}/bin/aerospace"],
+        must_succeed: false
+    run "/usr/bin/xattr",
+        args:         ["-d", "com.apple.quarantine", "{{appdir}}/AeroSpace.app"],
+        must_succeed: false
   end
 
   app "AeroSpace-v#{version}/AeroSpace.app"
