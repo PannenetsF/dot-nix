@@ -1,0 +1,16 @@
+onboarding = false
+
+[theme]
+name = "one-dark"
+auto_switch = false
+
+[ui]
+# Distinct static glyphs for blocked/working/done/idle instead of color dots.
+status_indicators = "symbols"
+
+[ui.toast]
+# Background agent state changes -> desktop notification via macOS notification service.
+delivery = "system"
+
+[ui.sound]
+enabled = true
