@@ -459,7 +459,7 @@ resolve_nix_hm_dir() {
 maybe_update_flake_inputs() {
   local nix_hm_dir="$1"
 
-  echo "[init.sh] 准备升级 flake 输入 (nixpkgs, home-manager 等)"
+  echo "[init.sh] 准备升级 flake 输入 (nixpkgs, home-manager 等)，随后升级 Homebrew formula/cask"
   read -p "[init.sh] 确认继续？(y/N): " -n 1 -r
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -541,6 +541,39 @@ install_homebrew_if_needed() {
   fi
 
   bash "$bootstrap_script"
+}
+
+# nix-darwin always activates Homebrew with `brew bundle --no-upgrade`, so a
+# plain hm-update only converges to "installed". hm-upgrade additionally runs
+# the *activated* system's own Brewfile with --upgrade after the switch.
+current_system_dir() {
+  printf '%s\n' "${NIX_HM_CURRENT_SYSTEM:-/run/current-system}"
+}
+
+current_system_brewfile() {
+  local activate="$1/activate"
+  [[ -r "$activate" ]] || return 1
+  /usr/bin/grep -oE "/nix/store/[^\"' ]+-Brewfile" "$activate" | /usr/bin/tail -n 1
+}
+
+upgrade_homebrew_bundle() {
+  local brew_bin="${NIX_HM_BREW_BIN:-brew}"
+  if ! command -v "$brew_bin" >/dev/null 2>&1; then
+    echo "[init.sh] 未找到 Homebrew，跳过 formula/cask 升级。" >&2
+    return 0
+  fi
+
+  local system_path brewfile
+  system_path="$(current_system_dir)"
+  brewfile="$(current_system_brewfile "$system_path" || true)"
+  if [[ -z "$brewfile" || ! -f "$brewfile" ]]; then
+    die "无法从 $system_path/activate 定位当前系统的 Brewfile，Homebrew 升级中止"
+  fi
+
+  echo "[init.sh] 正在执行 brew update 刷新 formula/cask 索引..."
+  "$brew_bin" update
+  echo "[init.sh] 正在按当前系统 Brewfile 升级 formula/cask (brew bundle --upgrade)..."
+  "$brew_bin" bundle --file="$brewfile" --upgrade
 }
 
 activate_home_manager() {
@@ -714,6 +747,13 @@ main() {
   # 3. Restore the declarative environment through Nix.
   # 4. Python/nvim dependencies are handled by Home Manager activation scripts.
   restore_environment "$nix_hm_dir" "$system" "$user" "$use_home_manager"
+
+  # hm-upgrade also refreshes Homebrew packages against the freshly activated
+  # system's Brewfile; plain hm-update leaves installed brews/casks untouched.
+  if [[ "$do_upgrade" == true ]] && is_darwin \
+     && [[ "$use_home_manager" != true ]]; then
+    upgrade_homebrew_bundle
+  fi
 }
 
 main "$@"

@@ -53,7 +53,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 5. 对本仓库执行安全 `git pull --rebase`：有未提交、暂存或未跟踪改动时会跳过，
    避免覆盖本地工作。
 6. 如果 pull 后 `init.sh` 自身更新，会 `exec` 重新运行一次新脚本。
-7. `--upgrade` 会先确认，再执行 `nix flake update`。
+7. `--upgrade` 会先确认，再执行 `nix flake update`；macOS 上 darwin-rebuild
+   switch 成功后还会读取**新激活系统** `/run/current-system/activate` 引用的
+   Brewfile，执行 `brew update` + `brew bundle --file=… --upgrade`。普通
+   `hm-update` 不升级任何 brew/cask（nix-darwin 激活固定
+   `brew bundle --no-upgrade`，见 `nix-darwin/homebrew.nix`）。
 8. macOS 默认先运行 `brew/install.sh` 确保 Homebrew 和必要 tap 可用，然后通过
    `nix run .#darwin-rebuild -- switch --flake .#<system> --impure` 激活
    nix-darwin。非 root 运行时会通过 `sudo env` 传入 `NIX_HM_USER` 和
