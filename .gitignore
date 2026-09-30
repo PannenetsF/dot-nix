@@ -1,3 +1,7 @@
 .worktrees/
 /local.zsh
+
+# MCP (local gateway state / per-project config)
 /mcp-gateway/
+.mcp.json
+.mcp/
