@@ -59,11 +59,6 @@
       force = true;
     };
 
-    ".config/herdr/config.toml" = {
-      source = ../config/herdr/config.toml;
-      force = true;
-    };
-
     ".config/neovide/config.toml" = {
       source = ../config/neovide/config.toml;
       force = true;

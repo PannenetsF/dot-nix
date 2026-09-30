@@ -223,6 +223,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   显示器变化去抖（~0.4s）；`runAerospace` 查询失败返回 `nil`（区别于空结果），
   失败时保留现有面板而非清空；dirty 文件监听在 rename/delete 后重新挂载。
 
+`nix-darwin/herdr.nix`
+
+- 与 AeroSpace 同一套路：`config/herdr/config.toml` 在激活时以可写普通文件
+  装进 `~/.config/herdr/config.toml` 并 chown（herdr 自己会通过设置界面写这个
+  文件，不能是只读 nix store 软链），随后 `herdr server reload-config` 热加载。
+  `modules/darwin.nix` 不再为它建 `home.file` 软链。
+
 `nix-darwin/macos-defaults.nix`
 
 - macOS 系统 defaults：键盘（含 `com.apple.keyboard.fnState` 标准功能键，另有
@@ -270,7 +277,7 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
     `config/skhd/toggle_kitty_dropdown.sh`
   - `config/karabiner/karabiner.json`
   - `config/homebrew/Casks/aerospace-patched.rb`
-  - `config/kitty/*`、`config/neovide/config.toml`
+  - `config/kitty/*`、`config/herdr/config.toml`、`config/neovide/config.toml`
   - `config/zed/*`
 - Kitty theme 上游通过 `.gitmodules` 中的 `config/kitty/kitty-themes` submodule
   记录。不要恢复旧的 `dot-kitty` clone 流程。
