@@ -167,3 +167,11 @@ run = ['move-node-to-workspace 7']
 [[on-window-detected]]
 if.app-id = 'com.apple.finder'
 run = ['move-node-to-workspace 9']
+
+# NetEase Music raises its own window to the foreground on playback/track
+# changes. Tiled on the hidden WS9 (built-in shares WS9+WS10, only WS10 shows),
+# that self-raise flickered the window onto whatever monitor had focus before
+# AeroSpace shoved it back. Floating lets it stay put wherever it is opened.
+[[on-window-detected]]
+if.app-id = 'com.netease.163music'
+run = ['layout floating']
