@@ -402,10 +402,10 @@ safe_git_pull() {
   if [[ ! -d "$dir/.git" ]]; then
     return
   fi
-  # 检查是否有未暂存的更改
+  # Skip the pull when the worktree has staged, unstaged, or untracked changes.
   if ! git -C "$dir" diff --quiet || ! git -C "$dir" diff --cached --quiet || [[ -n "$(git -C "$dir" status --porcelain | grep '^??')" ]]; then
-    echo "[init.sh] WARNING: 本地有未提交的更改，跳过 git pull" >&2
-    echo "[init.sh] 建议: 提交更改或 git stash 后手动运行 git pull" >&2
+    echo "[init.sh] WARNING: local changes detected in $dir; skipping git pull" >&2
+    echo "[init.sh] commit or stash the changes and run git pull manually" >&2
     return
   fi
   git -C "$dir" pull --rebase >&2 || true
@@ -456,17 +456,66 @@ resolve_nix_hm_dir() {
   printf '%s\n' "$nix_hm_dir"
 }
 
+# Nix's GitHub fetcher does not read the GITHUB_TOKEN env var, so an
+# unauthenticated `nix flake update` shares the per-IP api.github.com rate
+# limit (60 requests/hour). Reuse a token from GITHUB_TOKEN/GH_TOKEN or the
+# GitHub CLI (`gh auth token`) and inject it via NIX_CONFIG instead.
+ensure_github_token() {
+  local token=""
+  local from_gh=false
+  local restore_xtrace=false
+
+  # xtrace would log the token on assignment lines (DEBUG=1).
+  if [[ -o xtrace ]]; then
+    set +x
+    restore_xtrace=true
+  fi
+
+  token="${GITHUB_TOKEN:-${GH_TOKEN-}}"
+  if [[ -z "$token" ]] && command -v gh >/dev/null 2>&1; then
+    token="$(gh auth token 2>/dev/null || true)"
+    if [[ -n "$token" ]]; then
+      from_gh=true
+    fi
+  fi
+
+  if [[ -z "$token" ]]; then
+    if $restore_xtrace; then
+      set -x
+    fi
+    echo "[init.sh] WARNING: no GitHub token available; 'nix flake update' may hit the unauthenticated api.github.com rate limit. Run 'gh auth login' or export GITHUB_TOKEN to avoid this." >&2
+    return 0
+  fi
+
+  # Respect an access-tokens setting the caller already provided.
+  if [[ "${NIX_CONFIG-}" != *access-tokens* ]]; then
+    if [[ -n "${NIX_CONFIG-}" ]]; then
+      export NIX_CONFIG="access-tokens = github.com=${token};${NIX_CONFIG}"
+    else
+      export NIX_CONFIG="access-tokens = github.com=${token}"
+    fi
+  fi
+
+  if $restore_xtrace; then
+    set -x
+  fi
+  if $from_gh; then
+    echo "[init.sh] Using GitHub token from 'gh auth token' for authenticated API requests."
+  fi
+}
+
 maybe_update_flake_inputs() {
   local nix_hm_dir="$1"
 
-  echo "[init.sh] 准备升级 flake 输入 (nixpkgs, home-manager 等)，随后升级 Homebrew formula/cask"
-  read -p "[init.sh] 确认继续？(y/N): " -n 1 -r
+  echo "[init.sh] About to update flake inputs (nixpkgs, home-manager, etc.), then upgrade Homebrew formulae/casks."
+  read -p "[init.sh] Continue? (y/N): " -n 1 -r
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "[init.sh] 已取消升级"
+    echo "[init.sh] Upgrade cancelled."
     exit 0
   fi
-  echo "[init.sh] 正在运行 nix flake update..."
+  ensure_github_token
+  echo "[init.sh] Running nix flake update..."
   (cd "$nix_hm_dir" && nix --extra-experimental-features "nix-command flakes" flake update)
 }
 
@@ -559,7 +608,7 @@ current_system_brewfile() {
 upgrade_homebrew_bundle() {
   local brew_bin="${NIX_HM_BREW_BIN:-brew}"
   if ! command -v "$brew_bin" >/dev/null 2>&1; then
-    echo "[init.sh] 未找到 Homebrew，跳过 formula/cask 升级。" >&2
+    echo "[init.sh] Homebrew not found; skipping formula/cask upgrade." >&2
     return 0
   fi
 
@@ -567,12 +616,12 @@ upgrade_homebrew_bundle() {
   system_path="$(current_system_dir)"
   brewfile="$(current_system_brewfile "$system_path" || true)"
   if [[ -z "$brewfile" || ! -f "$brewfile" ]]; then
-    die "无法从 $system_path/activate 定位当前系统的 Brewfile，Homebrew 升级中止"
+    die "could not locate the active system Brewfile from $system_path/activate; aborting Homebrew upgrade"
   fi
 
-  echo "[init.sh] 正在执行 brew update 刷新 formula/cask 索引..."
+  echo "[init.sh] Running brew update to refresh the formula/cask index..."
   "$brew_bin" update
-  echo "[init.sh] 正在按当前系统 Brewfile 升级 formula/cask (brew bundle --upgrade)..."
+  echo "[init.sh] Upgrading formulae/casks per the active system Brewfile (brew bundle --upgrade)..."
   "$brew_bin" bundle --file="$brewfile" --upgrade
 }
 

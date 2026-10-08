@@ -74,7 +74,7 @@ last_update="$(grep -n '^brew update$' "$brew_log" | tail -1 | cut -d: -f1)"
   NIX_HM_CURRENT_SYSTEM="${tmp}/current-system" \
     upgrade_homebrew_bundle 2>"${tmp}/skip.err" >/dev/null
 )
-grep -q '跳过 formula/cask 升级' "${tmp}/skip.err"
+grep -q 'skipping formula/cask upgrade' "${tmp}/skip.err"
 
 # --- Missing Brewfile: fatal so a silently skipped upgrade is noticed --------
 
