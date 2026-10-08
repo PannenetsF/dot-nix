@@ -229,6 +229,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   装进 `~/.config/herdr/config.toml` 并 chown（herdr 自己会通过设置界面写这个
   文件，不能是只读 nix store 软链），随后 `herdr server reload-config` 热加载。
   `modules/darwin.nix` 不再为它建 `home.file` 软链。
+- 键位是 nvim 习惯迁移（prefix `ctrl+b`＋ctrl+alt 直连和弦，裸 alt 归 AeroSpace
+  所有），速查表见 `docs/herdr-keybindings.md`，改动后同步两边。`P Space` 的
+  which-key 浮层是手动安装的社区插件（`herdr plugin install
+  CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
+  缺失兜底。
 
 `nix-darwin/macos-defaults.nix`
 

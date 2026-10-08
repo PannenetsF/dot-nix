@@ -14,3 +14,74 @@ delivery = "system"
 
 [ui.sound]
 enabled = true
+
+# Keybindings chosen to match nvim habits (see nvim/lua/vimconf/easy-keymap.lua):
+# plain alt is globally owned by AeroSpace, so direct chords use ctrl+alt.
+# Cheat sheet: docs/herdr-keybindings.md
+[keys]
+# pane focus = nvim <C-h/j/k/l> window movement
+focus_pane_left = ["prefix+h", "ctrl+alt+h"]
+focus_pane_down = ["prefix+j", "ctrl+alt+j"]
+focus_pane_up = ["prefix+k", "ctrl+alt+k"]
+focus_pane_right = ["prefix+l", "ctrl+alt+l"]
+
+# swap panes = AeroSpace alt-shift+hjkl
+swap_pane_left = ["prefix+shift+h", "ctrl+alt+shift+h"]
+swap_pane_down = ["prefix+shift+j", "ctrl+alt+shift+j"]
+swap_pane_up = ["prefix+shift+k", "ctrl+alt+shift+k"]
+swap_pane_right = ["prefix+shift+l", "ctrl+alt+shift+l"]
+
+# resize = nvim <C-arrows>
+resize_pane_left = "ctrl+alt+left"
+resize_pane_down = "ctrl+alt+down"
+resize_pane_up = "ctrl+alt+up"
+resize_pane_right = "ctrl+alt+right"
+
+# splits: v = :vsplit, s = :split (settings moves to shift+s)
+split_vertical = ["prefix+v", "ctrl+alt+v"]
+split_horizontal = ["prefix+s", "ctrl+alt+s"]
+settings = "prefix+shift+s"
+
+# tabs as nvim buffers: n = <leader>bn next, b = <leader>bb prev;
+# brackets mirror the ]q/[q quickfix habit
+next_tab = ["prefix+n", "ctrl+alt+]"]
+previous_tab = ["prefix+b", "prefix+p", "ctrl+alt+["]
+new_tab = ["prefix+c", "ctrl+alt+c"]
+
+# close pane/tab: x keeps the default prefix+[shift+]x mnemonic, direct chord added
+close_pane = ["prefix+x", "ctrl+alt+x"]
+close_tab = ["prefix+shift+x", "ctrl+alt+shift+x"]
+
+# sidebar = Neotree toggle (<leader>e); scrollback editor moves to shift+e
+toggle_sidebar = ["prefix+e", "ctrl+alt+e"]
+edit_scrollback = "prefix+shift+e"
+
+# goto picker = fzf / BufferLinePick (<leader>f*)
+goto = ["prefix+g", "prefix+f", "ctrl+alt+f"]
+
+# indexed jumps: tabs keep defaults, workspaces mirror AeroSpace alt-shift-1..9
+switch_tab = "prefix+1..9"
+switch_workspace = "prefix+shift+1..9"
+focus_agent = "prefix+ctrl+1..9"
+
+zoom = ["prefix+z", "ctrl+alt+z"]
+
+# <leader>g LazyGit -> herdr popup (lazygit comes from modules/common.nix)
+[[keys.command]]
+key = "prefix+ctrl+g"
+type = "popup"
+command = "lazygit"
+description = "run lazygit"
+width = "80%"
+height = "80%"
+
+# Optional which-key style overlay (plugin installed out-of-band, see
+# docs/herdr-keybindings.md). Guarded so the binding is a no-op popup until the
+# plugin's launcher exists on a machine.
+[[keys.command]]
+key = "prefix+space"
+type = "popup"
+command = "sh -c 'f=~/.config/herdr/plugins/config/cowboyvang.which-key/launch.sh; test -f \"$f\" && exec sh \"$f\"'"
+description = "which-key: show prefix bindings"
+width = "78%"
+height = "62%"
