@@ -33,6 +33,7 @@ in {
     mermaid-cli
     neofetch
     ninja
+    nodejs_22
     pandoc
     pkgconf
     poppler

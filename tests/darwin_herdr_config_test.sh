@@ -43,6 +43,34 @@ assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
 # macOS light/dark appearance), not a herdr-built-in theme.
 assert_contains "config/herdr/config.toml" 'name = "terminal"'
 
+# herdr-radar follows macOS appearance and rewrites [theme] name from the
+# light/dark keys; both pinned to "terminal" so the terminal-following theme
+# survives its sync.
+assert_contains "config/herdr/config.toml" 'light_name = "terminal"'
+assert_contains "config/herdr/config.toml" 'dark_name = "terminal"'
+
+# herdr-radar plugin: pinned install + post-template configure repair in the
+# nix-darwin postActivation, and its keybindings in the template.
+assert_contains "nix-darwin/herdr.nix" "hhdebb/herdr-radar"
+assert_contains "nix-darwin/herdr.nix" "hhdebb.herdr-radar"
+assert_contains "config/herdr/config.toml" 'command = "hhdebb.herdr-radar.view-flip"'
+assert_contains "config/herdr/config.toml" 'command = "hhdebb.herdr-radar.settings"'
+# prefix+a belongs to herdr-projects (upstream suggests it for radar's flip);
+# radar's flip therefore rides prefix+ctrl+r with the other plugin actions.
+assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+r"'
+assert_contains "config/herdr/config.toml" 'key = "prefix+comma"'
+
+# Radar is a Node plugin; the interpreter is part of the host package set.
+assert_contains "modules/host.nix" "nodejs_22"
+
+# Radar's first-run setup writes this exact marker block into kitty.conf; it
+# must be shipped by the repo or its build hook hard-fails on the read-only
+# Home Manager symlink. Ranges are derived from the plugin's font (v1.4.2).
+assert_contains "config/kitty/kitty.conf" "# >>> herdr-radar font block"
+assert_contains "config/kitty/kitty.conf" "symbol_map U+E1A0-U+E1BA Herdr Agent Icons Max"
+assert_contains "config/kitty/kitty.conf" "symbol_map U+E1C0-U+E1C5 Herdr Agent Icons Max"
+assert_contains "config/kitty/kitty.conf" "# <<< herdr-radar font block"
+
 # herdr-projects repo picker (prefix+shift+c)
 assert_file_exists "config/herdr/new-project.sh"
 assert_contains "modules/darwin.nix" '".local/bin/herdr-new-project"'

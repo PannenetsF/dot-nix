@@ -234,8 +234,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   which-key 浮层是手动安装的社区插件（`herdr plugin install
   CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
   缺失兜底。
-- zoetrope 与 herdr-projects 插件由 `nix-darwin/herdr.nix` postActivation
-  pinned ref 安装；herdr-projects 要求 server ≥ 0.9.1（装到运行中的旧
+- zoetrope、herdr-projects 与 herdr-radar 插件由 `nix-darwin/herdr.nix`
+  postActivation pinned ref 安装；herdr-projects 要求 server ≥ 0.9.1（装到运行中的旧
   server 会硬失败，激活时按 `herdr status --json` 版本守卫跳过）。
   herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
   `herdr-projects configure`，由插件自己写 live config（journal 校验）。
@@ -244,6 +244,27 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `HP_PROJECT_ROOTS` 覆盖（默认 `~/Documents/workspace`）。`P C-p` 的项目
   选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
+- herdr-radar（pinned `v1.4.2`，hhdebb/herdr-radar）是首个 Node 插件：运行时
+  `node` 由 `modules/host.nix` 的 `nodejs_22` 提供（zoetrope/herdr-projects
+  是 Rust 单文件二进制，不需要解释器）。它自管 config.toml 尾部三块
+  marker-fenced 配置（tab-bar 命令、`[ui.sidebar.*]`、`[theme.custom]`）和
+  `~/Library/Fonts` 图标字体；模板每次激活都会覆盖 config.toml，所以
+  postActivation 在落模板后调一次 `plugin action invoke configure
+  --plugin hhdebb.herdr-radar` 修复三块。两个不可回退的集成约定：
+  1. kitty 的 codepoint map 必须预置在 `config/kitty/kitty.conf`（字节与
+     插件 setup 生成的块一致），否则插件安装 build hook 在首次激活时写只读
+     HM nix-store 软链会 `EACCES` 硬失败（其 setup.js 不捕获该错误）；
+  2. 模板把 `[theme]` 的 `light_name`/`dark_name` 都钉成 `"terminal"`，
+     让插件的 macOS 深浅色跟随只切换它自己的侧边栏调色板，不把
+     `name = "terminal"`（terminal 跟随 kitty 主题）改写成 catppuccin。
+  键位：上游建议的 `P a` 被 Projects 占用、裸 `P r` 是 resize 模式，
+  故 view-flip 用 `P C-r`、settings 用 `P ,`，速查表同步
+  `docs/herdr-keybindings.md`。
+  共存顺序：两个插件都写 tab-bar 和 `[ui.sidebar.agents]`；v0.2.34 的
+  herdr-projects 会把自己的条目合并进 radar 的 marker 块（反过来 radar
+  不认识 projects），所以 postActivation 必须 radar configure 在前、
+  projects configure 在后，且共用 0.9.0 版本门。radar 深浅色切换重写
+  侧边栏会临时丢掉 projects 的 `$hp_sub` 行，下次激活恢复。
 
 `nix-darwin/macos-defaults.nix`
 

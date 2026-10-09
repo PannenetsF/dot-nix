@@ -53,6 +53,8 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | LazyGit 弹窗 | `P C-g` | nvim `<leader>g` |
 | which-key 分组菜单（可选插件，见下） | `P Space` | which-key.nvim |
 | zoetrope 会话流程图（可选插件，见下） | `P S-z` | — |
+| herdr-radar 切换 agent 排序（可选插件，见下） | `P C-r` | — |
+| herdr-radar 设置弹窗（可选插件，见下） | `P ,` | — |
 | herdr-projects 项目总控（可选插件，见下） | `P a` | nvim `<leader>ao` explorer |
 | herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
 | herdr-projects 给项目追加仓库 | `P S-a` | fzf 多选，免手打路径 |
@@ -102,6 +104,34 @@ herdr server reload-config
 - `P S-z`：在当前 pane 上叠加流程图，跟 live 会话；再按一次或图内 `q` 关闭
 - 其他放置方式：`furkankly.zoetrope.open-split` / `open-tab`（改 config.toml
   里对应 command 后 `herdr server reload-config`）
+
+## 可选：herdr-radar agent 状态侧边栏
+
+`hhdebb.herdr-radar` 把 herdr 自带的 Agents 列表改造成可读的状态视图：工作中
+braille spinner、完成绿勾保留到你看过为止、提问红色脉动、空闲按时间分三级
+变淡；按项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由
+`nix-darwin/herdr.nix` postActivation 安装（pinned `v1.4.2`，要求 herdr ≥
+0.9.0，是 Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
+
+- `P C-r`：在 grouped-by-activity 与 flat recent-first 两种排序间翻转
+- `P ,`：设置弹窗（空闲分级时长、glyph 样式等都在里面）
+- 上游建议的 `P a` 被 Projects 占用、裸 `P r` 是 herdr resize 模式，所以
+  这两个键改到了插件动作所在的 ctrl 层
+- 插件自管三样东西，均不在仓库模板里：config.toml 尾部三块 marker-fenced
+  配置（tab-bar 命令、`[ui.sidebar.*]` 着色行、`[theme.custom]`）、
+  `~/Library/Fonts` 下的图标字体、ghostty/kitty 的 codepoint map
+- 模板每次激活都会用仓库版覆盖 config.toml，所以 postActivation 在装模板
+  之后会调一次 `plugin action invoke configure` 修复三块配置；kitty 的
+  codepoint map 直接预置在 `config/kitty/kitty.conf`（否则插件首次安装的
+  build hook 会因写只读 Nix-store 软链硬失败）
+- 插件默认跟随 macOS 深浅色模式并改写 `[theme] name`；模板把
+  `light_name`/`dark_name` 都钉成 `"terminal"`，于是它只切换自己侧边栏
+  的调色板，不会动 terminal 跟随 kitty 的主题
+- 与 herdr-projects 共存：v0.2.34 的 projects 会把自己的 tab-bar 命令和
+  `$hp_sub` 侧边栏行合并进 radar 的 marker 块，所以激活顺序固定为 radar
+  configure 在前、projects configure 在后。已知小缺口：macOS 深浅色切换
+  时 radar 重写侧边栏块会临时丢掉 `$hp_sub`（tab-bar 条目会保留），下次
+  `hm-update` 跑 projects configure 即恢复——属于上游未处理的 cosmetic 问题
 
 ## 可选：herdr-projects 多 agent 协作
 

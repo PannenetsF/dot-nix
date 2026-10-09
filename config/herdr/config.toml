@@ -3,6 +3,11 @@ onboarding = false
 [theme]
 name = "terminal"
 auto_switch = false
+# herdr-radar (plugin, see nix-darwin/herdr.nix) follows macOS light/dark
+# appearance and rewrites `name` from these keys. Pin both to "terminal" so its
+# palette swap keeps the terminal-following theme instead of catppuccin.
+light_name = "terminal"
+dark_name = "terminal"
 
 [ui]
 # Distinct static glyphs for blocked/working/done/idle instead of color dots.
@@ -124,3 +129,20 @@ command = "sh -c 'exec \"$HOME/.local/bin/herdr-add-repo\"'"
 description = "Projects: attach repo to project"
 width = "70%"
 height = "70%"
+
+# herdr-radar sidebar (plugin installed by nix-darwin/herdr.nix). Upstream
+# suggests prefix+a for the view flip, but that is Projects' popup here, and
+# plain prefix+r is herdr's resize mode, so the flip rides prefix+ctrl+r with
+# the other plugin actions; settings popup on prefix+comma as upstream suggests.
+# Both are no-ops until the plugin lands.
+[[keys.command]]
+key = "prefix+ctrl+r"
+type = "plugin_action"
+command = "hhdebb.herdr-radar.view-flip"
+description = "Radar: active <-> recent agent order"
+
+[[keys.command]]
+key = "prefix+comma"
+type = "plugin_action"
+command = "hhdebb.herdr-radar.settings"
+description = "Radar: settings popup"
