@@ -102,13 +102,16 @@ type = "plugin_action"
 command = "furkankly.zoetrope.open"
 description = "zoetrope: session graph (overlay)"
 
-# roadboard: 7-state roadmap task tree over Obsidian work/roadmap.md.
-# Linked locally for development: `herdr plugin link ~/Documents/workspace/roadboard`.
+# roadboard: 7-state roadmap task tree. Bound as a popup that runs the TUI
+# binary directly (type=popup gives a real TTY; plugin_action would spawn it
+# non-interactively). Local dev checkout; the absolute path is machine-local.
 [[keys.command]]
 key = "prefix+shift+r"
-type = "plugin_action"
-command = "roadboard.open"
+type = "popup"
+command = "sh -c 'exec $HOME/Documents/workspace/roadboard/target/release/roadboard pane'"
 description = "roadboard: roadmap tree"
+width = "78%"
+height = "88%"
 
 # herdr-projects: new/open project (the prefix+a overview popup itself is
 # added by `herdr-projects configure` during activation). Mirrors the nvim
