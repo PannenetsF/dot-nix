@@ -27,6 +27,7 @@ selection="$("$hp_bin" --root "$hp_root" list 2>/dev/null | fzf \
 slug="${selection%%$'\t'*}"
 [ -n "$slug" ] || exit 0
 
-# In a plugin popup pane this opens the coordinator in the project's own
-# workspace tab; outside Herdr it starts in the current pane.
-exec "$hp_bin" --root "$hp_root" open "$slug"
+# Always open in the project's own workspace tab: from a popup pane plain
+# `open` would start the coordinator in the transient pane, which closes the
+# moment this script exits. Outside Herdr --tab behaves like plain open.
+exec "$hp_bin" --root "$hp_root" open "$slug" --tab

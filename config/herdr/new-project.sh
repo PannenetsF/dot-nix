@@ -56,6 +56,7 @@ else
   "$hp_bin" --root "$hp_root" new "$slug" --repo "$repo"
 fi
 
-# Opens (or focuses) the project's coordinator workspace via the herdr server
-# socket this pane carries; the popup pane itself closes as this exits.
-exec "$hp_bin" --root "$hp_root" open "$slug"
+# Always open in the project's own workspace tab: from a popup pane plain
+# `open` would start the coordinator in the transient pane, which closes the
+# moment this script exits. Outside Herdr --tab behaves like plain open.
+exec "$hp_bin" --root "$hp_root" open "$slug" --tab
