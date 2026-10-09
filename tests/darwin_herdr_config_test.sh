@@ -43,4 +43,10 @@ assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
 # macOS light/dark appearance), not a herdr-built-in theme.
 assert_contains "config/herdr/config.toml" 'name = "terminal"'
 
+# herdr-projects repo picker (prefix+shift+c)
+assert_file_exists "config/herdr/new-project.sh"
+assert_contains "modules/darwin.nix" '".local/bin/herdr-new-project"'
+assert_contains "config/herdr/config.toml" 'herdr-new-project'
+assert_contains "config/herdr/config.toml" 'herdr-projects.open'
+
 echo "darwin herdr config test OK"

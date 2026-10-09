@@ -79,6 +79,14 @@
       force = true;
     };
 
+    # fzf picker: choose a git repo, then create/open a herdr-projects
+    # project on it (bound to prefix+shift+c in config/herdr/config.toml).
+    ".local/bin/herdr-new-project" = {
+      source = ../config/herdr/new-project.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;

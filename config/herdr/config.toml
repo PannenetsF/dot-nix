@@ -97,11 +97,15 @@ description = "zoetrope: session graph (overlay)"
 # herdr-projects: new/open project (the prefix+a overview popup itself is
 # added by `herdr-projects configure` during activation). Mirrors the nvim
 # <leader>a agent/project namespace: shift+C create, C-p project switch.
+# New opens the fzf repo picker installed as ~/.local/bin/herdr-new-project;
+# override the scan roots with HP_PROJECT_ROOTS=~/a:~/b.
 [[keys.command]]
 key = "prefix+shift+c"
-type = "plugin_action"
-command = "herdr-projects.new"
-description = "Projects: new project"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-new-project\"'"
+description = "Projects: new project from repo"
+width = "70%"
+height = "70%"
 
 [[keys.command]]
 key = "prefix+ctrl+p"

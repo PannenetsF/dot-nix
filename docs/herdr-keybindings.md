@@ -55,6 +55,10 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | zoetrope 会话流程图（可选插件，见下） | `P S-z` | — |
 | herdr-projects 项目总控（可选插件，见下） | `P a` | nvim `<leader>ao` explorer |
 | herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
+
+> `P S-c` 弹出 fzf 仓库选择器（脚本 `config/herdr/new-project.sh`，扫描
+> `HP_PROJECT_ROOTS`，默认 `~/Documents/workspace`，深度 4 层），选中后输入
+> slug 即建项目并打开 coordinator。
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
 | 设置界面 | `P S-s` | 原默认 `s`，给横分让位 |
@@ -110,5 +114,7 @@ herdr server reload-config
   正常）；`herdr-projects open/new` 创建第一个项目时自动拉起
 - 新建项目：`herdr-projects new "名字" --repo <path>` 后
   `herdr-projects open <名字>`，然后只跟 coordinator 对话
-- 快捷键：`P S-c` 新建项目、`P C-p` 打开/切换项目（模板管理），
-  `P a` 总控弹窗（configure 管理）
+- 快捷键：`P S-c` fzf 选已有仓库新建项目（脚本装为
+  `~/.local/bin/herdr-new-project`，仓库根用 `HP_PROJECT_ROOTS` 覆盖）、
+  `P C-p` 打开/切换项目，`P a` 总控弹窗（configure 管理）；不带 `--repo`
+  的裸 `herdr-projects new` 只建元数据目录，所以模板里的新建键走选择器
