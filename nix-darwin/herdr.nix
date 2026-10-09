@@ -2,7 +2,9 @@
 let
   # herdr rewrites this file itself (settings UI, theme selection), so it is
   # installed as a writable regular file like the AeroSpace config, not as a
-  # read-only Home Manager symlink into the Nix store.
+  # read-only Home Manager symlink into the Nix store. Activation overwrites
+  # the live file with this template every run; before that, local edits are
+  # backed up (config.toml.bak-<timestamp>, last 5 kept) and the diff printed.
   herdrConfig = ../config/herdr/config.toml;
   herdrCli = "${config.homebrew.brewPrefix}/herdr";
   # sudo's env_reset hands the executed command a bare secure_path with none
@@ -27,11 +29,27 @@ in {
   system.activationScripts.postActivation.text = lib.mkAfter ''
     echo >&2 "herdr config..."
     install -d -o ${username} -g staff "${homeDir}/.config/herdr"
+    live="${homeDir}/.config/herdr/config.toml"
+    # The settings UI can rewrite the live file; back it up and print the diff
+    # before the template overwrites it. Skip symlinks (older HM generations):
+    # `install` would follow them into the read-only Nix store anyway.
+    if [ -f "$live" ] && [ ! -L "$live" ]; then
+      bak="$live.bak-$(date +%Y%m%d-%H%M%S)"
+      cp -p "$live" "$bak"
+      chown ${username}:staff "$bak" 2>/dev/null || true
+      echo >&2 "herdr config.toml local changes being overwritten (backup: $bak):"
+      # diff exits 1 when files differ; that is the expected case here.
+      diff -u "$live" "${herdrConfig}" >&2 || true
+      # keep only the 5 newest backups
+      ls -t "$live".bak-* 2>/dev/null | tail -n +6 | while IFS= read -r old; do
+        rm -f -- "$old"
+      done
+    fi
     # Drop any Home Manager-managed symlink from older generations first:
     # `install` would otherwise follow it into the read-only Nix store.
-    rm -f "${homeDir}/.config/herdr/config.toml"
-    install -m 0644 "${herdrConfig}" "${homeDir}/.config/herdr/config.toml"
-    chown ${username}:staff "${homeDir}/.config/herdr/config.toml" 2>/dev/null || true
+    rm -f "$live"
+    install -m 0644 "${herdrConfig}" "$live"
+    chown ${username}:staff "$live" 2>/dev/null || true
 
     if [ -x "${herdrCli}" ]; then
       herdr_as_user() {
@@ -53,12 +71,22 @@ in {
       # hard against one too old to know the plugin's manifest features.
       # herdr-radar needs >= 0.9.0, herdr-projects >= 0.9.1.
       hp_bin="${homeDir}/.local/bin/herdr-projects"
-      if herdr_as_user status --json 2>/dev/null | python3 -c '
+      status_json="$(herdr_as_user status --json 2>/dev/null)"
+      # One status call feeds both gates. Python exits 0 = >= 0.9.0,
+      # 1 = older, 2 = version unobtainable (server down / bad payload).
+      # Suffixes like "-rc1" / "+build" are stripped before comparing so a
+      # prerelease tag does not crash int() and masquerade as "older".
+      if printf '%s' "$status_json" | python3 -c '
 import json, sys
-v = json.load(sys.stdin)["server"]["version"]
-sys.exit(0 if tuple(map(int, v.split("."))) >= (0, 9, 0) else 1)
-' 2>/dev/null; then
-        server_version="$(herdr_as_user status --json 2>/dev/null \
+try:
+    v = json.load(sys.stdin)["server"]["version"]
+    v = v.split("-", 1)[0].split("+", 1)[0]
+    t = tuple(int(x) for x in v.split(".") if x != "")
+    sys.exit(0 if t >= (0, 9, 0) else 1)
+except Exception:
+    sys.exit(2)
+'; then
+        server_version="$(printf '%s' "$status_json" \
           | python3 -c 'import json,sys; print(json.load(sys.stdin)["server"]["version"])' 2>/dev/null)"
 
         # herdr-radar rewrites the sidebar Agents list with per-agent state
@@ -91,7 +119,9 @@ sys.exit(0 if tuple(map(int, v.split("."))) >= (0, 9, 0) else 1)
         # running server and fails hard against a stale one, so skip until the
         # server is restarted.
         if python3 -c 'import sys
-sys.exit(0 if tuple(map(int, sys.argv[1].split("."))) >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
+v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
+t = tuple(int(x) for x in v.split(".") if x != "")
+sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
           if ! herdr_as_user plugin list 2>/dev/null \
               | grep -q "herdr-projects.*@v0.2.34"; then
             herdr_as_user plugin install -y --ref v0.2.34 \
@@ -111,7 +141,12 @@ sys.exit(0 if tuple(map(int, sys.argv[1].split("."))) >= (0, 9, 1) else 1)' "$se
           echo >&2 "herdr server is older than 0.9.1; restart herdr to install herdr-projects"
         fi
       else
-        echo >&2 "herdr server is older than 0.9.0; restart herdr to install pinned plugins"
+        rc=$?
+        if [ "$rc" = 2 ]; then
+          echo >&2 "herdr server version unavailable (is herdr running?); skipping plugin install/configure this run"
+        else
+          echo >&2 "herdr server is older than 0.9.0; restart herdr to install pinned plugins"
+        fi
       fi
 
       herdr_as_user server reload-config 2>/dev/null || true

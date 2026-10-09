@@ -27,6 +27,10 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 单 pane tab 里 zoom 没有视觉效果，先分屏再试。关 pane 会杀掉其中进程
 （`ui.confirm_close` 有确认）。
 
+注意 `P b` 已被 previous_tab 占用：它同时是 herdr 默认的 sidebar 折叠键
+（model.rs 文档字符串 Default: "prefix+b"），用户绑定静默胜出，默认的
+折叠功能因此失效，需要折叠请把该动作改到别的键。
+
 ## 布局调整
 
 | 操作 | 直连 | prefix 版 |
@@ -72,12 +76,17 @@ blocked/working/idle/done 的 agent，`a` 恢复全部。
 > herdr-projects 三个选择器：`P S-c` 用 fzf 选一个或多个已有 git 仓库建
 > 多仓项目（Tab 勾选多个，Enter 确认；`config/herdr/new-project.sh`，
 > 扫描根 `HP_PROJECT_ROOTS`，默认 `~/Documents/workspace`，深度 4 层，
-> 选中后输入 slug 并打开）；
+> 选中后输入任意项目名（大小写和空格原样保留为显示名，如 `Erdos`、
+> `my project`；slug 由 `herdr-projects new` 自动派生）并打开，重名则
+> 转为给已有项目追加仓库）；
 > `P S-a` 给已有项目追加仓库（先选项目，再多选仓库，已挂的自动隐藏，
 > `config/herdr/add-repo.sh`）；
 > `P C-p` 用 fzf 选已有项目打开（`config/herdr/pick-project.sh`）。
 > 插件自带的 open 动作在项目 workspace 里会直接回当前项目而不询问，
 > 所以打开键走这个始终询问的脚本。三个弹窗出错都会停住显示错误。
+> 弹窗继承 herdr server 的环境变量：`HP_PROJECT_ROOTS` 用冒号分隔多个
+> 根，且不展开 `~`，需写绝对路径（在 shell 里用 `$HOME` 赋值会由 shell
+> 先展开，直接写 `~` 则不会）。
 
 ## 可选：which-key 风格分组菜单
 
@@ -141,6 +150,8 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
 
 - 插件由 `nix-darwin/herdr.nix` postActivation 安装（pinned `v0.2.34`，要求
   herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示重启 herdr）
+- 版本被 activation pin 在 `v0.2.34`：不要用插件自更新（`herdr-projects
+  update` 等），下次激活会被装回 pin 版本
 - sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
   写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块
   加进可写的 `~/.config/herdr/config.toml` 并记入 journal（幂等，`doctor`
@@ -157,3 +168,21 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
   自带 open 动作，因为它在项目 workspace 内不询问直接回当前项目）、
   `P a` 总控弹窗（configure 管理）；不带 `--repo` 的裸 `herdr-projects new`
   只建元数据目录，所以模板里的新建键走选择器
+
+## 卸载 / 重置
+
+手动清理配方（以 herdr-projects 为例）：
+
+```sh
+# 1. 移除 configure 加进 live config 的块、hooks 和 skill 链接
+~/.local/bin/herdr-projects unconfigure
+# 2. 卸载插件
+herdr plugin uninstall herdr-projects
+# 3. 移除 nix-darwin/configuration.nix imports 里的 ./herdr.nix 后重新激活
+# 4. 删除全部项目元数据（不可恢复）
+rm -rf ~/.herdr-projects
+```
+
+herdr-radar 没有 unconfigure：需手删 config.toml 尾部三块 marker-fenced
+配置（tab-bar 命令、`[ui.sidebar.*]`、`[theme.custom]`，见上文 radar
+小节）以及 `~/Library/Fonts` 下的图标字体。

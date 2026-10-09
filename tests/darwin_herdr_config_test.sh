@@ -13,12 +13,12 @@ assert_file_exists() {
 }
 
 assert_contains() {
-	grep -Fq "$2" "${repo_root}/$1" \
+	grep -Fq -- "$2" "${repo_root}/$1" \
 		|| fail "expected $1 to contain: $2"
 }
 
 assert_not_contains() {
-	if grep -Fq "$2" "${repo_root}/$1"; then
+	if grep -Fq -- "$2" "${repo_root}/$1"; then
 		fail "did not expect $1 to contain: $2"
 	fi
 }
@@ -33,8 +33,9 @@ assert_contains "nix-darwin/herdr.nix" "../config/herdr/config.toml"
 assert_contains "nix-darwin/herdr.nix" "server reload-config"
 
 # herdr rewrites the file via its settings UI: install a writable file, not a
-# Home Manager symlink into the read-only Nix store.
-assert_contains "nix-darwin/herdr.nix" 'rm -f "${homeDir}/.config/herdr/config.toml"'
+# Home Manager symlink into the read-only Nix store. The live path is held in
+# a `live` variable (the backup/diff block above uses it too).
+assert_contains "nix-darwin/herdr.nix" 'rm -f "$live"'
 
 # Home Manager must no longer force-link the file (the nix-darwin module owns it).
 assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
@@ -89,8 +90,55 @@ assert_file_exists "config/herdr/add-repo.sh"
 assert_contains "modules/darwin.nix" '".local/bin/herdr-add-repo"'
 assert_contains "config/herdr/config.toml" 'herdr-add-repo'
 # Opening from a popup pane must start the coordinator in a project tab,
-# otherwise the transient popup pane takes it down with it on exit.
-assert_contains "config/herdr/new-project.sh" 'open "$slug" --tab'
-assert_contains "config/herdr/pick-project.sh" 'open "$slug" --tab'
+# otherwise the transient popup pane takes it down with it on exit. The open
+# call lives in an `open_project` helper that also handles --rebind, so the
+# slug variable is `open_slug` there.
+assert_contains "config/herdr/new-project.sh" 'open "$open_slug" --tab'
+assert_contains "config/herdr/pick-project.sh" 'open "$open_slug" --tab'
+# The name prompt is free-form: the plugin binary derives the slug itself,
+# so capitals/spaces ("Erdos", "my project") must not be rejected locally.
+assert_contains "config/herdr/new-project.sh" '-- "$name"'
+assert_not_contains "config/herdr/new-project.sh" 'invalid slug'
+
+# --- Wrapper-script hardening (PATH self-sufficiency, @ guards, slug locks) ---
+#
+# All three launchers must be runnable from a bare popup environment: herdr's
+# popup spawns them with a minimal PATH that lacks the HM profile and Homebrew.
+for s in new-project pick-project add-repo; do
+	assert_contains "config/herdr/$s.sh" "/etc/profiles/per-user/"
+	assert_contains "config/herdr/$s.sh" "/opt/homebrew/bin"
+done
+
+# Repo paths containing @ are rejected before reaching the plugin (they break
+# TOML/shell handling); both scripts that accept repo paths must guard them.
+assert_contains "config/herdr/new-project.sh" '*@*)'
+assert_contains "config/herdr/add-repo.sh" '*@*)'
+
+# add-repo.sh: idempotent attach (tolerate "already listed"), no tomllib
+# dependency, find matches worktree .git *files* (not just .git directories),
+# python strips newlines with rstrip("\n") (not .strip() which also eats
+# meaningful whitespace).
+assert_contains "config/herdr/add-repo.sh" "already listed"
+assert_not_contains "config/herdr/add-repo.sh" "import tomllib"
+assert_contains "config/herdr/add-repo.sh" "-type f"
+assert_contains "config/herdr/add-repo.sh" ".git"
+assert_contains "config/herdr/add-repo.sh" 'rstrip("\n")'
+assert_not_contains "config/herdr/add-repo.sh" "line.strip()"
+
+# new-project.sh: EOF on the name prompt is a cancel (exit 0); the slug sed
+# capture group is locked to slug characters [a-z0-9-]; --rebind recovers
+# from a dead recorded socket.
+assert_contains "config/herdr/new-project.sh" "read -r name || exit 0"
+assert_contains "config/herdr/new-project.sh" '[a-z0-9-]'
+assert_contains "config/herdr/new-project.sh" "--rebind"
+assert_contains "config/herdr/new-project.sh" 's/^created `\([a-z0-9-]*\)` at'
+
+# pick-project.sh: slug regex guard on list output; --rebind.
+assert_contains "config/herdr/pick-project.sh" '^[a-z0-9][a-z0-9-]'
+assert_contains "config/herdr/pick-project.sh" "--rebind"
+
+# nix-darwin: config.toml backup + diff before overwrite.
+assert_contains "nix-darwin/herdr.nix" "config.toml.bak-"
+assert_contains "nix-darwin/herdr.nix" "diff -u"
 
 echo "darwin herdr config test OK"
