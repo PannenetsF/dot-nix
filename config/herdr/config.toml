@@ -50,6 +50,9 @@ settings = "prefix+shift+s"
 # tabs as nvim buffers: n = <leader>bn next, b = <leader>bb prev;
 # brackets mirror the ]q/[q quickfix habit
 next_tab = ["prefix+n", "ctrl+alt+]"]
+# NOTE: prefix+b is also herdr's built-in sidebar-collapse key (model.rs
+# documents Default: "prefix+b"). Binding it here intentionally shadows that
+# default, so collapsing the sidebar needs the action rebound to another key.
 previous_tab = ["prefix+b", "prefix+p", "ctrl+alt+["]
 new_tab = ["prefix+c", "ctrl+alt+c"]
 

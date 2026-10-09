@@ -33,8 +33,9 @@ assert_contains "nix-darwin/herdr.nix" "../config/herdr/config.toml"
 assert_contains "nix-darwin/herdr.nix" "server reload-config"
 
 # herdr rewrites the file via its settings UI: install a writable file, not a
-# Home Manager symlink into the read-only Nix store.
-assert_contains "nix-darwin/herdr.nix" 'rm -f "${homeDir}/.config/herdr/config.toml"'
+# Home Manager symlink into the read-only Nix store. The live path is held in
+# a `live` variable (the backup/diff block above uses it too).
+assert_contains "nix-darwin/herdr.nix" 'rm -f "$live"'
 
 # Home Manager must no longer force-link the file (the nix-darwin module owns it).
 assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
@@ -135,5 +136,9 @@ assert_contains "config/herdr/new-project.sh" 's/^created `\([a-z0-9-]*\)` at'
 # pick-project.sh: slug regex guard on list output; --rebind.
 assert_contains "config/herdr/pick-project.sh" '^[a-z0-9][a-z0-9-]'
 assert_contains "config/herdr/pick-project.sh" "--rebind"
+
+# nix-darwin: config.toml backup + diff before overwrite.
+assert_contains "nix-darwin/herdr.nix" "config.toml.bak-"
+assert_contains "nix-darwin/herdr.nix" "diff -u"
 
 echo "darwin herdr config test OK"
