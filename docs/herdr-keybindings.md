@@ -52,6 +52,7 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | --- | --- | --- |
 | LazyGit 弹窗 | `P C-g` | nvim `<leader>g` |
 | which-key 分组菜单（可选插件，见下） | `P Space` | which-key.nvim |
+| zoetrope 会话流程图（可选插件，见下） | `P S-z` | — |
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
 | 设置界面 | `P S-s` | 原默认 `s`，给横分让位 |
@@ -77,3 +78,14 @@ herdr server reload-config
 ```
 
 未安装时配置里的 `P Space` 是空弹窗兜底，不影响其他绑定。
+
+## 可选：zoetrope 会话流程图
+
+`furkankly.zoetrope` 插件把聚焦的 agent pane 会话画成实时流程图。插件由
+`nix-darwin/herdr.nix` postActivation 安装（pinned ref），`zoe` CLI 由
+`nix-darwin/homebrew.nix` 管理。前提：`herdr integration install claude`
+（或 codex）已装，且 agent 是在集成安装之后启动的，否则 pane 没有 session id。
+
+- `P S-z`：在当前 pane 上叠加流程图，跟 live 会话；再按一次或图内 `q` 关闭
+- 其他放置方式：`furkankly.zoetrope.open-split` / `open-tab`（改 config.toml
+  里对应 command 后 `herdr server reload-config`）

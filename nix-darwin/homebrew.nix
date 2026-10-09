@@ -103,6 +103,9 @@ in {
           brew_as_user tap felixkratz/formulae
           brew_as_user trust felixkratz/formulae --quiet
 
+          brew_as_user tap furkankly/tap
+          brew_as_user trust furkankly/tap --quiet
+
           # Fetch and verify both the replacement and rollback artifact before
           # removing the upstream cask. If installation still fails, make the
           # rollback result explicit rather than hiding a second failure.
@@ -163,6 +166,7 @@ in {
     taps = [
       "daipeihust/tap"
       "felixkratz/formulae"
+      "furkankly/tap"
       "gromgit/fuse"
       {
         name = "dot-nix/local";
@@ -224,6 +228,7 @@ in {
       # does not: macOS has no public API for it, so the border has to come
       # from a separate always-on daemon.
       "felixkratz/formulae/borders"
+      "furkankly/tap/zoetrope"
       "gromgit/fuse/sshfs-mac"
       "herdr"
     ];

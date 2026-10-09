@@ -18,8 +18,22 @@ in {
     chown ${username}:staff "${homeDir}/.config/herdr/config.toml" 2>/dev/null || true
 
     if [ -x "${herdrCli}" ]; then
-      launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
-        "${herdrCli}" server reload-config 2>/dev/null || true
+      herdr_as_user() {
+        launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+          "${herdrCli}" "$@"
+      }
+
+      # herdr has no declarative plugin config, so install the zoetrope plugin
+      # here, pinned to a ref. `plugin install` re-installs even when current,
+      # so guard on the installed ref.
+      if ! herdr_as_user plugin list 2>/dev/null \
+          | grep -q "furkankly.zoetrope.*@2d226f7"; then
+        herdr_as_user plugin install -y \
+          --ref 2d226f7eae7cf7b89fb7665300c419c21a6366b7 \
+          furkankly/zoetrope/herdr-plugin
+      fi
+
+      herdr_as_user server reload-config 2>/dev/null || true
     fi
   '';
 }
