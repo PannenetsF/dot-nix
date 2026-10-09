@@ -53,6 +53,7 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | LazyGit 弹窗 | `P C-g` | nvim `<leader>g` |
 | which-key 分组菜单（可选插件，见下） | `P Space` | which-key.nvim |
 | zoetrope 会话流程图（可选插件，见下） | `P S-z` | — |
+| herdr-projects 项目总控（可选插件，见下） | `P a` | — |
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
 | 设置界面 | `P S-s` | 原默认 `s`，给横分让位 |
@@ -89,3 +90,18 @@ herdr server reload-config
 - `P S-z`：在当前 pane 上叠加流程图，跟 live 会话；再按一次或图内 `q` 关闭
 - 其他放置方式：`furkankly.zoetrope.open-split` / `open-tab`（改 config.toml
   里对应 command 后 `herdr server reload-config`）
+
+## 可选：herdr-projects 多 agent 协作
+
+`herdr-projects` 提供一个 coordinator agent：描述大任务后它拆成多个 thread，
+每个 thread 是独立 worktree/分支上的 agent，共享目标与项目记忆；sidebar 按
+「needs you / review / working」分组，tab 栏显示 `projects: N need you`。
+
+- 插件由 `nix-darwin/herdr.nix` postActivation 安装（pinned `v0.2.34`，要求
+  herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示重启 herdr）
+- sidebar 分组行、`P a` 弹窗、tab 栏条目写在 `config/herdr/config.toml` 里；
+- agent 进度上报 hooks 和 `autoproject` skill 链接由激活时
+  `herdr-projects configure --hooks-only` 维护（幂等，也能修复被其他工具
+  重写 settings.json 挤掉的 hooks）
+- 新建项目：`herdr-projects new "名字" --repo <path>` 后
+  `herdr-projects open <名字>`，然后只跟 coordinator 对话
