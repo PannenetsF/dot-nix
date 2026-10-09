@@ -137,11 +137,7 @@ run = ['move-node-to-workspace 2']
 if.app-id = 'com.anthropic.claudefordesktop'
 run = ['move-node-to-workspace 4']
 
-[[on-window-detected]]
-if.app-id = 'com.stablyai.orca'
-run = ['move-node-to-workspace 4']
-
-# Lark/Feishu: float every window first, then route the main window to WS7.
+# Lark/Feishu: float every window first, then route the main window to WS8.
 # Modal popups (user card, etc.) are com.electron.lark windows whose title
 # Electron sets AFTER creation, so title matching at detection time is
 # unreliable. Floating first keeps modals where they open regardless; only the
@@ -154,7 +150,7 @@ check-further-callbacks = true
 [[on-window-detected]]
 if.app-id = 'com.electron.lark'
 if.window-title-regex-substring = '飞书'
-run = ['layout tiling', 'move-node-to-workspace 7']
+run = ['layout tiling', 'move-node-to-workspace 8']
 
 [[on-window-detected]]
 if.app-id = 'com.electron.lark.helper'
@@ -162,7 +158,7 @@ run = ['layout floating']
 
 [[on-window-detected]]
 if.app-id = 'md.obsidian'
-run = ['move-node-to-workspace 7']
+run = ['move-node-to-workspace 5']
 
 [[on-window-detected]]
 if.app-id = 'com.apple.finder'
