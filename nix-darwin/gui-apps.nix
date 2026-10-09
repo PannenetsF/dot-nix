@@ -141,6 +141,7 @@ let
   '';
 in {
   environment.systemPackages = with pkgs; [
+    nerd-fonts.iosevka
     nerd-fonts.shure-tech-mono
     sketchybar-app-font
   ];

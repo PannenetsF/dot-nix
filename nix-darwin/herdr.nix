@@ -41,6 +41,7 @@ in {
       # diff exits 1 when files differ; that is the expected case here.
       diff -u "$live" "${herdrConfig}" >&2 || true
       # keep only the 5 newest backups
+      # shellcheck disable=SC2012
       ls -t "$live".bak-* 2>/dev/null | tail -n +6 | while IFS= read -r old; do
         rm -f -- "$old"
       done
