@@ -46,3 +46,17 @@ NEOVIDE_BIN="$stub_neovide" NEOVIDE_ARGS_LOG="$args_log" \
 assert_arg "--reuse-instance"
 assert_arg "/tmp/manual.py"
 assert_arg "+call cursor(23,4)"
+
+# An explicit NEOVIM_NVIM_BIN must be forwarded via --neovim-bin so that
+# Finder-launched Neovide (no shell PATH) and machines without Homebrew
+# nvim use the pinned binary.
+fake_nvim="${tmp_dir}/nvim"
+printf '#!/usr/bin/env bash\ntrue\n' >"$fake_nvim"
+chmod +x "$fake_nvim"
+
+NEOVIDE_BIN="$stub_neovide" NEOVIDE_ARGS_LOG="$args_log" NEOVIM_NVIM_BIN="$fake_nvim" \
+  bash "$opener" "/tmp/manual.py"
+
+assert_arg "--neovim-bin"
+assert_arg "$fake_nvim"
+
