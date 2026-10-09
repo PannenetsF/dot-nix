@@ -246,11 +246,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
 - herdr-radar（pinned `v1.4.2`，hhdebb/herdr-radar）是首个 Node 插件：运行时
   `node` 由 `modules/host.nix` 的 `nodejs_22` 提供（zoetrope/herdr-projects
-  是 Rust 单文件二进制，不需要解释器）。它自管 config.toml 尾部三块
-  marker-fenced 配置（tab-bar 命令、`[ui.sidebar.*]`、`[theme.custom]`）和
-  `~/Library/Fonts` 图标字体；模板每次激活都会覆盖 config.toml，所以
-  postActivation 在落模板后调一次 `plugin action invoke configure
-  --plugin hhdebb.herdr-radar` 修复三块。两个不可回退的集成约定：
+  是 Rust 单文件二进制，不需要解释器）。postActivation 经 sudo 执行 herdr，
+  `env_reset` 的 secure_path 不含 HM profile 目录，所以 `herdr_as_user` 必须
+  用 `env PATH=...` 把 `/etc/profiles/per-user/$user/bin` 等重新前置（否则
+  插件 build hook 报 `failed to start: No such file or directory`）。它自管
+  config.toml 尾部三块 marker-fenced 配置（tab-bar 命令、`[ui.sidebar.*]`、
+  `[theme.custom]`）和 `~/Library/Fonts` 图标字体；模板每次激活都会覆盖
+  config.toml，所以 postActivation 在落模板后调一次
+  `plugin action invoke configure --plugin hhdebb.herdr-radar` 修复三块，并
+  调 `state-start` 立即拉起状态 glyph 守护（startup hook 只在 server 启动时
+  跑）。两个不可回退的集成约定：
   1. kitty 的 codepoint map 必须预置在 `config/kitty/kitty.conf`（字节与
      插件 setup 生成的块一致），否则插件安装 build hook 在首次激活时写只读
      HM nix-store 软链会 `EACCES` 硬失败（其 setup.js 不捕获该错误）；

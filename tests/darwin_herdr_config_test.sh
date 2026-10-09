@@ -63,6 +63,12 @@ assert_contains "config/herdr/config.toml" 'key = "prefix+comma"'
 # Radar is a Node plugin; the interpreter is part of the host package set.
 assert_contains "modules/host.nix" "nodejs_22"
 
+# sudo's env_reset secure_path lacks the HM profile dirs, so the herdr
+# invocations must re-prepend them via env(1) or Node plugin build hooks fail
+# to spawn `node` ("failed to start: No such file or directory").
+assert_contains "nix-darwin/herdr.nix" 'env PATH='
+assert_contains "nix-darwin/herdr.nix" "/etc/profiles/per-user/"
+
 # Radar's first-run setup writes this exact marker block into kitty.conf; it
 # must be shipped by the repo or its build hook hard-fails on the read-only
 # Home Manager symlink. Ranges are derived from the plugin's font (v1.4.2).

@@ -5,6 +5,22 @@ let
   # read-only Home Manager symlink into the Nix store.
   herdrConfig = ../config/herdr/config.toml;
   herdrCli = "${config.homebrew.brewPrefix}/herdr";
+  # sudo's env_reset hands the executed command a bare secure_path with none
+  # of the Home Manager / nix-darwin profile directories, so the bare `node`
+  # herdr spawns for Node plugin build hooks and actions fails to start (the
+  # Rust plugins are self-contained binaries and never hit this). Re-prepend
+  # the profile and Homebrew bin directories via env(1).
+  pluginPath = lib.concatStringsSep ":" [
+    "/etc/profiles/per-user/${username}/bin"
+    "${homeDir}/.nix-profile/bin"
+    "/run/current-system/sw/bin"
+    "${config.homebrew.brewPrefix}/bin"
+    "/usr/local/bin"
+    "/usr/bin"
+    "/bin"
+    "/usr/sbin"
+    "/sbin"
+  ];
 in {
   # nix-darwin runs a fixed allowlist of activation slots; reuse postActivation
   # like the AeroSpace config install in gui-apps.nix.
@@ -20,7 +36,7 @@ in {
     if [ -x "${herdrCli}" ]; then
       herdr_as_user() {
         launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
-          "${herdrCli}" "$@"
+          env PATH="${pluginPath}" "${herdrCli}" "$@"
       }
 
       # herdr has no declarative plugin config, so install plugins here,
@@ -64,6 +80,11 @@ sys.exit(0 if tuple(map(int, v.split("."))) >= (0, 9, 0) else 1)
             hhdebb/herdr-radar
         fi
         herdr_as_user plugin action invoke configure \
+          --plugin hhdebb.herdr-radar >/dev/null 2>&1 || true
+        # Startup hooks only fire when the herdr server starts; bring the
+        # state-glyph daemon up immediately so the sidebar works without a
+        # herdr restart after install.
+        herdr_as_user plugin action invoke state-start \
           --plugin hhdebb.herdr-radar >/dev/null 2>&1 || true
 
         # herdr-projects requires server >= 0.9.1; plugin install talks to the
