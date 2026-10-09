@@ -55,10 +55,6 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | zoetrope 会话流程图（可选插件，见下） | `P S-z` | — |
 | herdr-projects 项目总控（可选插件，见下） | `P a` | nvim `<leader>ao` explorer |
 | herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
-
-> `P S-c` 弹出 fzf 仓库选择器（脚本 `config/herdr/new-project.sh`，扫描
-> `HP_PROJECT_ROOTS`，默认 `~/Documents/workspace`，深度 4 层），选中后输入
-> slug 即建项目并打开 coordinator。
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
 | 设置界面 | `P S-s` | 原默认 `s`，给横分让位 |
@@ -69,6 +65,13 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 
 goto 面板（`P f`）里的过滤单键：`b/w/i/d` 分别过滤
 blocked/working/idle/done 的 agent，`a` 恢复全部。
+
+> herdr-projects 两个选择器：`P S-c` 用 fzf 选已有 git 仓库建项目
+> （`config/herdr/new-project.sh`，扫描根 `HP_PROJECT_ROOTS`，默认
+> `~/Documents/workspace`，深度 4 层，选中后输入 slug 并打开）；
+> `P C-p` 用 fzf 选已有项目打开（`config/herdr/pick-project.sh`）。
+> 插件自带的 open 动作在项目 workspace 里会直接回当前项目而不询问，
+> 所以打开键走这个始终询问的脚本。
 
 ## 可选：which-key 风格分组菜单
 
@@ -116,5 +119,7 @@ herdr server reload-config
   `herdr-projects open <名字>`，然后只跟 coordinator 对话
 - 快捷键：`P S-c` fzf 选已有仓库新建项目（脚本装为
   `~/.local/bin/herdr-new-project`，仓库根用 `HP_PROJECT_ROOTS` 覆盖）、
-  `P C-p` 打开/切换项目，`P a` 总控弹窗（configure 管理）；不带 `--repo`
-  的裸 `herdr-projects new` 只建元数据目录，所以模板里的新建键走选择器
+  `P C-p` fzf 选已有项目打开（`~/.local/bin/herdr-pick-project`；不用插件
+  自带 open 动作，因为它在项目 workspace 内不询问直接回当前项目）、
+  `P a` 总控弹窗（configure 管理）；不带 `--repo` 的裸 `herdr-projects new`
+  只建元数据目录，所以模板里的新建键走选择器

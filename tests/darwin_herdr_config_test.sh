@@ -47,6 +47,8 @@ assert_contains "config/herdr/config.toml" 'name = "terminal"'
 assert_file_exists "config/herdr/new-project.sh"
 assert_contains "modules/darwin.nix" '".local/bin/herdr-new-project"'
 assert_contains "config/herdr/config.toml" 'herdr-new-project'
-assert_contains "config/herdr/config.toml" 'herdr-projects.open'
+assert_file_exists "config/herdr/pick-project.sh"
+assert_contains "modules/darwin.nix" '".local/bin/herdr-pick-project"'
+assert_contains "config/herdr/config.toml" 'herdr-pick-project'
 
 echo "darwin herdr config test OK"

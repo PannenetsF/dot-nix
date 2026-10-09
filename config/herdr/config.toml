@@ -109,6 +109,8 @@ height = "70%"
 
 [[keys.command]]
 key = "prefix+ctrl+p"
-type = "plugin_action"
-command = "herdr-projects.open"
-description = "Projects: open project"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-pick-project\"'"
+description = "Projects: pick and open project"
+width = "60%"
+height = "60%"

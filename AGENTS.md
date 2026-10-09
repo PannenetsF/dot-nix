@@ -234,6 +234,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   which-key 浮层是手动安装的社区插件（`herdr plugin install
   CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
   缺失兜底。
+- zoetrope 与 herdr-projects 插件由 `nix-darwin/herdr.nix` postActivation
+  pinned ref 安装；herdr-projects 要求 server ≥ 0.9.1（装到运行中的旧
+  server 会硬失败，激活时按 `herdr status --json` 版本守卫跳过）。
+  herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
+  `herdr-projects configure`，由插件自己写 live config（journal 校验）。
+  `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，经
+  `modules/darwin.nix` 链到 `~/.local/bin/herdr-new-project`，扫描根由
+  `HP_PROJECT_ROOTS` 覆盖（默认 `~/Documents/workspace`）。`P C-p` 的项目
+  选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
+  自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
 
 `nix-darwin/macos-defaults.nix`
 

@@ -87,6 +87,14 @@
       force = true;
     };
 
+    # fzf picker over existing projects (prefix+ctrl+p). The plugin's own
+    # open action reopens the current workspace's project instead of asking.
+    ".local/bin/herdr-pick-project" = {
+      source = ../config/herdr/pick-project.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;
