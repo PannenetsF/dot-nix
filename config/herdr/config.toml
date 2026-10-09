@@ -114,3 +114,13 @@ command = "sh -c 'exec \"$HOME/.local/bin/herdr-pick-project\"'"
 description = "Projects: pick and open project"
 width = "60%"
 height = "60%"
+
+# Attach more repos to an existing project (fzf project pick, then fzf
+# multi-pick repos; already attached ones are hidden).
+[[keys.command]]
+key = "prefix+shift+a"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-add-repo\"'"
+description = "Projects: attach repo to project"
+width = "70%"
+height = "70%"

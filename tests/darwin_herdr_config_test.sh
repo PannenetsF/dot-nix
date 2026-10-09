@@ -50,6 +50,10 @@ assert_contains "config/herdr/config.toml" 'herdr-new-project'
 assert_file_exists "config/herdr/pick-project.sh"
 assert_contains "modules/darwin.nix" '".local/bin/herdr-pick-project"'
 assert_contains "config/herdr/config.toml" 'herdr-pick-project'
+# Attach-repos picker (prefix+shift+a)
+assert_file_exists "config/herdr/add-repo.sh"
+assert_contains "modules/darwin.nix" '".local/bin/herdr-add-repo"'
+assert_contains "config/herdr/config.toml" 'herdr-add-repo'
 # Opening from a popup pane must start the coordinator in a project tab,
 # otherwise the transient popup pane takes it down with it on exit.
 assert_contains "config/herdr/new-project.sh" 'open "$slug" --tab'

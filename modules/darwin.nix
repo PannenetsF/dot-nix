@@ -95,6 +95,13 @@
       force = true;
     };
 
+    # fzf multi-pick repos to attach to an existing project (prefix+shift+a).
+    ".local/bin/herdr-add-repo" = {
+      source = ../config/herdr/add-repo.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;
