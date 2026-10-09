@@ -7,11 +7,13 @@
 # the *-theme.auto.conf scheme takes over again on a macOS appearance
 # change or kitty restart.
 #
-# Remote control goes through a fixed unix socket because `kitty @` has
-# no controlling tty inside herdr panes (see `listen_on` in kitty.conf).
+# Remote control needs the kitty instance's unix socket because `kitty @`
+# has no controlling tty inside herdr panes. kitty always appends
+# "-<pid>" to its socket path and the socket of a herdr pane may be stale
+# (the herdr server outlives the kitty it was first launched from), so
+# probe the env-provided address and then /tmp/kitty-* newest-first.
 set -euo pipefail
 
-socket="${KITTY_SOCKET:-/tmp/kitty}"
 theme_dir="${KITTY_THEME_DIR:-$HOME/.config/nix-hm/config/kitty/kitty-themes/themes}"
 kitty_dir="${KITTY_CONFIG_DIR:-$HOME/.config/kitty}"
 
@@ -22,13 +24,37 @@ if [[ ! -d "$theme_dir" ]]; then
   exit 1
 fi
 
-kc() { kitty @ --to "unix:$socket" "$@" >/dev/null 2>&1; }
+# Echo an address kitty @ accepts ("unix:/path") for the first socket
+# that answers, trying env hints then the newest /tmp/kitty-* files.
+find_socket() {
+  local -a candidates=()
+  local hint s
+  for hint in "${KITTY_LISTEN_ON:-}" "${KITTY_SOCKET:-}"; do
+    [[ -n "$hint" ]] || continue
+    [[ "$hint" == unix:* ]] || hint="unix:$hint"
+    candidates+=("${hint#unix:}")
+  done
+  while IFS= read -r s; do candidates+=("$s"); done < <(
+    ls -t /tmp/kitty-* 2>/dev/null
+  )
 
-if ! kc get-colors; then
-  echo "kitty-theme: cannot reach kitty at unix:$socket" >&2
-  echo "Ensure kitty.conf sets 'listen_on unix:$socket' and reload the config." >&2
+  for s in "${candidates[@]}"; do
+    [[ -S "$s" ]] || continue
+    if kitty @ --to "unix:$s" get-colors >/dev/null 2>&1; then
+      printf '%s\n' "$s"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! socket="$(find_socket)"; then
+  echo "kitty-theme: no reachable kitty control socket" >&2
+  echo "Start kitty with remote control enabled (allow_remote_control yes in kitty.conf)." >&2
   exit 1
 fi
+
+kc() { kitty @ --to "unix:$socket" "$@" >/dev/null 2>&1; }
 
 # Resolve a list entry to `set-colors` arguments.
 apply_pick() {

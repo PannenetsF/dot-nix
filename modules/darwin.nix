@@ -70,8 +70,9 @@
       force = true;
     };
 
-    # Interactive fzf-based kitty theme switcher; talks to kitty over
-    # the listen_on socket declared in config/kitty/kitty.conf.
+    # Interactive fzf-based kitty theme switcher; discovers kitty's
+    # per-pid remote-control socket itself (allow_remote_control in
+    # config/kitty/kitty.conf), so it works from inside herdr panes.
     ".local/bin/kitty-theme" = {
       source = ../config/kitty/kitty-theme.sh;
       executable = true;

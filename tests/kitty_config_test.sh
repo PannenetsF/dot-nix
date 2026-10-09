@@ -48,8 +48,8 @@ assert_contains "config/kitty/kitty.conf" "font_family      UbuntuMono Nerd Font
 assert_file_exists "config/kitty/kitty-theme.sh"
 assert_contains "modules/darwin.nix" '".local/bin/kitty-theme"' \
 	"expected the kitty-theme picker to be installed onto PATH via Home Manager"
-assert_contains "config/kitty/kitty.conf" "listen_on unix:/tmp/kitty" \
-	"expected kitty to expose a fixed control socket for kitty-theme"
+assert_contains "config/kitty/kitty-theme.sh" "/tmp/kitty-*" \
+	"expected kitty-theme to discover kitty's per-pid control socket"
 
 if grep -Fq "dot-kitty" "${repo_root}/install-macos.sh"; then
 	echo "expected install-macos.sh not to fetch dot-kitty during activation" >&2
