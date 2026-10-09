@@ -78,8 +78,9 @@ apply_pick() {
   esac
 }
 
-# fzf --preview runs on every cursor move; the preview window itself is
-# hidden, its only job is to fire set-colors for the highlighted row.
+# fzf focus binding runs on every cursor move (note: --preview with
+# --preview-window=hidden never executes in fzf 0.74+, so this can't be
+# a hidden preview). execute-silent keeps the picker UI untouched.
 preview_sh="$(mktemp)"
 cat >"$preview_sh" <<EOF
 #!/bin/sh
@@ -100,9 +101,8 @@ pick="$(
       | sed 's|.*/||; s|\.conf$||' | sort
   } | fzf \
       --prompt='kitty theme > ' \
-      --header='Enter: apply   Esc: cancel & restore   type to filter' \
-      --preview="sh '$preview_sh' {}" \
-      --preview-window=hidden
+      --header='↑↓ live preview   Enter: keep   Esc: cancel & restore   type to filter' \
+      --bind="focus:execute-silent:sh '$preview_sh' {}"
 )" || true
 
 if [[ -z "$pick" ]]; then
