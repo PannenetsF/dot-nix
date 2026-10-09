@@ -50,6 +50,8 @@ assert_contains "modules/darwin.nix" '".local/bin/kitty-theme"' \
 	"expected the kitty-theme picker to be installed onto PATH via Home Manager"
 assert_contains "config/kitty/kitty-theme.sh" "/tmp/kitty-*" \
 	"expected kitty-theme to discover kitty's per-pid control socket"
+assert_contains "config/kitty/kitty.conf" "listen_on unix:/tmp/kitty" \
+	"expected kitty to expose a /tmp/kitty-<pid> control socket for kitty-theme"
 
 if grep -Fq "dot-kitty" "${repo_root}/install-macos.sh"; then
 	echo "expected install-macos.sh not to fetch dot-kitty during activation" >&2
