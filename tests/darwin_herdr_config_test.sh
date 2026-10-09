@@ -39,6 +39,8 @@ assert_contains "nix-darwin/herdr.nix" 'rm -f "${homeDir}/.config/herdr/config.t
 # Home Manager must no longer force-link the file (the nix-darwin module owns it).
 assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
 
-assert_contains "config/herdr/config.toml" 'name = "one-dark"'
+# herdr UI follows kitty's own palette (kitty auto-switches with the
+# macOS light/dark appearance), not a herdr-built-in theme.
+assert_contains "config/herdr/config.toml" 'name = "terminal"'
 
 echo "darwin herdr config test OK"

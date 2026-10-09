@@ -70,6 +70,14 @@
       force = true;
     };
 
+    # Interactive fzf-based kitty theme switcher; talks to kitty over
+    # the listen_on socket declared in config/kitty/kitty.conf.
+    ".local/bin/kitty-theme" = {
+      source = ../config/kitty/kitty-theme.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;

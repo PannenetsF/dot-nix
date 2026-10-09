@@ -8,26 +8,6 @@ auto_switch = false
 # Distinct static glyphs for blocked/working/done/idle instead of color dots.
 status_indicators = "symbols"
 
-# herdr-projects tab-bar count. Uses the stable ~/.local/bin command link the
-# plugin install creates, not the versioned plugin checkout path.
-tab_bar_right = [
-  { type = "command", command = "$HOME/.local/bin/herdr-projects --root $HOME/.herdr-projects needs-you --line", interval_seconds = 15, timeout_seconds = 5 },
-]
-
-# herdr-projects grouping rows (what its `configure` writes upstream): the
-# agent/space card plus the $hp_sub sub-line. Zero-width marks make a
-# coordinator/home Space head bold.
-[ui.sidebar.agents]
-rows = [
-  ["state_icon", { token = "agent", bold = false, dim = false, rules = [{ contains = "​", bold = true }] }, "state_text"],
-  [{ token = "$hp_sub", dim = true }],
-]
-
-[ui.sidebar.spaces]
-rows = [
-  ["state_icon", { token = "workspace", rules = [{ contains = "⠀", bold = true }] }, { token = "branch", dim = true }, "git_status"],
-]
-
 [ui.toast]
 # Background agent state changes -> desktop notification via macOS notification service.
 delivery = "system"
@@ -113,10 +93,3 @@ key = "prefix+shift+z"
 type = "plugin_action"
 command = "furkankly.zoetrope.open"
 description = "zoetrope: session graph (overlay)"
-
-# herdr-projects: projects overview popup (threads / tasks / inbox)
-[[keys.command]]
-key = "prefix+a"
-type = "plugin_action"
-command = "herdr-projects.open-popup"
-description = "Projects"

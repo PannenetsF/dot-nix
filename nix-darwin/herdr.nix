@@ -47,12 +47,15 @@ sys.exit(0 if tuple(map(int, v.split("."))) >= (0, 9, 1) else 1)
           herdr_as_user plugin install -y --ref v0.2.34 \
             eliasstravik/herdr-projects
         fi
-        # Sidebar rows / popup key / tab-bar live in ../config/herdr/config.toml;
-        # configure only maintains the agent progress hooks and autoproject
-        # skill links here. Idempotent, repairs hooks lost to settings rewrites.
+        # Sidebar grouping rows, the prefix+a popup and tab-bar entry are NOT
+        # in the repo template: full configure adds them to the writable live
+        # config after the template lands (and journals them so the plugin's
+        # doctor validates them). It also maintains the agent progress hooks
+        # and autoproject skill links. Idempotent, and repairs hooks lost to
+        # other tools rewriting the agents' settings files.
         if [ -x "$hp_bin" ]; then
           launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
-            "$hp_bin" configure --hooks-only >/dev/null 2>&1 || true
+            "$hp_bin" configure >/dev/null 2>&1 || true
         fi
       else
         echo >&2 "herdr server is older than 0.9.1; restart herdr to install herdr-projects"

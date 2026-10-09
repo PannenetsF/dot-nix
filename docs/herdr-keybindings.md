@@ -99,9 +99,13 @@ herdr server reload-config
 
 - 插件由 `nix-darwin/herdr.nix` postActivation 安装（pinned `v0.2.34`，要求
   herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示重启 herdr）
-- sidebar 分组行、`P a` 弹窗、tab 栏条目写在 `config/herdr/config.toml` 里；
-- agent 进度上报 hooks 和 `autoproject` skill 链接由激活时
-  `herdr-projects configure --hooks-only` 维护（幂等，也能修复被其他工具
-  重写 settings.json 挤掉的 hooks）
+- sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
+  写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块
+  加进可写的 `~/.config/herdr/config.toml` 并记入 journal（幂等，`doctor`
+  据此校验；hm-update 会先用模板覆盖，再由 configure 重新加回）
+- 同一个 configure 同时维护 agent 进度上报 hooks 和 `autoproject` skill
+  链接（也能修复被其他工具重写 settings.json 挤掉的 hooks）
+- 后台 ticker 在还没有任何项目时不会启动（`doctor` 会显示 not running，属
+  正常）；`herdr-projects open/new` 创建第一个项目时自动拉起
 - 新建项目：`herdr-projects new "名字" --repo <path>` 后
   `herdr-projects open <名字>`，然后只跟 coordinator 对话
