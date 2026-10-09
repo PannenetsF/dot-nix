@@ -102,6 +102,14 @@ type = "plugin_action"
 command = "furkankly.zoetrope.open"
 description = "zoetrope: session graph (overlay)"
 
+# roadboard: 7-state roadmap task tree over Obsidian work/roadmap.md.
+# Linked locally for development: `herdr plugin link ~/Documents/workspace/roadboard`.
+[[keys.command]]
+key = "prefix+shift+r"
+type = "plugin_action"
+command = "roadboard.open"
+description = "roadboard: roadmap tree"
+
 # herdr-projects: new/open project (the prefix+a overview popup itself is
 # added by `herdr-projects configure` during activation). Mirrors the nvim
 # <leader>a agent/project namespace: shift+C create, C-p project switch.

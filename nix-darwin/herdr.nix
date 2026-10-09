@@ -149,6 +149,16 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
         fi
       fi
 
+      # roadboard: local development plugin (7-state Obsidian roadmap tree).
+      # Linked from a local checkout, not a remote GitHub pin; only ensure the
+      # link exists when the repo is present, and never fail activation on it.
+      roadboard_src="$HOME/Documents/workspace/roadboard"
+      if [ -d "$roadboard_src" ] && [ -f "$roadboard_src/herdr-plugin.toml" ]; then
+        if ! herdr_as_user plugin list 2>/dev/null | grep -q '"plugin_id":"roadboard"'; then
+          herdr_as_user plugin link "$roadboard_src" >/dev/null 2>&1 || true
+        fi
+      fi
+
       herdr_as_user server reload-config 2>/dev/null || true
     fi
   '';
