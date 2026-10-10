@@ -22,8 +22,8 @@
   security.pam.services.sudo_local.touchIdAuth = true;
   security.pam.services.sudo_local.reattach = true;
 
-  # Home Manager owns the user zsh setup and oh-my-zsh already initializes
-  # completion. Avoid a second system-wide compinit from /etc/zshrc.
+  # Home Manager owns the user zsh setup and initializes completion.
+  # Avoid a second system-wide compinit from /etc/zshrc.
   programs.zsh.enableCompletion = false;
   programs.zsh.enableBashCompletion = false;
 

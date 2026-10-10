@@ -86,12 +86,6 @@ in {
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
 
-    oh-my-zsh = {
-      enable = true;
-      plugins = [ "git" ];
-      theme = "robbyrussell";
-    };
-
     initContent = ''
       # Disable marking untracked files under VCS as dirty to speed up repository status checks
       export DISABLE_UNTRACKED_FILES_DIRTY="true"
@@ -121,6 +115,17 @@ in {
         fi
       fi
 
+      # <<<<< Prefix history search
+      #
+      # Type a prefix, then Up/Down to search history for that prefix.
+      autoload -U up-line-or-beginning-search down-line-or-beginning-search
+      zle -N up-line-or-beginning-search
+      zle -N down-line-or-beginning-search
+      bindkey "^[[A" up-line-or-beginning-search
+      bindkey "^[[B" down-line-or-beginning-search
+      #
+      # Prefix history search >>>>>
+
       # <<<<< Enable natural text editing
       #
       # Move to the beginning of the line. `Cmd + Left Arrow`:
@@ -148,6 +153,40 @@ in {
         . "$HOME/.config/nix-hm/local.zsh"
       fi
     '';
+  };
+
+  programs.starship = {
+    enable = true;
+    settings = {
+      add_newline = false;
+      format = "$character$directory$git_branch$git_status";
+      directory = {
+        truncation_length = 1;
+        truncate_to_repo = false;
+        format = "[$path]($style) ";
+      };
+      git_branch = {
+        format = "[git:\\(](bold blue)[$branch](bold red)[\\)](bold blue)";
+      };
+      git_status = {
+        format = "[ ✗](yellow)";
+        conflicted = "";
+        ahead = "";
+        behind = "";
+        up_to_date = "";
+        untracked = "";
+        stashed = "";
+        modified = "";
+        staged = "";
+        renamed = "";
+        deleted = "";
+        typechanged = "";
+      };
+      character = {
+        success_symbol = "[➜](bold green) ";
+        error_symbol = "[✗](bold red) ";
+      };
+    };
   };
 
   programs.bash = {
