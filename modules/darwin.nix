@@ -102,6 +102,13 @@
       force = true;
     };
 
+    # Open another coordinator for the current project (prefix+ctrl+n).
+    ".local/bin/herdr-new-coordinator" = {
+      source = ../config/herdr/new-coordinator.sh;
+      executable = true;
+      force = true;
+    };
+
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;
       force = true;

@@ -61,6 +61,7 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | herdr-radar 设置弹窗（可选插件，见下） | `P ,` | — |
 | herdr-projects 项目总控（可选插件，见下） | `P a` | nvim `<leader>ao` explorer |
 | herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
+| herdr-projects 再开一个 coordinator | `P C-n` | n = new；当前项目免选 |
 | herdr-projects 给项目追加仓库 | `P S-a` | fzf 多选，免手打路径 |
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
@@ -166,6 +167,12 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
   `~/.local/bin/herdr-new-project`，仓库根用 `HP_PROJECT_ROOTS` 覆盖）、
   `P C-p` fzf 选已有项目打开（`~/.local/bin/herdr-pick-project`；不用插件
   自带 open 动作，因为它在项目 workspace 内不询问直接回当前项目）、
+  `P C-n` 给当前项目再开一个 coordinator（`~/.local/bin/herdr-new-coordinator`，
+  即 `open <slug> --new`；项目按 cwd → 底层 pane 的 `hp_project` → fzf
+  顺序解析，coordinator/thread pane 上都能直接用）。`open` 会等新 tab 的
+  shell 就绪（约几秒），脚本把它 detach 到后台（nohup，输出到
+  `$TMPDIR/herdr-new-coordinator-<slug>.log`），popup 立即关闭，coordinator
+  在自己的 pane 里 priming、
   `P a` 总控弹窗（configure 管理）；不带 `--repo` 的裸 `herdr-projects new`
   只建元数据目录，所以模板里的新建键走选择器
 

@@ -134,6 +134,17 @@ description = "Projects: pick and open project"
 width = "60%"
 height = "60%"
 
+# Open another coordinator for the current project. The script resolves the
+# project from cwd / the underlying pane (HERDR_ACTIVE_PANE_ID), else fzf.
+# C-n = new coordinator, alongside the other <leader>a project keys.
+[[keys.command]]
+key = "prefix+ctrl+n"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-new-coordinator\"'"
+description = "Projects: another coordinator"
+width = "60%"
+height = "60%"
+
 # Attach more repos to an existing project (fzf project pick, then fzf
 # multi-pick repos; already attached ones are hidden).
 [[keys.command]]
