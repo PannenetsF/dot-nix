@@ -53,7 +53,9 @@
       echo >&2 "default applications..."
       launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s org.mozilla.firefox http all || true
       launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s org.mozilla.firefox https all || true
-      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s com.apple.Preview public.pdf all || true
+      # com.adobe.pdf is the effective PDF UTI on this host: public.pdf is not
+      # present in its LaunchServices database, so duti rejects it.
+      launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s net.sourceforge.skim-app.skim com.adobe.pdf all || true
       launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s com.microsoft.VSCode public.plain-text all || true
       launchctl asuser "$(id -u ${username})" sudo -u ${username} duti -s com.microsoft.VSCode public.source-code all || true
     fi

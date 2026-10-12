@@ -91,3 +91,5 @@ assert_contains "$repo_root/nix-darwin/app-defaults.nix" "org.mozilla.firefox ht
   "expected Firefox to be set as default HTTPS handler"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "com.microsoft.VSCode public.source-code all" \
   "expected VS Code to be set as default source-code handler"
+assert_contains "$repo_root/nix-darwin/app-defaults.nix" "net.sourceforge.skim-app.skim com.adobe.pdf all" \
+  "expected Skim to be set as default PDF handler (com.adobe.pdf is the effective PDF UTI; public.pdf is not registered on this host)"
