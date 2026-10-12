@@ -4,7 +4,7 @@
 # prefix+shift+c as a herdr type="popup" command, so it has an interactive TTY.
 #
 # Repository roots (colon-separated): HP_PROJECT_ROOTS, default
-# ~/Documents/workspace. Repos up to 4 levels deep.
+# ~/Documents:~/.config. Repos up to 4 levels deep.
 set -euo pipefail
 
 # Popups close the moment this script exits, so a bare error would flash by.
@@ -39,7 +39,7 @@ if [ -z "$hp_bin" ]; then
 fi
 command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
 
-roots="${HP_PROJECT_ROOTS:-$HOME/Documents/workspace}"
+roots="${HP_PROJECT_ROOTS:-$HOME/Documents:$HOME/.config}"
 
 # Absolute repo paths, one per line (fuzzy match on the full path).
 list_repos() {

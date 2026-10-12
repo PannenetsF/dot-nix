@@ -4,7 +4,7 @@
 # fzf picks the project, then fzf --multi picks repos (already-attached ones
 # are filtered out). The popup's settings editor only takes a typed path.
 #
-# Roots: HP_PROJECT_ROOTS (colon-separated), default ~/Documents/workspace.
+# Roots: HP_PROJECT_ROOTS (colon-separated), default ~/Documents:~/.config.
 set -euo pipefail
 
 # Popups close the moment this script exits, so a bare error would flash by.
@@ -76,7 +76,7 @@ existing="$(awk '
 done)"
 
 # 3) pick new repos (multi), skipping attached ones (compare real paths once)
-roots="${HP_PROJECT_ROOTS:-$HOME/Documents/workspace}"
+roots="${HP_PROJECT_ROOTS:-$HOME/Documents:$HOME/.config}"
 list_repos() {
   old_ifs=$IFS
   IFS=:
