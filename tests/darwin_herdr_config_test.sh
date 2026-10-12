@@ -50,9 +50,9 @@ assert_contains "config/herdr/config.toml" 'name = "terminal"'
 assert_contains "config/herdr/config.toml" 'light_name = "terminal"'
 assert_contains "config/herdr/config.toml" 'dark_name = "terminal"'
 
-# herdr-radar plugin: pinned install + post-template configure repair in the
-# nix-darwin postActivation, and its keybindings in the template.
-assert_contains "nix-darwin/herdr.nix" "hhdebb/herdr-radar"
+# herdr-radar plugin: pinned fork install + post-template configure repair in
+# the nix-darwin postActivation, and its keybindings in the template.
+assert_contains "nix-darwin/herdr.nix" "PannenetsF/herdr-radar"
 assert_contains "nix-darwin/herdr.nix" "hhdebb.herdr-radar"
 assert_contains "config/herdr/config.toml" 'command = "hhdebb.herdr-radar.view-flip"'
 assert_contains "config/herdr/config.toml" 'command = "hhdebb.herdr-radar.settings"'
@@ -77,6 +77,13 @@ assert_contains "config/kitty/kitty.conf" "# >>> herdr-radar font block"
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1A0-U+E1BA Herdr Agent Icons Max"
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1C0-U+E1C5 Herdr Agent Icons Max"
 assert_contains "config/kitty/kitty.conf" "# <<< herdr-radar font block"
+
+# roadboard plugin: local-checkout link in postActivation (never hard-fails),
+# and prefix+shift+r opens its registered popup pane via a plugin_action.
+assert_contains "nix-darwin/herdr.nix" "plugin link \"\$roadboard_src\""
+assert_contains "config/herdr/config.toml" 'key = "prefix+shift+r"'
+assert_contains "config/herdr/config.toml" 'command = "roadboard.open"'
+assert_contains "config/herdr/config.toml" 'type = "plugin_action"'
 
 # herdr-projects repo picker (prefix+shift+c)
 assert_file_exists "config/herdr/new-project.sh"

@@ -63,12 +63,13 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
 | herdr-projects 再开一个 coordinator | `P C-n` | n = new；当前项目免选 |
 | herdr-projects 给项目追加仓库 | `P S-a` | fzf 多选，免手打路径 |
+| roadboard 路线图看板（可选插件，见下） | `P S-r` | 7 态任务树；再按一次关闭 |
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
 | 设置界面 | `P S-s` | 原默认 `s`，给横分让位 |
 | detach（全部后台继续跑） | `P q` | tmux 同键 |
 | 跳到最新通知指向的 pane | `P o` | — |
-| 重载配置 | `P S-r` | — |
+| 重载配置 | `herdr server reload-config` | 默认 `P S-r` 已让给 roadboard，用命令行 |
 | 完整按键面板（可 `/` 过滤） | `P ?` | — |
 
 goto 面板（`P f`）里的过滤单键：`b/w/i/d` 分别过滤
@@ -142,6 +143,22 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
   configure 在前、projects configure 在后。已知小缺口：macOS 深浅色切换
   时 radar 重写侧边栏块会临时丢掉 `$hp_sub`（tab-bar 条目会保留），下次
   `hm-update` 跑 projects configure 即恢复——属于上游未处理的 cosmetic 问题
+
+## 可选：roadboard 路线图看板
+
+`roadboard` 是本地插件（Rust），把 Obsidian 里的 `roadmap.md` 渲染成可执行的
+7 态嵌套任务树，并能把节点派给 herdr agent。插件源码在
+`~/Documents/workspace/roadboard`，由 `nix-darwin/herdr.nix` postActivation
+在仓库存在时 `herdr plugin link`（本机本地 checkout，不是远端 pin；缺失也不
+让 activation 失败）。
+
+- `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
+  `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）
+- 看板内：`j/k` 移动、状态键翻转、Enter 派活（先复核 prompt 再确认）、`q` 关
+- 派活默认在目标 workspace 新开一个**后台独立 tab**（标签 `road-rN`，
+  `--no-focus` 不抢焦点）；同一节点重派复用其 tab/pane
+- 占掉了 herdr 默认的 `P S-r`（重载配置）：需要时跑
+  `herdr server reload-config`
 
 ## 可选：herdr-projects 多 agent 协作
 
