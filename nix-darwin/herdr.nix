@@ -104,17 +104,17 @@ except Exception:
         # build hook hard-fails writing through the read-only Nix-store
         # symlink (its setup.js is not EACCES-safe).
         if ! herdr_as_user plugin list 2>/dev/null \
-            | grep -q "hhdebb.herdr-radar.*@v1.4.2"; then
-          herdr_as_user plugin install -y --ref v1.4.2 \
-            hhdebb/herdr-radar
+            | grep -q "PannenetsF.herdr-radar.*@4e63e41"; then
+          herdr_as_user plugin install -y --ref 4e63e410 \
+            PannenetsF/herdr-radar
         fi
         herdr_as_user plugin action invoke configure \
-          --plugin hhdebb.herdr-radar >/dev/null 2>&1 || true
+          --plugin PannenetsF.herdr-radar >/dev/null 2>&1 || true
         # Startup hooks only fire when the herdr server starts; bring the
         # state-glyph daemon up immediately so the sidebar works without a
         # herdr restart after install.
         herdr_as_user plugin action invoke state-start \
-          --plugin hhdebb.herdr-radar >/dev/null 2>&1 || true
+          --plugin PannenetsF.herdr-radar >/dev/null 2>&1 || true
 
         # herdr-projects requires server >= 0.9.1; plugin install talks to the
         # running server and fails hard against a stale one, so skip until the
