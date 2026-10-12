@@ -104,8 +104,8 @@ except Exception:
         # build hook hard-fails writing through the read-only Nix-store
         # symlink (its setup.js is not EACCES-safe).
         if ! herdr_as_user plugin list 2>/dev/null \
-            | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.4-pf.2"; then
-          herdr_as_user plugin install -y --ref v1.4.4-pf.2 \
+            | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.4-pf.4"; then
+          herdr_as_user plugin install -y --ref v1.4.4-pf.4 \
             PannenetsF/herdr-radar
         fi
         herdr_as_user plugin action invoke configure \
