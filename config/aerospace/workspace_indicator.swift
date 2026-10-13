@@ -3,7 +3,19 @@ import Dispatch
 
 private let dirtyPath = CommandLine.arguments.dropFirst().first
     ?? "/tmp/aerospace-workspace-indicator-dirty"
-private let aerospacePath = "/opt/homebrew/bin/aerospace"
+
+// Resolve the aerospace CLI without assuming a Homebrew prefix: honour an
+// explicit override, then the standard Apple-Silicon and Intel locations. A
+// hardcoded /opt/homebrew path silently no-ops on Intel Macs.
+private let aerospacePath: String = {
+    if let override = ProcessInfo.processInfo.environment["AEROSPACE_BIN"],
+        !override.isEmpty {
+        return override
+    }
+    let candidates = ["/opt/homebrew/bin/aerospace", "/usr/local/bin/aerospace"]
+    return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        ?? candidates[0]
+}()
 private let reconfigurePath = ProcessInfo.processInfo.environment["AEROSPACE_RECONFIGURE"]
 private let debugEnabled = ProcessInfo.processInfo.environment["AEROSPACE_INDICATOR_DEBUG"] == "1"
 
