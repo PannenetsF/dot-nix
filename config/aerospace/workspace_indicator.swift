@@ -247,6 +247,14 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
     private var appEntriesByWorkspaceCache: [String: [String]] = [:]
     private var lastSignature = ""
     private var lastScreenLayoutSignature = ""
+    // Display whose corner panel the pointer is over. Global mouse-moved
+    // monitoring needs no Input Monitoring permission (only key events do), and
+    // it keeps firing over panels with ignoresMouseEvents enabled.
+    private var hoveredDisplay: CGDirectDisplayID?
+    private var globalMouseMonitor: Any?
+    private var localMouseMonitor: Any?
+
+    private static let hoverDimAlpha: CGFloat = 0.2
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         lastScreenLayoutSignature = screenLayoutSignature()
@@ -276,11 +284,59 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.checkScreenLayout()
         }
+        startHoverMonitoring()
+    }
+
+    // The corner capsule permanently floats over the top-left of each screen;
+    // fade it toward transparent while the pointer is over it so it stops
+    // masking popovers (e.g. Raycast) the user is actively working under.
+    private func startHoverMonitoring() {
+        let handler: (NSEvent?) -> Void = { [weak self] _ in
+            self?.updateHoverState()
+        }
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved], handler: handler)
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+            self?.updateHoverState()
+            return event
+        }
+    }
+
+    private func updateHoverState() {
+        let location = NSEvent.mouseLocation
+        var hovered: CGDirectDisplayID?
+        for (display, panel) in panelsByDisplay where panel.frame.contains(location) {
+            hovered = display
+            break
+        }
+        guard hovered != hoveredDisplay else { return }
+
+        let previous = hoveredDisplay
+        hoveredDisplay = hovered
+        if let previous, let panel = panelsByDisplay[previous] {
+            animateAlpha(panel: panel, to: 1.0, duration: 0.25)
+        }
+        if let hovered, let panel = panelsByDisplay[hovered] {
+            animateAlpha(panel: panel, to: Self.hoverDimAlpha, duration: 0.12)
+        }
+    }
+
+    private func animateAlpha(panel: NSPanel, to targetAlpha: CGFloat, duration: TimeInterval) {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().alphaValue = targetAlpha
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        if let globalMouseMonitor {
+            NSEvent.removeMonitor(globalMouseMonitor)
+        }
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+        }
         dirtyWatcher?.cancel()
         if dirtyFileDescriptor >= 0 {
             close(dirtyFileDescriptor)
@@ -668,6 +724,8 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             )
             panel.orderFrontRegardless()
         }
+        // A refresh can resize or move the capsules, re-check the pointer.
+        updateHoverState()
     }
 
     private func repositionPanelsFromCachedStates() {
@@ -874,6 +932,9 @@ final class IndicatorApp: NSObject, NSApplicationDelegate {
             panelsByDisplay.removeValue(forKey: display)
             viewsByDisplay.removeValue(forKey: display)
             visibleWorkspaceByDisplay.removeValue(forKey: display)
+            if hoveredDisplay == display {
+                hoveredDisplay = nil
+            }
         }
         for (display, panel) in centerPanelsByDisplay where !connected.contains(display) {
             centerHideWorkItemsByDisplay[display]?.cancel()
