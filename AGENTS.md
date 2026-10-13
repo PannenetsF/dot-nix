@@ -191,6 +191,19 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `firefox`、`kitty`、`maccy`、`microsoft-edge`、`obsidian`、`raycast`、
   `visual-studio-code`、`zed`、`zotero`，以及本地 tap 的 AeroSpace/WhatPulse
   系列在这里维护。
+- **quarantine 解封**：Homebrew 7 已彻底移除 `--no-quarantine`（flag、
+  `HOMEBREW_CASK_OPTS` 转义口和 Cask::Config 全部删除，commit
+  `ba25213c81`），cask 产物一律被强制打 `com.apple.quarantine`。`claude-code`
+  和 `codex` 是「已签名但未公证（notarized）的裸 CLI 二进制」，Gatekeeper
+  每次 exec 都直接拒绝，且 Homebrew 的升级审批继承只覆盖 `Artifact::App`，
+  所以每次 `hm-upgrade` 升级这两个 cask 都会再次坏掉。`brew/unquarantine-casks.sh`
+  维护这个小白名单，在 nix-darwin postActivation（`brew bundle` 之后）和
+  `init.sh --upgrade` 的 `brew bundle --upgrade` 之后各跑一次，对 Caskroom
+  内产物精确 `xattr -d`。脚本幂等、永不致 activation 失败。不要恢复
+  cask `args = { no_quarantine = true; }`（Homebrew 7 全新安装会直接报
+  invalid option；Skim 的旧写法已因此移除）。`.app` 产物受 TCC App
+  Management 保护，xattr 删除即使用户/sudo 也是 EPERM，脚本不处理它们，
+  公证 app 走一次首次启动审批、Homebrew 7 会在后续升级继承该审批。
 - AeroSpace 使用本地 tap 的 `dot-nix/local/aerospace-patched` cask。固定 Release
   `v0.21.3-Beta-pf.1` 来自 `PannenetsF/AeroSpace`，同时安装匹配版本的 universal
   App、CLI、补全和 man page；cask 源文件为
@@ -331,7 +344,9 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
   或 `install-linux-server.sh`；容器层要保持精简且激活期不联网，改
   `modules/linux-docker.nix`。
 - 新增 macOS GUI app/cask：改 `nix-darwin/homebrew.nix`，必要时同步
-  `brew/install.sh` 里的 tap/trust bootstrap。
+  `brew/install.sh` 里的 tap/trust bootstrap。新增的若是「未公证裸二进制」
+  cask（`spctl --assess` 报 Unnotarized Developer ID），还要把 cask token
+  加进 `brew/unquarantine-casks.sh` 的 `CASKS` 白名单。
 - 新增 macOS 系统 defaults：改 `nix-darwin/macos-defaults.nix`。
 - 新增 macOS app defaults 或默认打开方式：改 `nix-darwin/app-defaults.nix`。
 - 新增 macOS launchd/system 管理的 GUI 工具：改 `nix-darwin/gui-apps.nix`。
@@ -375,6 +390,8 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`
+- cask quarantine 解封：`bash tests/unquarantine_casks_test.sh`（配套
+  `init_brew_upgrade_test.sh` 验证 `hm-upgrade` 在 bundle 之后调用脚本）
 - macOS defaults / Touch ID：`bash tests/darwin_defaults_test.sh`、
   `bash tests/darwin_touchid_sudo_test.sh`
 - macOS 用户环境 / 激活 PATH：`bash tests/darwin_user_env_test.sh`、

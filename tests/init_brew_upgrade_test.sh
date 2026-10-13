@@ -65,6 +65,42 @@ first_non_update="$(grep -vn '^brew update$' "$brew_log" | head -1 | cut -d: -f1
 last_update="$(grep -n '^brew update$' "$brew_log" | tail -1 | cut -d: -f1)"
 [[ "$first_non_update" -gt "$last_update" ]]
 
+# --- After bundle --upgrade, the unquarantine helper runs with the same brew -
+
+unquarantine_log="${tmp}/unquarantine.log"
+cat >"${tmp}/unquarantine.sh" <<SH
+#!/usr/bin/env bash
+echo "ran BREW_BIN=\$BREW_BIN" >>"${unquarantine_log}"
+SH
+chmod +x "${tmp}/unquarantine.sh"
+: >"${unquarantine_log}"
+
+(
+  set -euo pipefail
+  eval "$init_funcs"
+  NIX_HM_CURRENT_SYSTEM="${tmp}/current-system" \
+  NIX_HM_BREW_BIN="${tmp}/bin/brew" \
+  NIX_HM_UNQUARANTINE_SCRIPT="${tmp}/unquarantine.sh" \
+  BREW_STUB_LOG="$brew_log" \
+    upgrade_homebrew_bundle >/dev/null
+)
+grep -Fx "ran BREW_BIN=${tmp}/bin/brew" "$unquarantine_log"
+
+# A failing helper must not abort the upgrade path.
+cat >"${tmp}/unquarantine.sh" <<'SH'
+#!/usr/bin/env bash
+exit 3
+SH
+(
+  set -euo pipefail
+  eval "$init_funcs"
+  NIX_HM_CURRENT_SYSTEM="${tmp}/current-system" \
+  NIX_HM_BREW_BIN="${tmp}/bin/brew" \
+  NIX_HM_UNQUARANTINE_SCRIPT="${tmp}/unquarantine.sh" \
+  BREW_STUB_LOG="$brew_log" \
+    upgrade_homebrew_bundle >/dev/null
+)
+
 # --- Missing brew binary: skip loudly without failure ------------------------
 
 (

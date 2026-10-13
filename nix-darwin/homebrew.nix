@@ -203,15 +203,15 @@ in {
       "raycast"
       "scroll-reverser"
       "sf-symbols"
-      # Install without a com.apple.quarantine xattr. Otherwise, once Skim is a
-      # file's default handler, opening a PDF through LaunchServices triggers
-      # Gatekeeper's "Apple could not verify ... is free of malware" prompt;
-      # opening the same file from within Skim bypasses LaunchServices and stays
-      # silent. Declared per-cask so it also holds across cask upgrades.
-      {
-        name = "skim";
-        args = { no_quarantine = true; };
-      }
+      # Skim used to pass `args: { no_quarantine = true; }` because, as the
+      # default PDF handler, opening a file through LaunchServices triggered a
+      # Gatekeeper prompt. Homebrew 7 removed --no-quarantine entirely (commit
+      # ba25213c81), so the arg now makes fresh installs fail with "invalid
+      # option". Notarized .app casks prompt only once and Homebrew 7 inherits
+      # that approval across upgrades when the signer is unchanged; a
+      # TCC-protected .app bundle cannot be unquarantined from activation
+      # anyway (xattr removal is EPERM even for root).
+      "skim"
       "snipaste"
       "tencent-lemon"
       "visual-studio-code"
@@ -244,4 +244,16 @@ in {
       cleanup = "none";
     };
   };
+
+  # postActivation slots run after nix-darwin's `brew bundle` step, so strip
+  # quarantine from the unnotarized bare-binary casks immediately after a new
+  # version lands (and after a first install). Runs as the user, who owns the
+  # Caskroom; must never break activation.
+  system.activationScripts.postActivation.text = lib.mkAfter ''
+    if [ -x "${brewBin}" ]; then
+      launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+        env BREW_BIN="${brewBin}" PATH="${config.homebrew.brewPrefix}:/usr/bin:/bin" \
+        bash "${../brew/unquarantine-casks.sh}" || true
+    fi
+  '';
 }

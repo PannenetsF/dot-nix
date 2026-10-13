@@ -623,6 +623,16 @@ upgrade_homebrew_bundle() {
   "$brew_bin" update
   echo "[init.sh] Upgrading formulae/casks per the active system Brewfile (brew bundle --upgrade)..."
   "$brew_bin" bundle --file="$brewfile" --upgrade
+
+  # Homebrew 7 force-quarantines cask artifacts with no opt-out. The
+  # unnotarized bare-binary casks (claude-code, codex) would be re-blocked by
+  # Gatekeeper after every upgrade; strip the xattr while the cask tree is
+  # fresh. nix-darwin activation runs the same script for hm-update installs.
+  local unquarantine_script
+  unquarantine_script="${NIX_HM_UNQUARANTINE_SCRIPT:-$(dirname "${BASH_SOURCE[0]}")/brew/unquarantine-casks.sh}"
+  if [[ -f "$unquarantine_script" ]]; then
+    BREW_BIN="$brew_bin" bash "$unquarantine_script" || true
+  fi
 }
 
 activate_home_manager() {
