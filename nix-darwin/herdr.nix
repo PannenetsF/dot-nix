@@ -123,10 +123,14 @@ except Exception:
 v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
 t = tuple(int(x) for x in v.split(".") if x != "")
 sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
+          # Fork pin: upstream 0.2.34 drops untracked panes into the global
+          # "other" tail, which tears a workspace in two when a second harness
+          # (e.g. codex) works in a tracked project folder. The fork claims
+          # them into the project's hp_group block.
           if ! herdr_as_user plugin list 2>/dev/null \
-              | grep -q "herdr-projects.*@v0.2.34"; then
-            herdr_as_user plugin install -y --ref v0.2.34 \
-              eliasstravik/herdr-projects
+              | grep -q "PannenetsF/herdr-projects-fix@v0.2.34-pf.1"; then
+            herdr_as_user plugin install -y --ref v0.2.34-pf.1 \
+              PannenetsF/herdr-projects-fix
           fi
           # Sidebar grouping rows, the prefix+a popup and tab-bar entry are NOT
           # in the repo template: full configure adds them to the writable live
