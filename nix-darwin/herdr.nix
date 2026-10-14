@@ -128,9 +128,9 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
           # (e.g. codex) works in a tracked project folder. The fork claims
           # them into the project's hp_group block.
           if ! herdr_as_user plugin list 2>/dev/null \
-              | grep -q "PannenetsF/herdr-projects-fix@v0.2.34-pf.1"; then
+              | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.1"; then
             herdr_as_user plugin install -y --ref v0.2.34-pf.1 \
-              PannenetsF/herdr-projects-fix
+              PannenetsF/herdr-projects
           fi
           # Sidebar grouping rows, the prefix+a popup and tab-bar entry are NOT
           # in the repo template: full configure adds them to the writable live
