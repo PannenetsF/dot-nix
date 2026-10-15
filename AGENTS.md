@@ -265,10 +265,14 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
   `herdr-projects configure`，由插件自己写 live config（journal 校验）。
   `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，经
-  `modules/darwin.nix` 链到 `~/.local/bin/herdr-new-project`，扫描根由
+  `modules/darwin.nix`（macOS）和 `modules/herdr.nix`（Linux host）链到
+  `~/.local/bin/herdr-new-project`，扫描根由
   `HP_PROJECT_ROOTS` 覆盖（默认 `~/Documents/workspace`）。`P C-p` 的项目
   选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
+  四个 popup launcher（new-project/pick-project/add-repo/new-coordinator）
+  必须在两个平台都链：config.toml 的键位无条件下发，Linux 侧漏链会导致
+  `P C-p` 等静默失败（2026-10-15 ec2-fyq 踩过）。
 - herdr-radar（pinned fork `v1.4.4-pf.6`，PannenetsF/herdr-radar）是首个 Node
   插件：运行时 `node` 由 `modules/host.nix` 的 `nodejs_22` 提供，所以 Linux 侧
   herdr 激活也 gate 在 host 层（zoetrope/herdr-projects 是 Rust 单文件二进制，

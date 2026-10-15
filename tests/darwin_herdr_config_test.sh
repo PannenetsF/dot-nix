@@ -111,6 +111,12 @@ assert_contains "config/herdr/config.toml" 'herdr-new-project'
 assert_file_exists "config/herdr/pick-project.sh"
 assert_contains "modules/darwin.nix" '".local/bin/herdr-pick-project"'
 assert_contains "config/herdr/config.toml" 'herdr-pick-project'
+# The same four popup launchers must be linked on the Linux host layer: the
+# key bindings ship unconditionally in config.toml, so a missing link makes
+# prefix+ctrl+p (and the rest of the project namespace) silently no-op there.
+for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator; do
+	assert_contains "modules/herdr.nix" "\".local/bin/$launcher\""
+done
 # Attach-repos picker (prefix+shift+a)
 assert_file_exists "config/herdr/add-repo.sh"
 assert_contains "modules/darwin.nix" '".local/bin/herdr-add-repo"'
