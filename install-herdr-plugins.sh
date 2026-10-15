@@ -81,9 +81,14 @@ fi
 if ! "$herdr_cli" plugin list 2>/dev/null | grep -q "furkankly.zoetrope.*@2d226f7"; then
   # Tolerated: a transient install failure must not skip the rest of the
   # plugin set (radar/projects have their own version gates below).
+  # Source spec is OWNER/REPO[/SUBDIR]: the repo is furkankly/zoetrope and the
+  # plugin manifest lives in its herdr-plugin/ subdirectory. The older dotted
+  # shorthand "furkankly.zoetrope/herdr-plugin" resolved to the same repo in
+  # early herdr builds but 404s on current servers (it parses as a repo named
+  # herdr-plugin under owner furkankly.zoetrope).
   "$herdr_cli" plugin install -y \
     --ref 2d226f7eae7cf7b89fb7665300c419c21a6366b7 \
-    furkankly.zoetrope/herdr-plugin || true
+    furkankly/zoetrope/herdr-plugin || true
 fi
 
 # Version gates: plugin install talks to the running server and fails hard

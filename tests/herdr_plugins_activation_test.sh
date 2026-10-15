@@ -65,7 +65,7 @@ grep -q "marker = 1" "$home1/.config/herdr/config.toml" || fail "template conten
 [ ! -L "$home1/.config/herdr/config.toml" ] || fail "config must be a regular file, not symlink"
 
 log1="$(cat "$home1/calls.log")"
-echo "$log1" | grep -q "furkankly.zoetrope/herdr-plugin" || fail "zoetrope not installed"
+echo "$log1" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope not installed"
 echo "$log1" | grep -q "PannenetsF/herdr-radar" || fail "radar not installed"
 echo "$log1" | grep -q "PannenetsF/herdr-projects" || fail "projects not installed"
 echo "$log1" | grep -q "server reload-config" || fail "server config not reloaded"
@@ -94,7 +94,7 @@ log3="$(cat "$home3/calls.log")"
 # zoetrope installs before the status gate (unchanged from the original
 # activation); the gated radar/projects set must not install while the
 # server version is unobtainable.
-echo "$log3" | grep -q "furkankly.zoetrope/herdr-plugin" || fail "zoetrope installs before the version gate"
+echo "$log3" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope installs before the version gate"
 echo "$log3" | grep -q "PannenetsF/herdr-radar" && fail "radar needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.1 server" || true
 echo "$log3" | grep -q "server reload-config" || fail "reload-config should still run"
