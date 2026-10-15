@@ -236,20 +236,32 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   显示器变化去抖（~0.4s）；`runAerospace` 查询失败返回 `nil`（区别于空结果），
   失败时保留现有面板而非清空；dirty 文件监听在 rename/delete 后重新挂载。
 
-`nix-darwin/herdr.nix`
+`nix-darwin/herdr.nix` / `modules/herdr.nix`（macOS 与 Linux 共用一份激活体）
 
-- 与 AeroSpace 同一套路：`config/herdr/config.toml` 在激活时以可写普通文件
-  装进 `~/.config/herdr/config.toml` 并 chown（herdr 自己会通过设置界面写这个
-  文件，不能是只读 nix store 软链），随后 `herdr server reload-config` 热加载。
-  `modules/darwin.nix` 不再为它建 `home.file` 软链。
+- 平台无关的激活体全部在仓库根目录的 **`install-herdr-plugins.sh`**：落
+  `config/herdr/config.toml` 可写普通文件到 `~/.config/herdr/config.toml`（herdr
+  自己会通过设置界面写它，不能是只读 nix store 软链；覆盖前备份/diff/留 5 份），
+  随后 `herdr server reload-config` 热加载。脚本以**目标用户身份**运行，通过
+  环境变量参数化：`HERDR_TEMPLATE`（必填）、`HERDR_CLI`、`HERDR_CONFIG_DIR`、
+  `HERDR_PROJECTS_BIN`、`HERDR_ROADBOARD_SRC`。脚本里**禁止**出现平台专有关键词
+  （`launchctl`/`chown`/`homebrew`，有测试断言）。两个 nix 模块只是薄封装：
+  - `nix-darwin/herdr.nix`：postActivation 以 root 跑，用一次
+    `launchctl asuser … sudo -u … --set-home env PATH=… bash <脚本>` 越权到用户，
+    `HERDR_CLI` 指向 Homebrew prefix 的 herdr；
+  - `modules/herdr.nix`（Home Manager，仅 Linux 且 `isHost && !isDocker`，由
+    `home.nix` 在非 docker 的 host 层导入）：`home.activation.herdrPlugins`
+    直接以用户身份 `bash <脚本>`，无需越权，PATH 前置 HM profile 与
+    `~/.local/bin`。herdr 本体**刻意不进 nix 包**——Linux 保持官方 per-user 安装
+    （与 macOS 的 Homebrew cask 对称），缺二进制时脚本只落模板、跳过插件。
+  `modules/darwin.nix` 不再为 config.toml 建 `home.file` 软链。
 - 键位是 nvim 习惯迁移（prefix `ctrl+b`＋ctrl+alt 直连和弦，裸 alt 归 AeroSpace
   所有），速查表见 `docs/herdr-keybindings.md`，改动后同步两边。`P Space` 的
   which-key 浮层是手动安装的社区插件（`herdr plugin install
   CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
   缺失兜底。
-- zoetrope、herdr-projects 与 herdr-radar 插件由 `nix-darwin/herdr.nix`
-  postActivation pinned ref 安装；herdr-projects 要求 server ≥ 0.9.1（装到运行中的旧
-  server 会硬失败，激活时按 `herdr status --json` 版本守卫跳过）。
+- zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
+  pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.1
+  （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
   herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
   `herdr-projects configure`，由插件自己写 live config（journal 校验）。
   `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，经
@@ -257,15 +269,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `HP_PROJECT_ROOTS` 覆盖（默认 `~/Documents/workspace`）。`P C-p` 的项目
   选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
-- herdr-radar（pinned `v1.4.2`，hhdebb/herdr-radar）是首个 Node 插件：运行时
-  `node` 由 `modules/host.nix` 的 `nodejs_22` 提供（zoetrope/herdr-projects
-  是 Rust 单文件二进制，不需要解释器）。postActivation 经 sudo 执行 herdr，
-  `env_reset` 的 secure_path 不含 HM profile 目录，所以 `herdr_as_user` 必须
-  用 `env PATH=...` 把 `/etc/profiles/per-user/$user/bin` 等重新前置（否则
-  插件 build hook 报 `failed to start: No such file or directory`）。它自管
-  config.toml 尾部三块 marker-fenced 配置（tab-bar 命令、`[ui.sidebar.*]`、
+- herdr-radar（pinned fork `v1.4.4-pf.6`，PannenetsF/herdr-radar）是首个 Node
+  插件：运行时 `node` 由 `modules/host.nix` 的 `nodejs_22` 提供，所以 Linux 侧
+  herdr 激活也 gate 在 host 层（zoetrope/herdr-projects 是 Rust 单文件二进制，
+  不需要解释器）。macOS postActivation 经 sudo 跑整个脚本，`env_reset` 的
+  secure_path 不含 HM profile 目录，所以 darwin 封装必须用 `env PATH=…` 把
+  `/etc/profiles/per-user/$user/bin` 等重新前置（否则插件 build hook 报
+  `failed to start: No such file or directory`）；Linux HM 激活本就有 profile PATH。
+  它自管 config.toml 尾部三块 marker-fenced 配置（tab-bar 命令、`[ui.sidebar.*]`、
   `[theme.custom]`）和 `~/Library/Fonts` 图标字体；模板每次激活都会覆盖
-  config.toml，所以 postActivation 在落模板后调一次
+  config.toml，所以脚本在落模板后调一次
   `plugin action invoke configure --plugin hhdebb.herdr-radar` 修复三块，并
   调 `state-start` 立即拉起状态 glyph 守护（startup hook 只在 server 启动时
   跑）。两个不可回退的集成约定：
@@ -387,6 +400,10 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
 - 用户/home 推导：`bash tests/home_identity_eval_test.sh`
 - Linux 容器分层：`bash tests/linux_docker_layer_test.sh`
 - host 包集合：`bash tests/host_packages_test.sh`
+- herdr 跨平台插件激活（共享脚本 stub 行为）：
+  `bash tests/herdr_plugins_activation_test.sh`
+  （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
+  平台无关性：脚本里不得出现 launchctl/chown/homebrew）
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`

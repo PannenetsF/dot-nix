@@ -25,17 +25,31 @@ assert_not_contains() {
 
 assert_file_exists "config/herdr/config.toml"
 assert_file_exists "nix-darwin/herdr.nix"
+assert_file_exists "modules/herdr.nix"
+assert_file_exists "install-herdr-plugins.sh"
+
+# The platform-independent activation body lives in one shared script used by
+# BOTH nix-darwin (privilege-crossing wrapper below) and Home Manager on Linux.
+body="install-herdr-plugins.sh"
 
 assert_contains "nix-darwin/configuration.nix" "./herdr.nix"
 assert_contains "nix-darwin/herdr.nix" "postActivation.text"
-assert_contains "nix-darwin/herdr.nix" ".config/herdr/config.toml"
+assert_contains "nix-darwin/herdr.nix" "../install-herdr-plugins.sh"
+assert_contains "nix-darwin/herdr.nix" "HERDR_TEMPLATE="
+assert_contains "$body" '$HOME/.config/herdr'
 assert_contains "nix-darwin/herdr.nix" "../config/herdr/config.toml"
-assert_contains "nix-darwin/herdr.nix" "server reload-config"
+assert_contains "modules/herdr.nix" "../config/herdr/config.toml"
+assert_contains "$body" "server reload-config"
+
+# Home Manager on Linux runs the same body directly, as the user (no sudo).
+assert_contains "modules/herdr.nix" "home.activation.herdrPlugins"
+assert_contains "modules/herdr.nix" "../install-herdr-plugins.sh"
+assert_contains "home.nix" "./modules/herdr.nix"
 
 # herdr rewrites the file via its settings UI: install a writable file, not a
 # Home Manager symlink into the read-only Nix store. The live path is held in
 # a `live` variable (the backup/diff block above uses it too).
-assert_contains "nix-darwin/herdr.nix" 'rm -f "$live"'
+assert_contains "$body" 'rm -f "$live"'
 
 # Home Manager must no longer force-link the file (the nix-darwin module owns it).
 assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
@@ -52,8 +66,8 @@ assert_contains "config/herdr/config.toml" 'dark_name = "terminal"'
 
 # herdr-radar plugin: pinned fork install + post-template configure repair in
 # the nix-darwin postActivation, and its keybindings in the template.
-assert_contains "nix-darwin/herdr.nix" "PannenetsF/herdr-radar"
-assert_contains "nix-darwin/herdr.nix" "hhdebb.herdr-radar"
+assert_contains "$body" "PannenetsF/herdr-radar"
+assert_contains "$body" "hhdebb.herdr-radar"
 assert_contains "config/herdr/config.toml" 'command = "hhdebb.herdr-radar.view-flip"'
 assert_contains "config/herdr/config.toml" 'command = "hhdebb.herdr-radar.settings"'
 # prefix+a belongs to herdr-projects (upstream suggests it for radar's flip);
@@ -69,6 +83,11 @@ assert_contains "modules/host.nix" "nodejs_22"
 # to spawn `node` ("failed to start: No such file or directory").
 assert_contains "nix-darwin/herdr.nix" 'env PATH='
 assert_contains "nix-darwin/herdr.nix" "/etc/profiles/per-user/"
+assert_contains "nix-darwin/herdr.nix" "launchctl asuser"
+# Mac-only concerns must not leak into the shared body.
+assert_not_contains "$body" "launchctl"
+assert_not_contains "$body" "homebrew"
+assert_not_contains "$body" "chown"
 
 # Radar's first-run setup writes this exact marker block into kitty.conf; it
 # must be shipped by the repo or its build hook hard-fails on the read-only
@@ -80,7 +99,7 @@ assert_contains "config/kitty/kitty.conf" "# <<< herdr-radar font block"
 
 # roadboard plugin: local-checkout link in postActivation (never hard-fails),
 # and prefix+shift+r opens its registered popup pane via a plugin_action.
-assert_contains "nix-darwin/herdr.nix" "plugin link \"\$roadboard_src\""
+assert_contains "$body" "plugin link \"\$roadboard_src\""
 assert_contains "config/herdr/config.toml" 'key = "prefix+shift+r"'
 assert_contains "config/herdr/config.toml" 'command = "roadboard.open"'
 assert_contains "config/herdr/config.toml" 'type = "plugin_action"'
@@ -145,7 +164,9 @@ assert_contains "config/herdr/pick-project.sh" '^[a-z0-9][a-z0-9-]'
 assert_contains "config/herdr/pick-project.sh" "--rebind"
 
 # nix-darwin: config.toml backup + diff before overwrite.
-assert_contains "nix-darwin/herdr.nix" "config.toml.bak-"
-assert_contains "nix-darwin/herdr.nix" "diff -u"
+assert_contains "$body" "config.toml.bak-"
+assert_contains "$body" "diff -u"
 
-echo "darwin herdr config test OK"
+[[ -x "${repo_root}/install-herdr-plugins.sh" ]] || fail "install-herdr-plugins.sh must be executable"
+
+echo "herdr config activation test OK"

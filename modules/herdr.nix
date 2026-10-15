@@ -1,0 +1,14 @@
+{ config, lib, ... }: {
+  # Linux Home Manager counterpart of nix-darwin/herdr.nix. The herdr binary
+  # itself is intentionally NOT a Nix package here (it keeps its official
+  # per-user install, same as the Homebrew cask on macOS); this activation
+  # only lands the config template and pins the plugin set. Skipped on the
+  # docker layer, which must not perform network/plugin work at activation.
+  home.activation.herdrPlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    # The official herdr install and the Rust plugin binaries live under
+    # ~/.local/bin, which a non-login activation shell does not always have.
+    export PATH="${config.home.profileDirectory}/bin:$HOME/.local/bin:$PATH"
+    HERDR_TEMPLATE=${../config/herdr/config.toml} \
+      bash ${../install-herdr-plugins.sh}
+  '';
+}

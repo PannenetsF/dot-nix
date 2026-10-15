@@ -32,14 +32,18 @@
   #   modules/linux.nix      -- Linux desktop / server layer (runs the network-
   #                             dependent install-linux-server.sh).
   #   modules/linux-docker.nix -- Linux container layer (no network activation).
+  #   modules/herdr.nix      -- herdr config + pinned plugins on Linux hosts
+  #                             only (needs nodejs_22 from the host layer).
   #   modules/darwin.nix     -- macOS user layer.
   imports = [ ./modules/common.nix ]
     ++ lib.optionals (isHost && !isDocker) [ ./modules/host.nix ]
     ++ (if builtins.match ".*-linux" system != null then
+    # herdr plugin management needs nodejs_22 from the host layer, so it is
+    # host-gated like host.nix; the docker layer never does plugin work.
       (if isDocker then
         [ ./modules/linux-docker.nix ]
       else
-        [ ./modules/linux.nix ])
+        [ ./modules/linux.nix ] ++ lib.optionals isHost [ ./modules/herdr.nix ])
     else
       [ ]) ++ (if builtins.match ".*-darwin" system != null then
         [ ./modules/darwin.nix ]
