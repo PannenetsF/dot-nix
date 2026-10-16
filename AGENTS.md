@@ -325,28 +325,36 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 
 ## 5. 激活脚本与外部配置
 
+`install-common.sh`
+
+- `install-macos.sh` 与 `install-linux-server.sh` 的共享库（只 source，不直接
+  执行）：`sync_config_repo`、`python_tools_available`、`install_python_tools`、
+  `setup_pip_extra`。调用方先设置 `INSTALL_LOG_PREFIX` 再 source 它。
+- 库本身不切换 `set -e`（Linux 调用方不用，macOS 调用方自己开）。
+- Nix 模块必须以 `bash ${../.}/install-macos.sh` 这种**目录形式**引用：直接写
+  `${../install-macos.sh}` 会把单个文件压成扁平 store 对象，其 sibling
+  `install-common.sh` 不在同一目录，source 必然失败。
+
 `install-macos.sh`
 
-- 通过 `sync_config_repo` 安全同步 `https://github.com/PannenetsF/dot-nvim.git`
-  到 `$HOME/.config/nvim`。目标不存在就 clone；存在但不是 git repo、dirty、
-  staged、untracked 时跳过 pull。
-- 首次运行时如果当前 profile 未提供 `ruff`、`ty`、`jedi-language-server`、
-  `pynvim`，会通过 pip fallback 安装它们；随后运行
-  `nvim --headless -c 'Lazy' -c 'qa'` 和 `TSUpdateSync`。
+- 薄入口：source `install-common.sh`，安全同步
+  `https://github.com/PannenetsF/dot-nvim.git` 到 `$HOME/.config/nvim`
+  （目标不存在就 clone；不是 git repo、dirty、staged、untracked 时跳过 pull），
+  首次运行在 profile 未提供 `ruff`/`ty`/`jedi-language-server`/`pynvim` 时
+  pip fallback 安装，再跑 `nvim --headless -c 'Lazy' -c 'qa'` 和 `TSUpdateSync`。
 - 锁文件为 `$HOME/pf-init-macos`。
-- `pip3` 不存在时 fallback 到 `python3 -m pip`。
-- 只有 pip 支持 `--break-system-packages` 时才追加该参数。
+- `pip3` 不存在时 fallback 到 `python3 -m pip`；只有 pip 支持
+  `--break-system-packages` 时才追加该参数。
 
 `install-linux-server.sh`
 
-- 同样安全同步 `dot-nvim`。
-- 首次运行在当前 profile 未提供 Python/Nvim 依赖时通过 pip fallback 安装，
-  并初始化 Neovim。
-- 锁文件为 `$HOME/pf-init`。
-- Linux 脚本当前默认追加 `--break-system-packages`。
+- 薄入口：source `install-common.sh`，同样安全同步 `dot-nvim`、首次运行 pip
+  fallback 并初始化 Neovim。
+- 锁文件为 `$HOME/pf-init`；不使用 `set -e`（与 macOS 入口的刻意差异）。
 
-注意：这些脚本在 Home Manager activation 中通过 `${../script.sh}` 进入只读
-Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入环境变量，不应假设
+注意：这些脚本在 Home Manager activation 中经模块以 `${../.}/script.sh`
+目录引用进入只读 Nix store（保证与 `install-common.sh` 同目录）后执行。
+脚本必须依赖运行时的 `$HOME`、`PATH` 和传入环境变量，不应假设
 自己位于 git 工作树中。
 
 `config/`
@@ -382,7 +390,9 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
 - 新增用户 dotfile 链接或 Home Manager service：改 `modules/darwin.nix` 或
   对应平台模块。
 - 修改启动、Nix 安装、cache、git pull、激活选择逻辑：改 `init.sh`。
-- 修改 Neovim/Python 初始化：改 `install-macos.sh` 或 `install-linux-server.sh`。
+- 修改 Neovim/Python 初始化：优先改共享的 `install-common.sh`；入口专属
+  （锁文件、`set -e`、shebang）才改 `install-macos.sh` 或
+  `install-linux-server.sh`。
 
 设计约定：
 

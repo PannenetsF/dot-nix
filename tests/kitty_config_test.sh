@@ -59,11 +59,15 @@ assert_contains "config/kitty/kitty-theme.sh" "/tmp/kitty-*" \
 assert_contains "config/kitty/kitty.conf" "listen_on unix:/tmp/kitty" \
 	"expected kitty to expose a /tmp/kitty-<pid> control socket for kitty-theme"
 
-if grep -Fq "dot-kitty" "${repo_root}/install-macos.sh"; then
-	echo "expected install-macos.sh not to fetch dot-kitty during activation" >&2
-	exit 1
-fi
-if grep -Fq "KITTY_CONFIG_REPO" "${repo_root}/install-macos.sh"; then
-	echo "expected install-macos.sh not to manage kitty config repository" >&2
-	exit 1
-fi
+# The repo-sync logic now lives in the sourced install-common.sh, so the
+# negative assertions must cover both files.
+for install_script in install-macos.sh install-common.sh; do
+	if grep -Fq "dot-kitty" "${repo_root}/${install_script}"; then
+		echo "expected ${install_script} not to fetch dot-kitty during activation" >&2
+		exit 1
+	fi
+	if grep -Fq "KITTY_CONFIG_REPO" "${repo_root}/${install_script}"; then
+		echo "expected ${install_script} not to manage kitty config repository" >&2
+		exit 1
+	fi
+done

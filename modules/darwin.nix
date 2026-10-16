@@ -149,6 +149,8 @@
       unset hm_nounset_was_enabled
     fi
     export PATH="${config.home.profileDirectory}/bin:$PATH"
-    bash ${../install-macos.sh}
+    # Reference the flake source directory so install-macos.sh and its sourced
+    # sibling install-common.sh stay co-located under <hash>-source/.
+    bash ${../.}/install-macos.sh
   '';
 }
