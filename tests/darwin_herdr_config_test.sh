@@ -137,11 +137,15 @@ assert_not_contains "config/herdr/new-project.sh" 'invalid slug'
 
 # --- Wrapper-script hardening (PATH self-sufficiency, @ guards, slug locks) ---
 #
-# All three launchers must be runnable from a bare popup environment: herdr's
+# All four launchers must be runnable from a bare popup environment: herdr's
 # popup spawns them with a minimal PATH that lacks the HM profile and Homebrew.
-for s in new-project pick-project add-repo; do
-	assert_contains "config/herdr/$s.sh" "/etc/profiles/per-user/"
-	assert_contains "config/herdr/$s.sh" "/opt/homebrew/bin"
+# The PATH-prepend dirs now live once in the shared sibling library, and every
+# launcher sources that library next to its own resolved path.
+assert_file_exists "config/herdr/herdr-popup-lib.sh"
+assert_contains "config/herdr/herdr-popup-lib.sh" "/etc/profiles/per-user/"
+assert_contains "config/herdr/herdr-popup-lib.sh" "/opt/homebrew/bin"
+for s in new-project pick-project add-repo new-coordinator; do
+	assert_contains "config/herdr/$s.sh" "herdr-popup-lib.sh"
 done
 
 # Repo paths containing @ are rejected before reaching the plugin (they break

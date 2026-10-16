@@ -33,5 +33,14 @@
       executable = true;
       force = true;
     };
+
+    # Shared preamble sourced by all four launchers above; linked into the same
+    # .local/bin directory because each launcher resolves one symlink hop and
+    # sources the sibling next to its resolved nix-store file.
+    ".local/bin/herdr-popup-lib.sh" = {
+      source = ../config/herdr/herdr-popup-lib.sh;
+      executable = true;
+      force = true;
+    };
   };
 }

@@ -7,32 +7,20 @@
 # shows a picker outside project workspaces. This always asks.
 set -euo pipefail
 
-# Popups close the moment this script exits, so a bare error would flash by.
-die() {
-  printf '\nERROR: %s\n' "$1" >&2
-  printf 'press enter to close' >&2
-  read -r _ || true
-  exit 1
-}
+# Locate and source the shared popup library. Resolve one symlink hop: Home
+# Manager links ~/.local/bin/herdr-<name> at the nix-store file, whose own
+# directory also holds the linked lib; run straight from the repo there is no
+# symlink and the sibling sits on disk beside this script.
+self="${BASH_SOURCE[0]}"
+if target="$(readlink "$self" 2>/dev/null)" && [ -n "$target" ]; then self="$target"; fi
+case "$self" in /*) ;; *) self="$(cd "$(dirname "$self")" 2>/dev/null && pwd)/$(basename "$self")" ;; esac
+self_dir="$(cd "$(dirname "$self")" && pwd)"
+# shellcheck source=/dev/null
+. "$self_dir/herdr-popup-lib.sh"
 
-# herdr runs popups with a bare launchd PATH: fzf lives in the nix profile
-# (/etc/profiles/per-user/<user>/bin) and git may come from homebrew, none of
-# which a bare launchd PATH includes. Prepend the usual install folders before
-# any dependency check so the popup works regardless of how it was launched.
-for dir in \
-  "$HOME/.local/bin" \
-  "$HOME/.cargo/bin" \
-  "$HOME/.nix-profile/bin" \
-  "/etc/profiles/per-user/${USER:-$(id -un)}/bin" \
-  "/opt/homebrew/bin" \
-  "/usr/local/bin"
-do
-  [ -d "$dir" ] && PATH="$dir:$PATH"
-done
-export PATH
+herdr_popup_prepend_path
 
-hp_bin="${HERDR_PROJECTS_BIN:-$HOME/.local/bin/herdr-projects}"
-[ -x "$hp_bin" ] || hp_bin="$(command -v herdr-projects 2>/dev/null || true)"
+hp_bin="$(herdr_projects_bin)"
 if [ -z "$hp_bin" ]; then
   echo "herdr-projects binary not found" >&2
   exit 1
