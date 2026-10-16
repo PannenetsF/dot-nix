@@ -114,6 +114,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   - 总是导入 `modules/common.nix`。
   - `isHost && !isDocker` 时导入 `modules/host.nix`（容器保持精简，`isDocker`
     强制关闭 host 层）。
+  - host 层（macOS 与 Linux host）共同导入 `modules/herdr-launchers.nix`，
+    四个 herdr popup launcher 链接只有这一个来源。
   - Linux：`isDocker` 时导入 `modules/linux-docker.nix`，否则
     `modules/linux.nix`。
   - Darwin 导入 `modules/darwin.nix`。
@@ -272,14 +274,15 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
   herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
   `herdr-projects configure`，由插件自己写 live config（journal 校验）。
-  `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，经
-  `modules/darwin.nix`（macOS）和 `modules/herdr.nix`（Linux host）链到
+  `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，由共享模块
+  `modules/herdr-launchers.nix`（每个 host 层都导入，macOS/Linux 同源）链到
   `~/.local/bin/herdr-new-project`，扫描根由
   `HP_PROJECT_ROOTS` 覆盖（默认冒号分隔的 `~/Documents:~/.config`）。`P C-p` 的项目
   选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
   四个 popup launcher（new-project/pick-project/add-repo/new-coordinator）
-  必须在两个平台都链：config.toml 的键位无条件下发，Linux 侧漏链会导致
+  只有 `modules/herdr-launchers.nix` 这一个来源，新增第五个只改这里：
+  config.toml 的键位无条件下发，任何 host 层漏链都会让
   `P C-p` 等静默失败（Linux host 上曾因此静默失败）。
 - herdr-radar（pinned fork `v1.4.4-pf.6`，PannenetsF/herdr-radar）是首个 Node
   插件：运行时 `node` 由 `modules/host.nix` 的 `nodejs_22` 提供，所以 Linux 侧

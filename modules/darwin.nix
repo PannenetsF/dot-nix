@@ -68,35 +68,9 @@
       force = true;
     };
 
-    # fzf picker: choose a git repo, then create/open a herdr-projects
-    # project on it (bound to prefix+shift+c in config/herdr/config.toml).
-    ".local/bin/herdr-new-project" = {
-      source = ../config/herdr/new-project.sh;
-      executable = true;
-      force = true;
-    };
-
-    # fzf picker over existing projects (prefix+ctrl+p). The plugin's own
-    # open action reopens the current workspace's project instead of asking.
-    ".local/bin/herdr-pick-project" = {
-      source = ../config/herdr/pick-project.sh;
-      executable = true;
-      force = true;
-    };
-
-    # fzf multi-pick repos to attach to an existing project (prefix+shift+a).
-    ".local/bin/herdr-add-repo" = {
-      source = ../config/herdr/add-repo.sh;
-      executable = true;
-      force = true;
-    };
-
-    # Open another coordinator for the current project (prefix+ctrl+n).
-    ".local/bin/herdr-new-coordinator" = {
-      source = ../config/herdr/new-coordinator.sh;
-      executable = true;
-      force = true;
-    };
+    # The four herdr fzf popup launchers (herdr-new-project, herdr-pick-project,
+    # herdr-add-repo, herdr-new-coordinator) are linked by the shared
+    # modules/herdr-launchers.nix imported from every host layer.
 
     ".config/zed/keymap.json" = {
       source = ../config/zed/keymap.json;

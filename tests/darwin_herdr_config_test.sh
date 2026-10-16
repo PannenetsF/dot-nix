@@ -106,20 +106,23 @@ assert_contains "config/herdr/config.toml" 'type = "plugin_action"'
 
 # herdr-projects repo picker (prefix+shift+c)
 assert_file_exists "config/herdr/new-project.sh"
-assert_contains "modules/darwin.nix" '".local/bin/herdr-new-project"'
 assert_contains "config/herdr/config.toml" 'herdr-new-project'
 assert_file_exists "config/herdr/pick-project.sh"
-assert_contains "modules/darwin.nix" '".local/bin/herdr-pick-project"'
 assert_contains "config/herdr/config.toml" 'herdr-pick-project'
-# The same four popup launchers must be linked on the Linux host layer: the
-# key bindings ship unconditionally in config.toml, so a missing link makes
-# prefix+ctrl+p (and the rest of the project namespace) silently no-op there.
+# All four popup launchers are linked from the single shared
+# modules/herdr-launchers.nix, imported from every host layer (macOS and
+# Linux). The key bindings ship unconditionally in config.toml, so the
+# links must be platform-independent — a missing one makes prefix+ctrl+p
+# (and the rest of the project namespace) silently no-op on that layer.
+assert_file_exists "modules/herdr-launchers.nix"
+assert_contains "home.nix" "./modules/herdr-launchers.nix"
 for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator; do
-	assert_contains "modules/herdr.nix" "\".local/bin/$launcher\""
+	assert_contains "modules/herdr-launchers.nix" "\".local/bin/$launcher\""
+	assert_not_contains "modules/herdr.nix" "\".local/bin/$launcher\""
+	assert_not_contains "modules/darwin.nix" "\".local/bin/$launcher\""
 done
 # Attach-repos picker (prefix+shift+a)
 assert_file_exists "config/herdr/add-repo.sh"
-assert_contains "modules/darwin.nix" '".local/bin/herdr-add-repo"'
 assert_contains "config/herdr/config.toml" 'herdr-add-repo'
 # Opening from a popup pane must start the coordinator in a project tab,
 # otherwise the transient popup pane takes it down with it on exit. The open

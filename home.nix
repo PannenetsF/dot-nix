@@ -34,9 +34,11 @@
   #   modules/linux-docker.nix -- Linux container layer (no network activation).
   #   modules/herdr.nix      -- herdr config + pinned plugins on Linux hosts
   #                             only (needs nodejs_22 from the host layer).
+  #   modules/herdr-launchers.nix -- fzf popup launcher links, every host layer
   #   modules/darwin.nix     -- macOS user layer.
   imports = [ ./modules/common.nix ]
-    ++ lib.optionals (isHost && !isDocker) [ ./modules/host.nix ]
+    ++ lib.optionals (isHost && !isDocker)
+    [ ./modules/host.nix ./modules/herdr-launchers.nix ]
     ++ (if builtins.match ".*-linux" system != null then
     # herdr plugin management needs nodejs_22 from the host layer, so it is
     # host-gated like host.nix; the docker layer never does plugin work.
