@@ -14,8 +14,10 @@ dark_name = "terminal"
 status_indicators = "symbols"
 
 [ui.toast]
-# Background agent state changes -> desktop notification via macOS notification service.
-delivery = "system"
+# "herdr" lets the herdr app show its own desktop toast on every platform;
+# "system" asks the OS notification service directly, a backend herdr only
+# ships on macOS, so it is silently dead on Linux hosts.
+delivery = "herdr"
 
 [ui.sound]
 enabled = true

@@ -6,12 +6,42 @@
 # mktemp -d; the real ~/.herdr-projects is never touched.
 set -euo pipefail
 
-REAL_BIN="/Users/bytedance/.config/herdr/plugins/github/herdr-projects-b1278ffb803c/target/release/herdr-projects"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-if [ ! -x "$REAL_BIN" ]; then
-	echo "skipped: herdr-projects real binary not found at $REAL_BIN"
+# Resolve the real herdr-projects binary, in order:
+#   1. $HERDR_PROJECTS_REAL_BIN if set and executable
+#   2. newest executable build under the herdr plugins dir (mtime)
+#   3. herdr-projects found on PATH
+TRIED_PATHS=()
+REAL_BIN=""
+if [ -n "${HERDR_PROJECTS_REAL_BIN:-}" ] && [ -x "$HERDR_PROJECTS_REAL_BIN" ]; then
+	REAL_BIN="$HERDR_PROJECTS_REAL_BIN"
+else
+	if [ -n "${HERDR_PROJECTS_REAL_BIN:-}" ]; then
+		TRIED_PATHS+=("$HERDR_PROJECTS_REAL_BIN (HERDR_PROJECTS_REAL_BIN, not executable)")
+	fi
+	for candidate in "$HOME"/.config/herdr/plugins/github/herdr-projects-*/target/release/herdr-projects; do
+		TRIED_PATHS+=("$candidate")
+		if [ -x "$candidate" ] && { [ -z "$REAL_BIN" ] || [ "$candidate" -nt "$REAL_BIN" ]; }; then
+			REAL_BIN="$candidate"
+		fi
+	done
+	if [ -z "$REAL_BIN" ]; then
+		path_bin="$(command -v herdr-projects 2>/dev/null || true)"
+		if [ -n "$path_bin" ] && [ -x "$path_bin" ]; then
+			REAL_BIN="$path_bin"
+		else
+			TRIED_PATHS+=("${path_bin:-herdr-projects (not on PATH)}")
+		fi
+	fi
+fi
+
+if [ -z "$REAL_BIN" ]; then
+	echo "skipped: herdr-projects real binary not found; tried:"
+	for p in "${TRIED_PATHS[@]}"; do
+		echo "  $p"
+	done
 	exit 0
 fi
 
