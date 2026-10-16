@@ -1,9 +1,12 @@
-#! /bin/bash 
-FILE_LOCK=$HOME/pf-init
+#!/usr/bin/env bash
+FILE_LOCK="$HOME/pf-init"
 
-PIP_EXTRA=""
-[ -n "$PIP_POSTFIX" ] && PIP_EXTRA="$PIP_EXTRA $PIP_POSTFIX"
-PIP_EXTRA="$PIP_EXTRA --break-system-packages"
+PIP_EXTRA=()
+if [ -n "$PIP_POSTFIX" ]; then
+	# Preserve the previous whitespace-split behavior for simple extra pip flags.
+	# shellcheck disable=SC2206
+	PIP_EXTRA=($PIP_POSTFIX)
+fi
 
 sync_config_repo() {
 	local name="$1"
@@ -53,16 +56,24 @@ install_python_tools() {
 		return
 	fi
 
-	pip3 install ruff ty jedi-language-server pynvim $PIP_EXTRA
+	if command -v pip3 >/dev/null 2>&1; then
+		PIP_CMD=(pip3)
+	else
+		PIP_CMD=(python3 -m pip)
+	fi
+
+	if "${PIP_CMD[@]}" install --help 2>/dev/null | grep -q -- "--break-system-packages"; then
+		PIP_EXTRA+=(--break-system-packages)
+	fi
+
+	"${PIP_CMD[@]}" install ruff ty jedi-language-server pynvim "${PIP_EXTRA[@]}"
 }
 
-if [ -f $FILE_LOCK ]; then 
-	echo All py packages are installed yet.
-else 
-	pwd
-	env | grep PATH
+if [ -f "$FILE_LOCK" ]; then
+	echo "[install-linux-server.sh] lock file present, skipping python tools bootstrap: $FILE_LOCK"
+else
 	install_python_tools
-    nvim --headless -c 'Lazy' -c 'qa'
-    nvim --headless -c 'TSUpdateSync' -c 'qa'
-	echo hello >> $FILE_LOCK
+	nvim --headless -c 'Lazy' -c 'qa'
+	nvim --headless -c 'TSUpdateSync' -c 'qa'
+	touch "$FILE_LOCK"
 fi

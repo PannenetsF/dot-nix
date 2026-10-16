@@ -72,12 +72,10 @@ install_python_tools() {
 }
 
 if [ -f "$FILE_LOCK" ]; then
-  echo "All py packages are installed yet."
+  echo "[install-macos.sh] lock file present, skipping python tools bootstrap: $FILE_LOCK"
 else
-  pwd
-  env | grep PATH
   install_python_tools
   nvim --headless -c 'Lazy' -c 'qa'
   nvim --headless -c 'TSUpdateSync' -c 'qa'
-  echo hello >> "$FILE_LOCK"
+  touch "$FILE_LOCK"
 fi
