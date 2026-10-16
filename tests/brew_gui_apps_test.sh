@@ -56,6 +56,13 @@ assert_not_contains "$homebrew_module" '      "nikitabobko/tap"' "did not expect
 assert_not_contains "$homebrew_module" '      "nikitabobko/tap/aerospace"' "did not expect the upstream AeroSpace cask in the declarative cask list"
 assert_contains "$homebrew_module" "untap whatpulse/whatpulse" "expected stale upstream WhatPulse tap to be removed before Homebrew bundle"
 assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
+assert_contains "$homebrew_module" "whatpulse-mac-latest.dmg" "expected the WhatPulse cask to provide the Intel latest DMG URL"
+assert_contains "$homebrew_module" "uname -m" "expected the WhatPulse DMG URL to be selected from the machine's arch at activation time"
+assert_contains "$homebrew_module" 'arm64)' "expected WhatPulse arch detection to handle Apple Silicon"
+assert_contains "$homebrew_module" 'x86_64)' "expected WhatPulse arch detection to handle Intel"
+assert_contains "$homebrew_module" 'Casks/whatpulse.rb" <<RUBY' "expected the WhatPulse heredoc to expand the arch-specific URL variable"
+assert_contains "$homebrew_module" 'url "$whatpulse_url"' "expected the generated WhatPulse cask to use the arch-selected URL"
+assert_contains "$homebrew_module" "chmodbpf.rb\" <<'RUBY'" "expected the universal ChmodBPF heredoc to stay quoted and byte-stable"
 assert_not_contains "$homebrew_module" "\"whatpulse/whatpulse\"" "did not expect stale upstream WhatPulse tap"
 assert_not_contains "$homebrew_module" "trust --tap whatpulse/whatpulse" "did not expect trust bootstrap for stale upstream WhatPulse tap"
 

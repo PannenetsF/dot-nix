@@ -3,6 +3,7 @@ import ctypes
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ BEGIN_MARKER = "# BEGIN AUTO-GENERATED WORKSPACE ASSIGNMENTS"
 END_MARKER = "# END AUTO-GENERATED WORKSPACE ASSIGNMENTS"
 WORKSPACES = tuple(str(index) for index in range(1, 11))
 PREFERRED_PRIMARY_MONITOR_NAMES = ("hp z27k g3",)
+AEROSPACE_CANDIDATES = ("/opt/homebrew/bin/aerospace", "/usr/local/bin/aerospace")
 
 
 class CGPoint(ctypes.Structure):
@@ -68,10 +70,25 @@ def load_displays_from_env():
     return sorted(displays, key=lambda display: display["seq"])
 
 
+def resolve_aerospace_bin():
+    # Resolve the aerospace CLI without assuming a Homebrew prefix: honour an
+    # explicit override, then the standard Apple-Silicon and Intel locations,
+    # and finally PATH. A hardcoded /opt/homebrew path silently no-ops on
+    # Intel Macs. Mirrors the probe in workspace_indicator.swift.
+    override = os.environ.get("AEROSPACE_BIN")
+    if override:
+        return override
+    for candidate in AEROSPACE_CANDIDATES:
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return shutil.which("aerospace") or "aerospace"
+
+
 def load_displays_from_aerospace():
-    aerospace = "/opt/homebrew/bin/aerospace"
-    if platform.system() != "Darwin" or not os.path.exists(aerospace):
+    if platform.system() != "Darwin":
         return None
+
+    aerospace = resolve_aerospace_bin()
 
     try:
         output = subprocess.check_output(

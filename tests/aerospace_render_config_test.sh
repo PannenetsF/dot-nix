@@ -36,6 +36,18 @@ assert_contains "8 = ['built-in', 'main']" "expected workspace 8 on the built-in
 assert_contains "10 = ['built-in', 'main']" "expected workspace 10 on the built-in display with a main fallback"
 assert_contains "start-at-login = false" "expected normal AeroSpace settings to remain"
 assert_contains "on-focus-changed = ['move-mouse window-lazy-center']" "expected the pointer to follow the focused window as a focus indicator"
+assert_contains "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:" \
+  "expected AeroSpace's exec PATH to include both the Apple-Silicon and Intel Homebrew prefixes"
+
+# The CLI resolver must not assume Apple Silicon: honour AEROSPACE_BIN, then
+# both Homebrew prefixes, before falling back to PATH.
+renderer="${repo_root}/config/aerospace/render-config.py"
+for expected in "AEROSPACE_BIN" "/opt/homebrew/bin/aerospace" "/usr/local/bin/aerospace"; do
+  if ! grep -Fq "${expected}" "${renderer}"; then
+    echo "expected render-config.py to reference ${expected} when resolving the aerospace CLI" >&2
+    exit 1
+  fi
+done
 
 four_display_rendered="${tmp_dir}/four-display.toml"
 AEROSPACE_MONITORS_JSON='[
@@ -94,6 +106,54 @@ spec.loader.exec_module(module)
 displays = [{"seq": index} for index in range(1, 5)]
 assert module.should_preserve_existing_block("coregraphics", displays, output_path)
 assert not module.should_preserve_existing_block("env", displays, output_path)
+PY
+
+PYTHONDONTWRITEBYTECODE=1 python3 - "${repo_root}" <<'PY'
+import importlib.util
+import os
+import pathlib
+import sys
+
+repo_root = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location(
+    "aerospace_render_config_resolve", repo_root / "config/aerospace/render-config.py"
+)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+# An explicit override always wins, even when no Homebrew install exists.
+os.environ["AEROSPACE_BIN"] = "/custom/bin/aerospace"
+assert module.resolve_aerospace_bin() == "/custom/bin/aerospace"
+
+# An empty override is ignored in favour of the prefix/PATH probes.
+os.environ["AEROSPACE_BIN"] = ""
+module.os.path.isfile = lambda path: path == "/usr/local/bin/aerospace"
+module.os.access = lambda path, mode: path == "/usr/local/bin/aerospace"
+module.shutil.which = lambda name: None
+assert module.resolve_aerospace_bin() == "/usr/local/bin/aerospace"
+
+# With no override or prefix installs, the resolver falls through to PATH.
+os.environ.pop("AEROSPACE_BIN", None)
+module.os.path.isfile = lambda path: False
+module.os.access = lambda path, mode: False
+module.shutil.which = lambda name: "/opt/local/bin/aerospace" if name == "aerospace" else None
+assert module.resolve_aerospace_bin() == "/opt/local/bin/aerospace"
+
+# Apple-Silicon prefix wins when both prefixes are populated.
+module.os.path.isfile = lambda path: True
+module.os.access = lambda path, mode: True
+module.shutil.which = lambda name: None
+assert module.resolve_aerospace_bin() == "/opt/homebrew/bin/aerospace"
+
+# Only the Intel prefix populated: it is picked before the PATH fallback.
+module.os.path.isfile = lambda path: path == "/usr/local/bin/aerospace"
+module.os.access = lambda path, mode: path == "/usr/local/bin/aerospace"
+assert module.resolve_aerospace_bin() == "/usr/local/bin/aerospace"
+
+# Nothing found: bare name so invocation errors surface to the caller.
+module.os.path.isfile = lambda path: False
+module.os.access = lambda path, mode: False
+assert module.resolve_aerospace_bin() == "aerospace"
 PY
 
 hp_preferred_rendered="${tmp_dir}/hp-preferred.toml"

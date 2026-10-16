@@ -60,7 +60,7 @@ outer.right = 8
 inherit-env-vars = true
 
 [exec.env-vars]
-PATH = '/opt/homebrew/bin:/opt/homebrew/sbin:${PATH}'
+PATH = '/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:${PATH}'
 
 [mode.main.binding]
 

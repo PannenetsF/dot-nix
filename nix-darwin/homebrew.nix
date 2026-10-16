@@ -26,12 +26,34 @@ in {
     end
     RUBY
 
-          cat > "${localTapPath}/Casks/whatpulse.rb" <<'RUBY'
+          # WhatPulse ships separate ARM and Intel "latest" DMGs, so choose the
+          # URL for this Mac's arch at activation time. Both URLs were verified
+          # to serve application/x-apple-diskimage (HTTP 200) via curl -sIL.
+          case "$(uname -m)" in
+            arm64)
+              whatpulse_url="https://releases.whatpulse.org/latest/macos-arm/whatpulse-mac-arm-latest.dmg"
+              ;;
+            x86_64)
+              whatpulse_url="https://releases.whatpulse.org/latest/macos/whatpulse-mac-latest.dmg"
+              ;;
+            *)
+              # Unknown arch: the Intel build is the historical default and
+              # degrades more safely than an ARM image on non-ARM hardware.
+              whatpulse_url="https://releases.whatpulse.org/latest/macos/whatpulse-mac-latest.dmg"
+              ;;
+          esac
+
+          # The delimiter is intentionally unquoted so $whatpulse_url expands;
+          # every other "$" and continuation backslash in the Ruby body is
+          # escaped for the shell. $whatpulse_url stays brace-free on purpose:
+          # this text is a Nix indented string, where a dollar immediately
+          # followed by "{" is Nix antiquotation.
+          cat > "${localTapPath}/Casks/whatpulse.rb" <<RUBY
     cask "whatpulse" do
       version "6.2.1"
       sha256 :no_check
 
-      url "https://releases.whatpulse.org/latest/macos-arm/whatpulse-mac-arm-latest.dmg"
+      url "$whatpulse_url"
       name "WhatPulse"
       desc "Activity and productivity tracker"
       homepage "https://whatpulse.org"
@@ -40,14 +62,14 @@ in {
         executable: "/bin/bash",
         args: [
           "-c",
-          "MAINTENANCE_TOOL='/Applications/WhatPulse/WhatPulseMaintenanceTool.app/Contents/MacOS/WhatPulseMaintenanceTool'; " \
-          'if [ -x "$MAINTENANCE_TOOL" ]; then ' \
-          '"$MAINTENANCE_TOOL" update --accept-licenses --default-answer --confirm-command; ' \
-          'RC=$?; if [ $RC -eq 0 ] || [ $RC -eq 3 ]; then exit 0; else exit $RC; fi; ' \
-          'else ' \
-          "\"#{staged_path}/WhatPulse-#{version}-Installer.app/Contents/MacOS/WhatPulse-#{version}-Installer\" " \
-          '--root /Applications/WhatPulse --accept-messages --accept-licenses --confirm-command ' \
-          "--cache-path \"#{staged_path}/cache\" install; " \
+          "MAINTENANCE_TOOL='/Applications/WhatPulse/WhatPulseMaintenanceTool.app/Contents/MacOS/WhatPulseMaintenanceTool'; " \\
+          'if [ -x "\$MAINTENANCE_TOOL" ]; then ' \\
+          '"\$MAINTENANCE_TOOL" update --accept-licenses --default-answer --confirm-command; ' \\
+          'RC=\$?; if [ \$RC -eq 0 ] || [ \$RC -eq 3 ]; then exit 0; else exit \$RC; fi; ' \\
+          'else ' \\
+          "\"#{staged_path}/WhatPulse-#{version}-Installer.app/Contents/MacOS/WhatPulse-#{version}-Installer\" " \\
+          '--root /Applications/WhatPulse --accept-messages --accept-licenses --confirm-command ' \\
+          "--cache-path \"#{staged_path}/cache\" install; " \\
           'fi'
         ]
       }
