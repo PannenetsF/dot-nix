@@ -44,7 +44,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
    并同步到标准大小写 proxy 环境变量。
 2. 自动安装 Nix。macOS 默认使用 Determinate pkg installer，可用
    `NIX_HM_DARWIN_NIX_INSTALLER=cli` 切换到 CLI installer；Linux 使用
-   Determinate CLI installer。
+   Determinate CLI installer。CLI installer 冻结在固定 release tag
+   （`NIX_HM_DETERMINATE_TAG`，默认 `v3.17.2`），需要跟进新版时显式覆盖
+   （例如 `NIX_HM_DETERMINATE_TAG=latest`）；pkg URL 用
+   `NIX_HM_DETERMINATE_PKG_URL` 覆盖。
 3. source Nix profile，确保 `nix` 可用。
 4. 写入仓库托管的 Nix cache 配置块：
    - 用户配置：`$HOME/.config/nix/nix.conf`
@@ -75,6 +78,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - `NIX_HM_SUDO_KEEPALIVE=1`：可选，提前 `sudo -v` 预授权并 keepalive；默认关闭，
   让 `darwin-rebuild` 自己发起唯一一次 sudo 提示。
 - `NIX_HM_USE_HOME_MANAGER=1`：macOS 上跳过 nix-darwin，使用 Home Manager。
+- `NIX_HM_DETERMINATE_TAG`：覆盖冻结的 Determinate CLI installer release tag。
 - `NIX_HM_BREW_BOOTSTRAP`：替换 Homebrew bootstrap 脚本，测试里常用。
 - `PIP_POSTFIX`、`PIP_INDEX_URL`、`PIP_TRUSTED_HOST` 等：会保留给激活脚本使用。
 

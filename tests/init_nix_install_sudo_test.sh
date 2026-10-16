@@ -132,3 +132,31 @@ if [[ "$log" != *"#darwin-rebuild"* ]]; then
   printf '%s\n' "$log" >&2
   exit 1
 fi
+
+# Default run pins the frozen Determinate release tag.
+if [[ "$log" != *"install.determinate.systems/nix/tag/v3.17.2"* ]]; then
+  echo "expected init.sh to curl the pinned Determinate tag by default" >&2
+  printf '%s\n' "$log" >&2
+  exit 1
+fi
+
+# NIX_HM_DETERMINATE_TAG overrides the pin (e.g. "latest" or a newer tag).
+# Remove the nix stub installed by the first run so install_nix_if_needed
+# actually invokes the installer again.
+rm -f "$tmp/bin/nix"
+mkdir -p "$tmp/bin-override"
+NIX_INSTALL_STUB_LOG="$tmp/install-override.log" \
+NIX_STUB_BIN="$tmp/bin" \
+NIX_HM_BREW_BOOTSTRAP="$tmp/brew-bootstrap" \
+NIX_HM_ETC_DIR="$tmp/etc" \
+NIX_HM_DARWIN_NIX_INSTALLER=cli \
+NIX_HM_DETERMINATE_TAG=latest \
+PATH="$tmp/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+HOME="$tmp/home" \
+bash "$repo_root/init.sh" >/dev/null
+log_override="$(cat "$tmp/install-override.log")"
+if [[ "$log_override" != *"install.determinate.systems/nix/tag/latest"* ]]; then
+  echo "expected NIX_HM_DETERMINATE_TAG to override the pinned installer tag" >&2
+  printf '%s\n' "$log_override" >&2
+  exit 1
+fi

@@ -141,11 +141,15 @@ install_nix_if_needed() {
 install_determinate_cli() {
   # Determinate Nix Installer CLI path (works on macOS + Linux, non-interactive)
   # Ref: https://install.determinate.systems/nix
+  # Pinned to a frozen tag for reproducibility; override with
+  # NIX_HM_DETERMINATE_TAG (e.g. latest or a newer release tag) to move ahead.
+  local determinate_tag="${NIX_HM_DETERMINATE_TAG:-v3.17.2}"
+  local determinate_url="https://install.determinate.systems/nix/tag/${determinate_tag}"
   if [[ "$(id -u)" -eq 0 ]]; then
-    curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sh -s -- install --no-confirm
+    curl -fsSL "$determinate_url" | sh -s -- install --no-confirm
   else
     need_cmd sudo
-    curl -fsSL https://install.determinate.systems/nix/tag/v3.17.2 | sudo -E sh -s -- install --no-confirm
+    curl -fsSL "$determinate_url" | sudo -E sh -s -- install --no-confirm
   fi
 }
 
