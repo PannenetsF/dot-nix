@@ -50,7 +50,6 @@ assert_file_exists "config/aerospace/render-config.py"
 assert_file_exists "config/aerospace/start_workspace_indicator.sh"
 assert_file_exists "config/aerospace/workspace_indicator.swift"
 assert_file_exists "config/skhd/skhdrc"
-assert_file_exists "config/skhd/open_iterm2.sh"
 assert_file_exists "config/skhd/toggle_kitty_dropdown.sh"
 assert_file_exists "config/neovide/agent-open-neovide.sh"
 
@@ -59,7 +58,6 @@ assert_module_mentions "$darwin_gui_module" "render-aerospace-config" "../config
 assert_module_mentions "$darwin_gui_module" "start_workspace_indicator.sh" "../config/aerospace/start_workspace_indicator.sh"
 assert_module_mentions "$darwin_gui_module" "workspace_indicator.swift" "../config/aerospace/workspace_indicator.swift"
 assert_module_links "$darwin_module" ".skhdrc" "../config/skhd/skhdrc"
-assert_module_links "$darwin_module" ".config/skhd/open_iterm2.sh" "../config/skhd/open_iterm2.sh"
 assert_module_links "$darwin_module" ".config/skhd/toggle_kitty_dropdown.sh" "../config/skhd/toggle_kitty_dropdown.sh"
 assert_module_links "$darwin_module" ".local/bin/agent-open-neovide" "../config/neovide/agent-open-neovide.sh"
 

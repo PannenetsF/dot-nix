@@ -7,12 +7,6 @@
       force = true;
     };
 
-    ".config/skhd/open_iterm2.sh" = {
-      source = ../config/skhd/open_iterm2.sh;
-      executable = true;
-      force = true;
-    };
-
     ".config/skhd/toggle_kitty_dropdown.sh" = {
       source = ../config/skhd/toggle_kitty_dropdown.sh;
       executable = true;

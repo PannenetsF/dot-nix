@@ -353,8 +353,7 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
     `config/aerospace/rehome-workspaces.py`、
     `config/aerospace/workspace_indicator.swift`、
     `config/aerospace/start_workspace_indicator.sh`
-  - `config/skhd/skhdrc`、`config/skhd/open_iterm2.sh`、
-    `config/skhd/toggle_kitty_dropdown.sh`
+  - `config/skhd/skhdrc`、`config/skhd/toggle_kitty_dropdown.sh`
   - `config/karabiner/karabiner.json`
   - `config/homebrew/Casks/aerospace-patched.rb`
   - `config/kitty/*`、`config/herdr/config.toml`、`config/neovide/config.toml`、
