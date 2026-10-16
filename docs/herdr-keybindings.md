@@ -1,7 +1,10 @@
 # herdr 快捷键速查表
 
-配置源：`config/herdr/config.toml`（经 nix-darwin postActivation 装为可写文件
-`~/.config/herdr/config.toml`，可 `herdr server reload-config` 热加载）。
+配置源：`config/herdr/config.toml`（由仓库根目录的共享激活脚本
+`install-herdr-plugins.sh` 装为可写文件 `~/.config/herdr/config.toml`；
+macOS 经 `nix-darwin/herdr.nix` postActivation、Linux host 经
+`modules/herdr.nix` 的 home.activation 两个薄封装调用，可
+`herdr server reload-config` 热加载）。
 
 记号：**`P` = prefix = `ctrl+b`**，先按 prefix、松开、再按第二键；
 **`C-A-x` = `ctrl+alt+x` 同时按下**（直连和弦，无需 prefix；注意 `C-A` 是
@@ -47,7 +50,7 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | workspace 选择器 | `P w` |
 | 新建 / 关闭 / 重命名 workspace | `P S-n` / `P S-d` / `P S-w` |
 | 跳第 N 个 tab | `P 1..9` |
-| 跳第 N 个 workspace | `P S-1..9`（对应 AeroSpace `alt-S-数字`） |
+| 跳第 N 个 workspace | `P S-1..9`（对应 AeroSpace `alt-S-数字`；AeroSpace 另定义了 workspace 10（`alt-0`），但 herdr 刻意只绑 1..9，workspace 10 没有 herdr 快捷键） |
 | 跳第 N 个 agent | `P C-1..9` |
 
 ## 按需才用
@@ -77,7 +80,7 @@ blocked/working/idle/done 的 agent，`a` 恢复全部。
 
 > herdr-projects 三个选择器：`P S-c` 用 fzf 选一个或多个已有 git 仓库建
 > 多仓项目（Tab 勾选多个，Enter 确认；`config/herdr/new-project.sh`，
-> 扫描根 `HP_PROJECT_ROOTS`，默认 `~/Documents/workspace`，深度 4 层，
+> 扫描根 `HP_PROJECT_ROOTS`，默认冒号分隔的 `~/Documents:~/.config`，深度 4 层，
 > 选中后输入任意项目名（大小写和空格原样保留为显示名，如 `Erdos`、
 > `my project`；slug 由 `herdr-projects new` 自动派生）并打开，重名则
 > 转为给已有项目追加仓库）；
@@ -107,9 +110,10 @@ herdr server reload-config
 
 ## 可选：zoetrope 会话流程图
 
-`furkankly.zoetrope` 插件把聚焦的 agent pane 会话画成实时流程图。插件由
-`nix-darwin/herdr.nix` postActivation 安装（pinned ref），`zoe` CLI 由
-`nix-darwin/homebrew.nix` 管理。前提：`herdr integration install claude`
+`furkankly.zoetrope` 插件把聚焦的 agent pane 会话画成实时流程图。插件由共享
+激活脚本 `install-herdr-plugins.sh` 以 pinned ref 安装（macOS 经
+`nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
+两个薄封装调用），`zoe` CLI 在 macOS 由 `nix-darwin/homebrew.nix` 管理。前提：`herdr integration install claude`
 （或 codex）已装，且 agent 是在集成安装之后启动的，否则 pane 没有 session id。
 
 - `P S-z`：在当前 pane 上叠加流程图，跟 live 会话；再按一次或图内 `q` 关闭
@@ -120,9 +124,11 @@ herdr server reload-config
 
 `hhdebb.herdr-radar` 把 herdr 自带的 Agents 列表改造成可读的状态视图：工作中
 braille spinner、完成绿勾保留到你看过为止、提问红色脉动、空闲按时间分三级
-变淡；按项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由
-`nix-darwin/herdr.nix` postActivation 安装（pinned `v1.4.2`，要求 herdr ≥
-0.9.0，是 Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
+变淡；按项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由共享激活
+脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.4-pf.6`，
+PannenetsF/herdr-radar；macOS 经 `nix-darwin/herdr.nix` postActivation、
+Linux host 经 `modules/herdr.nix` 两个薄封装调用；要求 herdr ≥ 0.9.0，是
+Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
 
 - `P C-r`：在 grouped-by-activity 与 flat recent-first 两种排序间翻转
 - `P ,`：设置弹窗（空闲分级时长、glyph 样式等都在里面）
@@ -130,7 +136,7 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
   这两个键改到了插件动作所在的 ctrl 层
 - 插件自管三样东西，均不在仓库模板里：config.toml 尾部三块 marker-fenced
   配置（tab-bar 命令、`[ui.sidebar.*]` 着色行、`[theme.custom]`）、
-  `~/Library/Fonts` 下的图标字体、ghostty/kitty 的 codepoint map
+  `~/Library/Fonts` 下的图标字体、kitty 的 codepoint map
 - 模板每次激活都会用仓库版覆盖 config.toml，所以 postActivation 在装模板
   之后会调一次 `plugin action invoke configure` 修复三块配置；kitty 的
   codepoint map 直接预置在 `config/kitty/kitty.conf`（否则插件首次安装的
@@ -148,9 +154,9 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
 
 `roadboard` 是本地插件（Rust），把 Obsidian 里的 `roadmap.md` 渲染成可执行的
 7 态嵌套任务树，并能把节点派给 herdr agent。插件源码在
-`~/Documents/workspace/roadboard`，由 `nix-darwin/herdr.nix` postActivation
-在仓库存在时 `herdr plugin link`（本机本地 checkout，不是远端 pin；缺失也不
-让 activation 失败）。
+`~/Documents/workspace/roadboard`，由共享激活脚本 `install-herdr-plugins.sh`
+在仓库存在时 `herdr plugin link`（macOS/Linux 两个薄封装都会调它；本机本地
+checkout，不是远端 pin；缺失也不让 activation 失败）。
 
 - `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
   `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）
@@ -166,9 +172,12 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
 每个 thread 是独立 worktree/分支上的 agent，共享目标与项目记忆；sidebar 按
 「needs you / review / working」分组，tab 栏显示 `projects: N need you`。
 
-- 插件由 `nix-darwin/herdr.nix` postActivation 安装（pinned `v0.2.34`，要求
-  herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示重启 herdr）
-- 版本被 activation pin 在 `v0.2.34`：不要用插件自更新（`herdr-projects
+- 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
+  `v0.2.34-pf.1`，PannenetsF/herdr-projects；macOS 经
+  `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
+  两个薄封装调用；要求 herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示
+  重启 herdr）
+- 版本被激活 pin 在 fork `v0.2.34-pf.1`：不要用插件自更新（`herdr-projects
   update` 等），下次激活会被装回 pin 版本
 - sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
   写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块

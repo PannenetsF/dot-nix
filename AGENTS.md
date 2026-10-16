@@ -275,12 +275,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，经
   `modules/darwin.nix`（macOS）和 `modules/herdr.nix`（Linux host）链到
   `~/.local/bin/herdr-new-project`，扫描根由
-  `HP_PROJECT_ROOTS` 覆盖（默认 `~/Documents/workspace`）。`P C-p` 的项目
+  `HP_PROJECT_ROOTS` 覆盖（默认冒号分隔的 `~/Documents:~/.config`）。`P C-p` 的项目
   选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
   四个 popup launcher（new-project/pick-project/add-repo/new-coordinator）
   必须在两个平台都链：config.toml 的键位无条件下发，Linux 侧漏链会导致
-  `P C-p` 等静默失败（2026-10-15 ec2-fyq 踩过）。
+  `P C-p` 等静默失败（Linux host 上曾因此静默失败）。
 - herdr-radar（pinned fork `v1.4.4-pf.6`，PannenetsF/herdr-radar）是首个 Node
   插件：运行时 `node` 由 `modules/host.nix` 的 `nodejs_22` 提供，所以 Linux 侧
   herdr 激活也 gate 在 host 层（zoetrope/herdr-projects 是 Rust 单文件二进制，
@@ -350,13 +350,15 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
 
 - 这是 macOS app/user 配置的源码目录：
   - `config/aerospace/aerospace.toml`、`config/aerospace/render-config.py`、
+    `config/aerospace/rehome-workspaces.py`、
     `config/aerospace/workspace_indicator.swift`、
     `config/aerospace/start_workspace_indicator.sh`
   - `config/skhd/skhdrc`、`config/skhd/open_iterm2.sh`、
     `config/skhd/toggle_kitty_dropdown.sh`
   - `config/karabiner/karabiner.json`
   - `config/homebrew/Casks/aerospace-patched.rb`
-  - `config/kitty/*`、`config/herdr/config.toml`、`config/neovide/config.toml`
+  - `config/kitty/*`、`config/herdr/config.toml`、`config/neovide/config.toml`、
+    `config/neovide/agent-open-neovide.sh`
   - `config/zed/*`
 - Kitty theme 上游通过 `.gitmodules` 中的 `config/kitty/kitty-themes` submodule
   记录。不要恢复旧的 `dot-kitty` clone 流程。
@@ -416,6 +418,8 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew）
+- herdr 项目选择器 e2e（真实 herdr-projects 二进制 + stub fzf，全程跑在
+  mktemp 里）：`bash tests/herdr_pickers_e2e_test.sh`
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`
@@ -427,11 +431,17 @@ Nix store 后执行。脚本必须依赖运行时的 `$HOME`、`PATH` 和传入�
   `bash tests/darwin_activation_nvim_path_test.sh`
 - AeroSpace 配置渲染：`bash tests/aerospace_render_config_test.sh`
 - AeroSpace 自定义 cask：`bash tests/aerospace_custom_cask_test.sh`
+- AeroSpace workspace 重归位（`rehome-workspaces.py`）：
+  `bash tests/aerospace_rehome_workspaces_test.sh`
 - app config sync：`bash tests/darwin_app_config_sync_test.sh`
+- Neovide agent 打开脚本：`bash tests/neovide_agent_open_test.sh`
 - Kitty：`bash tests/kitty_config_test.sh`
 - Python 工具 profile / pip 兼容：`bash tests/install_python_tools_profile_test.sh`、
   `bash tests/install_macos_pip_options_test.sh`
+- 配置仓库安全 pull（install 脚本里 dot-nvim 的 pull 行为）：
+  `bash tests/config_repo_pull_test.sh`
 - 真实 macOS 激活后验收：`bash tests/macos_acceptance.sh`
+  （配套 `macos_acceptance_script_test.sh` 静态断言验收脚本本身的检查项）
 
 改动后优先跑与变更相关的测试。涉及 flake、home/darwin module 或 shell startup
 时，至少跑对应的 `nix eval` 测试；涉及 `init.sh` 时跑 `init_*` 测试；涉及

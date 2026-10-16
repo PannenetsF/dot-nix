@@ -91,7 +91,7 @@ assert_not_contains "$body" "chown"
 
 # Radar's first-run setup writes this exact marker block into kitty.conf; it
 # must be shipped by the repo or its build hook hard-fails on the read-only
-# Home Manager symlink. Ranges are derived from the plugin's font (v1.4.2).
+# Home Manager symlink. Ranges are derived from the plugin's font (v1.4.4-pf.6).
 assert_contains "config/kitty/kitty.conf" "# >>> herdr-radar font block"
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1A0-U+E1BA Herdr Agent Icons Max"
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1C0-U+E1C5 Herdr Agent Icons Max"

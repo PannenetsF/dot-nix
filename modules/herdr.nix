@@ -10,7 +10,8 @@
   # repo). The template ships the key bindings on every platform, so without
   # these links the popup commands resolve to a missing ~/.local/bin binary on
   # Linux. Mirrors the home.file block in modules/darwin.nix; the scripts are
-  # POSIX-shell portable (the macOS-only PATH entries are [ -d ]-guarded).
+  # bash scripts runnable on both platforms (macOS ships bash 3.2), and the
+  # macOS-only PATH entries are [ -d ]-guarded.
   home.file = {
     ".local/bin/herdr-new-project" = {
       source = ../config/herdr/new-project.sh;
