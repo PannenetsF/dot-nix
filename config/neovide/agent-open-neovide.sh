@@ -4,7 +4,7 @@ set -euo pipefail
 neovide_bin="${NEOVIDE_BIN:-/Applications/Neovide.app/Contents/MacOS/neovide}"
 # Homebrew's nvim is intentionally not installed; Finder-launched GUI apps
 # also don't inherit the shell PATH, so pin the nix-profile nvim explicitly.
-neovim_bin="${NEOVIM_NVIM_BIN:-/etc/profiles/per-user/bytedance/bin/nvim}"
+neovim_bin="${NEOVIM_NVIM_BIN:-/etc/profiles/per-user/$(id -un)/bin/nvim}"
 payload_file=""
 
 cleanup() {

@@ -30,8 +30,8 @@ assert_file_exists "config/kitty/theme.conf"
 
 assert_contains ".gitmodules" "path = config/kitty/kitty-themes" \
 	"expected kitty themes to be tracked as a submodule"
-assert_contains ".gitmodules" "url = https://github.com/dexpota/kitty-themes.git" \
-	"expected kitty themes submodule to use the upstream theme repo"
+assert_contains ".gitmodules" "url = https://github.com/kovidgoyal/kitty-themes.git" \
+	"expected kitty themes submodule to use the kovidgoyal upstream theme repo"
 
 assert_contains "modules/darwin.nix" '".config/kitty/kitty.conf"' \
 	"expected Home Manager to manage ~/.config/kitty/kitty.conf"
@@ -39,6 +39,13 @@ assert_contains "modules/darwin.nix" '".config/kitty/tab_bar.py"' \
 	"expected Home Manager to manage ~/.config/kitty/tab_bar.py"
 assert_contains "modules/darwin.nix" '".config/kitty/theme.conf"' \
 	"expected Home Manager to manage ~/.config/kitty/theme.conf"
+# kitty (>= 0.38) follows OS light/dark appearance purely by matching these
+# well-known filenames in the config directory; there is no color_scheme
+# directive, so the files themselves must be shipped.
+assert_contains "modules/darwin.nix" '".config/kitty/dark-theme.auto.conf"' \
+	"expected Home Manager to ship dark-theme.auto.conf for OS dark mode auto switching"
+assert_contains "modules/darwin.nix" '".config/kitty/light-theme.auto.conf"' \
+	"expected Home Manager to ship light-theme.auto.conf for OS light mode auto switching"
 assert_contains "modules/darwin.nix" "../config/kitty/kitty.conf" \
 	"expected Home Manager to source kitty config from this repo"
 assert_contains "config/kitty/kitty.conf" "font_family      Iosevka NF" \
