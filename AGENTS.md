@@ -464,3 +464,39 @@ acceptance。无 root 时可用 `nix eval .#...drvPath` / `nix build` 校验配�
 
 Nix 文件格式保持 `nixfmt-classic` 风格；shell 脚本保持 Bash 语义，测试中大量使用
 stub 命令，请避免引入难以 stub 的外部副作用。
+
+## 8. 可移植性与仓库卫生硬性约定
+
+下列原则是踩坑后固化的规则，改动相关区域时不要回退：
+
+1. **tracked 模板必须机器无关**：不允许出现公司内网主机名/代理（如
+   `*.byted.org`、`galaxy-*`、`/data00/<工号>`）、具体用户名路径
+   （`/Users/<name>`、`/etc/profiles/per-user/<name>`）、个人会话/项目布局。
+   机器本地内容走 gitignore 覆盖层（`local.zsh` 模式）或「HM 只 seed 一次、
+   之后可写」的文件（zed settings 模式）；从 HM 链接撤下用户文件时，
+   activation 要负责把旧软链物化成普通文件（见 saved-session 迁移）。
+2. **路径一律推导**：`$HOME`、`$USER`、`$(id -un)`，禁止写死
+   `/Users/bytedance`；测试 fixture 除外。
+3. **双架构 Mac**：Homebrew 路径同时处理 `/opt/homebrew` 与 `/usr/local`
+   （`[ -d ]` 守卫或双前缀探测，Swift/Python/shell 三处行为要一致）；
+   cask 下载 URL 按 `uname -m` 分流，不得把 arm 产物发给 Intel。
+4. **跨平台模板只用两平台共有的特性**：config.toml 等 macOS/Linux 都下发的
+   文件不得依赖 macOS 专属后端（toast 用 `delivery = "herdr"`，不用仅 macOS
+   的 `system`）。确实需要平台分叉时拆模板或按层导入。
+5. **单一来源，禁止镜像复制**：跨模块共用的 home.file 放进共享模块
+   （`modules/herdr-launchers.nix`）；多个脚本共用的前言/函数进共享库
+   （`config/herdr/herdr-popup-lib.sh`、`install-common.sh`）。新增第五个
+   launcher 只改共享模块，不在 darwin/linux 两边各抄一份。
+6. **需要 sibling 文件的 Nix 脚本引用走目录形式** `bash ${../.}/script.sh`；
+   直接 `${../script.sh}` 会把单文件压成扁平 store 对象，旁边的共享库不在
+   同目录，source 必失败。
+7. **activation 脚本可重复执行、无调试残留**：不加锁地 `pwd`/`env|grep`/
+   `echo hello` 之类禁止留在正式路径；一次性锁文件用 `touch`；信息输出带
+   脚本前缀。脚本只依赖运行时 `$HOME`/`PATH`/环境变量，不假设位于 git 工作树。
+8. **文档与代码同步变更**：pin 版本（herdr 插件、installer tag）、默认值
+   （`HP_PROJECT_ROOTS`、substituter）、插件安装位置（共享脚本 + 两个薄封装）、
+   `config/` 文件清单与 §7 测试清单，随代码一起改；通用文档里不写具体机器名。
+9. **测试不得静默假装通过**：找不到真实依赖时要列出尝试过的路径再 skip；
+   实现搬移到共享库时，静态断言的目标文件一起搬，意图不变。
+10. **删除文件要删干净**：module 链接、测试断言、acceptance 检查、AGENTS/docs
+    引用一并删除（open_iterm2.sh 为鉴）；删除前先全仓 grep 引用。
