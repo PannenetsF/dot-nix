@@ -53,6 +53,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
    - 用户配置：`$HOME/.config/nix/nix.conf`
    - daemon 配置：`/etc/nix/nix.custom.conf`，并在 `/etc/nix/nix.conf` 中 include
    - 如有 daemon 变更会尝试重启 `nix-daemon`
+   - substituter 默认 `https://mirrors.ustc.edu.cn/nix-channels/store
+     https://cache.nixos.org/`（中国镜像在前），对所有平台/profile 生效；
+     海外网络或需要换源时用 `NIX_HM_SUBSTITUTERS` 整体覆盖，
+     `NIX_HM_TRUSTED_PUBLIC_KEYS` 同理。
 5. 对本仓库执行安全 `git pull --rebase`：有未提交、暂存或未跟踪改动时会跳过，
    避免覆盖本地工作。
 6. 如果 pull 后 `init.sh` 自身更新，会 `exec` 重新运行一次新脚本。
