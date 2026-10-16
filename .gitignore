@@ -1,6 +1,11 @@
 .worktrees/
 /local.zsh
 
+# macOS / Python noise
+.DS_Store
+__pycache__/
+*.pyc
+
 # MCP (local gateway state / per-project config)
 /mcp-gateway/
 .mcp.json

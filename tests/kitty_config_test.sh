@@ -26,7 +26,6 @@ assert_file_exists "config/kitty/tab_bar.py"
 assert_file_exists "config/kitty/dark-theme.auto.conf"
 assert_file_exists "config/kitty/light-theme.auto.conf"
 assert_file_exists "config/kitty/no-preference-theme.auto.conf"
-assert_file_exists "config/kitty/saved-session.conf"
 assert_file_exists "config/kitty/theme.conf"
 
 assert_contains ".gitmodules" "path = config/kitty/kitty-themes" \

@@ -54,11 +54,6 @@
       force = true;
     };
 
-    ".config/kitty/saved-session.conf" = {
-      source = ../config/kitty/saved-session.conf;
-      force = true;
-    };
-
     ".config/neovide/config.toml" = {
       source = ../config/neovide/config.toml;
       force = true;
@@ -158,7 +153,18 @@
         rm -rf "$kitty_config"
       fi
       mkdir -p "$kitty_config"
-      unset kitty_config
+
+      # saved-session.conf is now user-local, not repo-managed. Home
+      # Manager removes the old managed symlink during this same
+      # activation, so materialize its target as a regular file first to
+      # preserve the user's live kitty session.
+      kitty_session="$kitty_config/saved-session.conf"
+      if [ -L "$kitty_session" ]; then
+        kitty_session_tmp="$kitty_config/.saved-session.conf.migrating"
+        cp "$kitty_session" "$kitty_session_tmp" 2>/dev/null || true
+        mv "$kitty_session_tmp" "$kitty_session" 2>/dev/null || rm -f "$kitty_session_tmp" 2>/dev/null || true
+      fi
+      unset kitty_config kitty_session kitty_session_tmp
     '';
 
   home.activation.runMyScript = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
