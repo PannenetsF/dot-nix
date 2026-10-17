@@ -28,8 +28,15 @@ case "$1" in
     fi
     ;;
   plugin)
-    # Always report an empty plugin set so install guards see "missing".
-    [ "$2" = list ] && echo '[]'
+    case "$2" in
+      list) echo '[]' ;;
+      config-dir)
+        # Real herdr prints the plugin's config dir and creates it on demand.
+        d="$HOME/.config/herdr/plugins/config/$3"
+        mkdir -p "$d"
+        printf '%s\n' "$d"
+        ;;
+    esac
     ;;
 esac
 exit 0
@@ -57,6 +64,7 @@ run_case() {
 # --- Case 1: fresh machine, server 0.9.4 -> template + every pinned plugin --
 stub1="$tmp/stub1"; make_stub "$stub1"; home1="$tmp/home1"
 STUB_MODE=ok STUB_VERSION=0.9.4 \
+  HERDR_PUSH_RELAY_URL=http://127.0.0.1:8375 \
   run_case "$home1" env PATH="$stub1/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 
@@ -79,6 +87,23 @@ proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.1" | head
 # state-start is invoked so the glyph daemon comes up without a server restart.
 echo "$log1" | grep -q "action invoke state-start" || fail "radar state-start missing"
 
+# web-ui: pinned install + immediate bridge start (startup hooks only fire on
+# server start).
+echo "$log1" | grep -q "plugin install -y --ref v0.4.11 devswha/herdr-web-ui" \
+  || fail "web-ui not installed at the pinned ref"
+echo "$log1" | grep -q "action invoke start --plugin devswha.herdr-web-ui" \
+  || fail "web-ui start action missing"
+
+# herdr-push: pinned install, .env seeded once with the relay URL, mode 0600.
+echo "$log1" | grep -q "plugin install -y --ref f4fdb06d5413ac2d96ca225ea33f288f41bfc001 dcolinmorgan/herdr-push" \
+  || fail "herdr-push not installed at the pinned ref"
+push_env1="$home1/.config/herdr/plugins/config/herdr.push/.env"
+[ -f "$push_env1" ] || fail "herdr-push .env not seeded"
+grep -Fxq "HERDR_RELAY=http://127.0.0.1:8375" "$push_env1" \
+  || fail "herdr-push .env has wrong contents: $(cat "$push_env1")"
+perm1="$(stat -c '%a' "$push_env1" 2>/dev/null || stat -f '%Lp' "$push_env1")"
+[ "$perm1" = "600" ] || fail "herdr-push .env must be mode 0600, got $perm1"
+
 # --- Case 2: no herdr binary -> template lands, plugins skipped, exit 0 -----
 home2="$tmp/home2"; mkdir -p "$home2"
 run_case "$home2" env PATH="/usr/bin:/bin" \
@@ -88,15 +113,20 @@ run_case "$home2" env PATH="/usr/bin:/bin" \
 
 # --- Case 3: server down (bad status payload) -> plugins skipped ------------
 stub3="$tmp/stub3"; make_stub "$stub3"; home3="$tmp/home3"
-STUB_MODE=down run_case "$home3" env PATH="$stub3/bin:/usr/bin:/bin" \
+STUB_MODE=down HERDR_PUSH_RELAY_URL=http://127.0.0.1:8375 \
+  run_case "$home3" env PATH="$stub3/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log3="$(cat "$home3/calls.log")"
 # zoetrope installs before the status gate (unchanged from the original
-# activation); the gated radar/projects set must not install while the
-# server version is unobtainable.
+# activation); the gated radar/projects/web-ui/push set must not install while
+# the server version is unobtainable.
 echo "$log3" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope installs before the version gate"
 echo "$log3" | grep -q "PannenetsF/herdr-radar" && fail "radar needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.1 server" || true
+echo "$log3" | grep -q "devswha/herdr-web-ui" && fail "web-ui needs a reachable >=0.9.0 server" || true
+echo "$log3" | grep -q "dcolinmorgan/herdr-push" && fail "push must wait for a reachable server" || true
+[ ! -e "$home3/.config/herdr/plugins/config/herdr.push/.env" ] \
+  || fail "push .env must not be seeded when the plugin did not install"
 echo "$log3" | grep -q "server reload-config" || fail "reload-config should still run"
 
 # --- Case 4: server 0.9.0 -> radar allowed, projects gated out ---------------
@@ -107,6 +137,11 @@ STUB_MODE=ok STUB_VERSION=0.9.0 \
 log4="$(cat "$home4/calls.log")"
 echo "$log4" | grep -q "PannenetsF/herdr-radar" || fail "radar allowed on 0.9.0"
 echo "$log4" | grep -q "PannenetsF/herdr-projects" && fail "projects needs >= 0.9.1" || true
+echo "$log4" | grep -q "devswha/herdr-web-ui" || fail "web-ui allowed on 0.9.0 (min_herdr_version)"
+# No HERDR_PUSH_RELAY_URL in this run (Linux wrapper style): push never installs.
+echo "$log4" | grep -q "dcolinmorgan/herdr-push" && fail "push must be skipped without a relay URL" || true
+[ ! -e "$home4/.config/herdr/plugins/config/herdr.push/.env" ] \
+  || fail "no push .env may be seeded without a relay URL"
 
 # --- Case 5: existing live file is backed up before overwrite ----------------
 stub5="$tmp/stub5"; make_stub "$stub5"; home5="$tmp/home5"
@@ -126,5 +161,26 @@ echo 'user-edited = true' >"$home5/.config/herdr/config.toml"
 )
 ls "$home5/.config/herdr"/config.toml.bak-* >/dev/null 2>&1 \
   || fail "pre-existing config.toml should be backed up"
+
+# --- Case 6: an existing herdr-push .env is never overwritten ---------------
+stub6="$tmp/stub6"; make_stub "$stub6"; home6="$tmp/home6"
+push_env6="$home6/.config/herdr/plugins/config/herdr.push"
+mkdir -p "$push_env6"
+echo 'HERDR_RELAY=https://tunnel.example.invalid' >"$push_env6/.env"
+(
+  export HOME="$home6"
+  export STUB_LOG="$home6/calls.log"
+  export HERDR_TEMPLATE="$template"
+  export HERDR_CONFIG_DIR="$home6/.config/herdr"
+  export HERDR_PROJECTS_BIN="$home6/nonexistent-herdr-projects"
+  export HERDR_ROADBOARD_SRC="$home6/no-roadboard"
+  export HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375"
+  export STUB_MODE=ok STUB_VERSION=0.9.4
+  env PATH="$stub6/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
+)
+grep -Fxq "HERDR_RELAY=https://tunnel.example.invalid" "$push_env6/.env" \
+  || fail "user-edited herdr-push .env must be preserved, got: $(cat "$push_env6/.env")"
+grep -Fq "127.0.0.1" "$push_env6/.env" \
+  && fail "activation must not append the default relay URL to a seeded .env" || true
 
 echo "all herdr plugin activation cases passed"

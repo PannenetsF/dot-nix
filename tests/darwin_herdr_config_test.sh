@@ -25,6 +25,7 @@ assert_not_contains() {
 
 assert_file_exists "config/herdr/config.toml"
 assert_file_exists "nix-darwin/herdr.nix"
+assert_file_exists "nix-darwin/herdr-remote.nix"
 assert_file_exists "modules/herdr.nix"
 assert_file_exists "install-herdr-plugins.sh"
 
@@ -33,9 +34,16 @@ assert_file_exists "install-herdr-plugins.sh"
 body="install-herdr-plugins.sh"
 
 assert_contains "nix-darwin/configuration.nix" "./herdr.nix"
+assert_contains "nix-darwin/configuration.nix" "./herdr-remote.nix"
 assert_contains "nix-darwin/herdr.nix" "postActivation.text"
 assert_contains "nix-darwin/herdr.nix" "../install-herdr-plugins.sh"
 assert_contains "nix-darwin/herdr.nix" "HERDR_TEMPLATE="
+# The macOS layer runs the loopback relay, so only it hands the push plugin
+# its relay URL; the Linux wrapper passes nothing and the shared body skips
+# the whole push block without it.
+assert_contains "nix-darwin/herdr.nix" "HERDR_PUSH_RELAY_URL="
+assert_contains "nix-darwin/herdr.nix" "http://127.0.0.1:8375"
+assert_not_contains "modules/herdr.nix" "HERDR_PUSH_RELAY_URL"
 assert_contains "$body" '$HOME/.config/herdr'
 assert_contains "nix-darwin/herdr.nix" "../config/herdr/config.toml"
 assert_contains "modules/herdr.nix" "../config/herdr/config.toml"
@@ -96,6 +104,44 @@ assert_contains "config/kitty/kitty.conf" "# >>> herdr-radar font block"
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1A0-U+E1BA Herdr Agent Icons Max"
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1C0-U+E1C5 Herdr Agent Icons Max"
 assert_contains "config/kitty/kitty.conf" "# <<< herdr-radar font block"
+
+# herdr-web-ui plugin: pinned install + immediate start action (its startup
+# hook only runs when herdr itself starts).
+assert_contains "$body" "devswha/herdr-web-ui"
+assert_contains "$body" "v0.4.11"
+assert_contains "$body" "action invoke start"
+assert_contains "$body" "--plugin devswha.herdr-web-ui"
+
+# Bun (>= 1.4) is the web-ui build/startup runtime and must be in the host set.
+assert_contains "modules/host.nix" "bun"
+
+# herdr-push plugin: pinned HEAD, opt-in by env, relay URL seeded once into
+# the plugin's own .env and never overwritten (local tunnel edits survive).
+assert_contains "$body" "dcolinmorgan/herdr-push"
+assert_contains "$body" "f4fdb06d5413ac2d96ca225ea33f288f41bfc001"
+assert_contains "$body" "HERDR_PUSH_RELAY_URL"
+assert_contains "$body" "plugin config-dir herdr.push"
+assert_contains "$body" "chmod 0600"
+
+# herdr-remote relay: pinned fetchFromGitHub source run via uv as a launchd
+# user agent, loopback by default, machine-local config.env sourced if present.
+assert_contains "nix-darwin/herdr-remote.nix" "fetchFromGitHub"
+assert_contains "nix-darwin/herdr-remote.nix" 'owner = "dcolinmorgan"'
+assert_contains "nix-darwin/herdr-remote.nix" '"v0.8.1"'
+assert_contains "nix-darwin/herdr-remote.nix" "uv run"
+assert_contains "nix-darwin/herdr-remote.nix" "127.0.0.1"
+assert_contains "nix-darwin/herdr-remote.nix" "launchd.user.agents.herdrRemote"
+assert_contains "nix-darwin/herdr-remote.nix" "org.nix-community.home.herdr-remote"
+assert_contains "nix-darwin/herdr-remote.nix" "kickstart"
+assert_contains "nix-darwin/herdr-remote.nix" ".config/herdr-remote/config.env"
+assert_contains "nix-darwin/herdr-remote.nix" "Library/Logs/herdr-remote"
+
+# Herdi.app rides the local tap as a tracked cask (upstream has no brew cask).
+assert_file_exists "config/homebrew/Casks/herdi.rb"
+assert_contains "config/homebrew/Casks/herdi.rb" 'cask "herdi"'
+assert_contains "config/homebrew/Casks/herdi.rb" "dcolinmorgan/herdr-remote"
+assert_contains "nix-darwin/homebrew.nix" "../config/homebrew/Casks/herdi.rb"
+assert_contains "nix-darwin/homebrew.nix" '"dot-nix/local/herdi"'
 
 # roadboard plugin: local-checkout link in postActivation (never hard-fails),
 # and prefix+shift+r opens its registered popup pane via a plugin_action.

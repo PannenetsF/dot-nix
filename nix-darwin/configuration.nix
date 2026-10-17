@@ -3,6 +3,7 @@
     ./app-defaults.nix
     ./gui-apps.nix
     ./herdr.nix
+    ./herdr-remote.nix
     ./homebrew.nix
     ./macos-defaults.nix
   ];

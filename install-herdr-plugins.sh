@@ -16,6 +16,10 @@
 #   HERDR_CONFIG_DIR     Default: $HOME/.config/herdr.
 #   HERDR_PROJECTS_BIN   Default: $HOME/.local/bin/herdr-projects.
 #   HERDR_ROADBOARD_SRC  Default: $HOME/Documents/workspace/roadboard.
+#   HERDR_PUSH_RELAY_URL When set (http(s) URL of a herdr-remote relay), the
+#                        dcolinmorgan/herdr-push plugin is pinned-installed and
+#                        its .env seeded once with HERDR_RELAY=<url>. Unset on
+#                        Linux: the relay is a macOS-only launchd service.
 #
 # Always runs as the target user (the nix-darwin caller crosses privileges into
 # the user's GUI session once before invoking it), so created files are
@@ -168,6 +172,43 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
     fi
   else
     echo >&2 "herdr server is older than 0.9.1; restart herdr to install herdr-projects"
+  fi
+
+  # herdr-web-ui: browser/PWA client over the herdr socket API (workspaces,
+  # tabs, panes, chat and live terminal at http://127.0.0.1:7317). Bun plugin
+  # whose build hook needs bun >= 1.4 and node >= 18 on PATH (both in the host
+  # package set); it defaults to loopback only. Its startup hook brings the
+  # bridge up when the herdr server starts — invoke its start action here as
+  # well so a freshly installed plugin works without a herdr restart (same
+  # rationale as radar's state-start).
+  if ! "$herdr_cli" plugin list 2>/dev/null \
+      | grep -q "devswha.herdr-web-ui.*@v0.4.11"; then
+    "$herdr_cli" plugin install -y --ref v0.4.11 \
+      devswha/herdr-web-ui || true
+  fi
+  "$herdr_cli" plugin action invoke start \
+    --plugin devswha.herdr-web-ui >/dev/null 2>&1 || true
+
+  # herdr-push: emits pane.agent_status_changed events to a herdr-remote relay
+  # for the Herdi menu-bar app / phone / Telegram clients. Pure shell+curl;
+  # only installed when the platform layer supplies a relay URL (the macOS
+  # wrapper passes the loopback relay; the Linux wrapper passes nothing).
+  push_relay_url="${HERDR_PUSH_RELAY_URL:-}"
+  if [ -n "$push_relay_url" ]; then
+    if ! "$herdr_cli" plugin list 2>/dev/null \
+        | grep -q "herdr.push.*dcolinmorgan/herdr-push@f4fdb06"; then
+      "$herdr_cli" plugin install -y \
+        --ref f4fdb06d5413ac2d96ca225ea33f288f41bfc001 \
+        dcolinmorgan/herdr-push || true
+    fi
+    # Seed the relay URL once into the plugin's own .env (on_event.sh reads
+    # HERDR_PLUGIN_CONFIG_DIR/.env). Never overwrite: switching to a tunnel URL
+    # later is a local, user-owned edit, like config.toml/local.zsh.
+    push_cfg_dir="$("$herdr_cli" plugin config-dir herdr.push 2>/dev/null || true)"
+    if [ -n "$push_cfg_dir" ] && [ -d "$push_cfg_dir" ] && [ ! -e "$push_cfg_dir/.env" ]; then
+      printf 'HERDR_RELAY=%s\n' "$push_relay_url" >"$push_cfg_dir/.env"
+      chmod 0600 "$push_cfg_dir/.env"
+    fi
   fi
 else
   rc=$?

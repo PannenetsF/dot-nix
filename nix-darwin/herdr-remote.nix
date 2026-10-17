@@ -37,7 +37,7 @@ let
     # first start (network needed once). The nixpkgs interpreter is passed
     # explicitly so uv does not download a CPython toolchain; Homebrew's bin
     # supplies the `herdr` CLI the relay polls for live pane state.
-    export PATH="${pkgs.uv}/bin:${pkgs.python3}/bin:${config.homebrew.brewPrefix}/bin:/usr/bin:/bin"
+    export PATH="${pkgs.uv}/bin:${pkgs.python3}/bin:${config.homebrew.brewPrefix}:/usr/bin:/bin"
     exec uv run --python "${pkgs.python3}/bin/python3" \
       --script "${relaySrc}/herdr_relay.py"
   '';

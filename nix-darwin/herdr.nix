@@ -14,7 +14,7 @@ let
     "/etc/profiles/per-user/${username}/bin"
     "${homeDir}/.nix-profile/bin"
     "/run/current-system/sw/bin"
-    "${config.homebrew.brewPrefix}/bin"
+    "${config.homebrew.brewPrefix}"
     "/usr/local/bin"
     "/usr/bin"
     "/bin"
@@ -33,6 +33,7 @@ in {
       env PATH="${pluginPath}" \
       HERDR_TEMPLATE="${herdrConfig}" \
       HERDR_CLI="${herdrCli}" \
+      HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375" \
       bash "${herdrPluginScript}"
   '';
 }

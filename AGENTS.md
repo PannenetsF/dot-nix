@@ -312,6 +312,37 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   projects configure 在后，且共用 0.9.0 版本门。radar 深浅色切换重写
   侧边栏会临时丢掉 projects 的 `$hp_sub` 行，下次激活恢复。
 
+- herdr-web-ui（pinned `v0.4.11`，devswha/herdr-web-ui）是 Bun 插件：浏览器/PWA
+  客户端，经 herdr socket API 呈现 workspace/tab/pane、聊天和实时终端，默认只监听
+  `127.0.0.1:7317`（loopback；手机访问需用户自己加 Tailscale 并跑插件的
+  `tailscale serve`，仓库不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`
+  （需 ≥1.4，node 22 已由 radar 引入）；激活安装后显式 invoke 一次
+  `start` action，不必重启 herdr 即拉起 bridge。
+- herdr-push（pinned HEAD `f4fdb06`，dcolinmorgan/herdr-push）是纯 shell+curl
+  事件插件，把 `pane.agent_status_changed` POST 给 herdr-remote relay。它由共享脚本
+  内的 `HERDR_PUSH_RELAY_URL` 门控：仅 nix-darwin 封装传
+  `http://127.0.0.1:8375`（relay 是 macOS launchd 服务），Linux 封装不传即整块
+  跳过。relay URL seed 一次到插件 config 目录的 `.env`（0600），已有文件绝不覆盖
+  （换隧道 URL 是用户本地编辑）。
+
+`nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 三件套）
+
+- **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
+  dcolinmorgan/herdr-remote `v0.8.1`，以 `uv run --script`（PEP 723 内联依赖，
+  nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
+  注册为 `launchd.user.agents.herdrRemote`（label
+  `org.nix-community.home.herdr-remote`，日志 `~/Library/Logs/herdr-remote`，
+  postActivation kickstart）。默认 `127.0.0.1:8375` loopback；机器本地覆盖放
+  `~/.config/herdr-remote/config.env`（不进 git，activation 只 `install -d`
+  保目录）：`HERDR_RELAY_HOST` 绑非环回时上游强制要求 `HERDR_RELAY_TOKEN`。
+  wrapper 的 PATH 用 `config.homebrew.brewPrefix`（该值已含 `/bin`，不要再拼
+  `/bin`），让 relay 能轮询本机 brew 版 `herdr`。
+- **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
+  `config/homebrew/Casks/herdi.rb` 走本地 tap（同 aerospace-patched 模式，
+  preActivation `install` 进 local tap，cask 清单写 `dot-nix/local/herdi`）。
+  该 app ad-hoc 签名且**未公证**（`spctl --assess` rejected），首次启动需右键打开；
+  不进 `brew/unquarantine-casks.sh`（.app 受 TCC App Management 保护，约定见下）。
+
 `nix-darwin/macos-defaults.nix`
 
 - macOS 系统 defaults：键盘（含 `com.apple.keyboard.fnState` 标准功能键，另有
@@ -386,7 +417,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   加进 `brew/unquarantine-casks.sh` 的 `CASKS` 白名单。
 - 新增 macOS 系统 defaults：改 `nix-darwin/macos-defaults.nix`。
 - 新增 macOS app defaults 或默认打开方式：改 `nix-darwin/app-defaults.nix`。
-- 新增 macOS launchd/system 管理的 GUI 工具：改 `nix-darwin/gui-apps.nix`。
+- 新增 macOS launchd/system 管理的 GUI 工具：改 `nix-darwin/gui-apps.nix`；
+  非 GUI 的后台服务（如 herdr-remote relay）建独立 `nix-darwin/<name>.nix`
+  并在 `configuration.nix` imports 登记。
+- 新增 pinned herdr 插件：改平台无关的 `install-herdr-plugins.sh`（pin ref +
+  guard + 版本门），平台差异通过环境变量从 `nix-darwin/herdr.nix` /
+  `modules/herdr.nix` 两个薄封装传入，脚本里禁止写平台名/URL 常量；新增插件
+  的解释器依赖（bun/node/uv）加进 `modules/host.nix` 或对应 nix-darwin 模块。
+- 新增只发 GitHub release、无 brew cask 的 macOS app：在
+  `config/homebrew/Casks/` 加 tracked cask 并由 homebrew.nix preActivation
+  `install` 进本地 tap（herdi.rb / aerospace-patched.rb 模式）。
 - 新增用户 dotfile 链接或 Home Manager service：改 `modules/darwin.nix` 或
   对应平台模块。
 - 修改启动、Nix 安装、cache、git pull、激活选择逻辑：改 `init.sh`。
@@ -429,7 +469,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - herdr 跨平台插件激活（共享脚本 stub 行为）：
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
-  平台无关性：脚本里不得出现 launchctl/chown/homebrew）
+  平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
+  web-ui v0.4.11、herdr-push pin + .env seed-once、relay launchd 模块和
+  Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件和
+  cask 验收在 `macos_acceptance.sh`（静态断言在
+  `macos_acceptance_script_test.sh`）。
 - herdr 项目选择器 e2e（真实 herdr-projects 二进制 + stub fzf，全程跑在
   mktemp 里）：`bash tests/herdr_pickers_e2e_test.sh`
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`

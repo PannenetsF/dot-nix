@@ -4,6 +4,7 @@ set -euo pipefail
 failures=0
 aerospace_patched_version="0.21.3-Beta-pf.1"
 aerospace_release_commit="3121c4ba5862a49d834a2df301739ac95c08cc4a"
+herdi_version="0.8.1"
 
 if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
   # shellcheck disable=SC1091
@@ -61,6 +62,17 @@ check_path() {
     pass "path exists: $path"
   else
     fail "missing path: $path"
+  fi
+}
+
+check_http_200() {
+  local url="$1"
+  local code
+  code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 3 "$url" 2>/dev/null || true)"
+  if [[ "$code" == "200" ]]; then
+    pass "HTTP 200: $url"
+  else
+    fail "service not answering 200: $url (got '${code:-nothing}')"
   fi
 }
 
@@ -138,6 +150,7 @@ for app in \
   "1Password" \
   "AeroSpace" \
   "Firefox" \
+  "Herdi" \
   "Karabiner-Elements" \
   "kitty" \
   "Maccy" \
@@ -206,6 +219,28 @@ check_default com.apple.dock autohide 1
 check_default com.apple.finder ShowPathbar 1
 check_default com.raycast.macos raycastPreferredWindowMode compact
 check_plist_value "${HOME}/Library/Preferences/org.p0deje.Maccy.plist" historySize 200
+
+# herdr-remote relay (launchd agent) and herdr-web-ui bridge: both local
+# loopback HTTP services, independent of herdr app UI state.
+check_launch_agent org.nix-community.home.herdr-remote
+check_http_200 "http://127.0.0.1:8375/"
+check_http_200 "http://127.0.0.1:7317/"
+
+herdr_plugins="$(herdr plugin list 2>/dev/null || true)"
+for plugin in devswha.herdr-web-ui herdr.push; do
+  if grep -Fq "$plugin" <<<"$herdr_plugins"; then
+    pass "herdr plugin installed: $plugin"
+  else
+    fail "herdr plugin missing: $plugin"
+  fi
+done
+
+installed_herdi_cask="$(brew list --cask --versions herdi 2>/dev/null || true)"
+if [[ "$installed_herdi_cask" == "herdi ${herdi_version}" ]]; then
+  pass "Herdi cask version: ${herdi_version}"
+else
+  fail "Herdi cask: expected '${herdi_version}', got '${installed_herdi_cask}'"
+fi
 
 if [[ "$failures" -gt 0 ]]; then
   echo "${failures} acceptance check(s) failed" >&2
