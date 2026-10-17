@@ -186,8 +186,7 @@ fi
 if grep -Riq "emacs" \
 	"${repo_root}/config/aerospace" \
 	"${repo_root}/config/skhd" \
-	"${repo_root}/config/karabiner" \
-	"${repo_root}/modules"; then
-	echo "did not expect Emacs references in managed macOS configs" >&2
+	"${repo_root}/config/karabiner"; then
+	echo "did not expect Emacs references in managed macOS app configs" >&2
 	exit 1
 fi

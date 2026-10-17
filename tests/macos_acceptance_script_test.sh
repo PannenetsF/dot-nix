@@ -14,6 +14,16 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local pattern="$1"
+  local message="$2"
+
+  if grep -Fq "$pattern" "$script"; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
 assert_contains "Karabiner-Elements" "expected Karabiner-Elements app check"
 assert_contains "Raycast" "expected Raycast app check"
 assert_contains "Maccy" "expected Maccy app check"
@@ -43,6 +53,16 @@ assert_contains ".config/kitty/kitty.conf" "expected kitty config check"
 assert_contains ".config/kitty/theme.conf" "expected kitty theme check"
 assert_contains "org.nix-community.home.aerospace" "expected AeroSpace LaunchAgent check"
 assert_contains "org.nix-community.home.skhd" "expected skhd LaunchAgent check"
+
+# herdr-remote relay + web-ui: launchd agent, loopback HTTP services, pinned
+# plugins and the Herdi cask must all be acceptance-checked.
+assert_contains '"Herdi"' "expected Herdi app check"
+assert_contains "org.nix-community.home.herdr-remote" "expected herdr-remote relay LaunchAgent check"
+assert_contains 'http://127.0.0.1:8375/' "expected herdr-remote relay HTTP check"
+assert_contains 'http://127.0.0.1:7317/' "expected herdr-web-ui HTTP check"
+assert_contains "devswha.herdr-web-ui" "expected herdr-web-ui plugin check"
+assert_contains "herdr.push" "expected herdr-push plugin check"
+assert_contains 'brew list --cask --versions herdi' "expected Herdi cask version check"
 assert_contains "ApplePressAndHoldEnabled" "expected keyboard default check"
 assert_contains "com.apple.dock" "expected Dock default check"
 assert_contains "com.raycast.macos" "expected Raycast defaults check"
@@ -52,4 +72,4 @@ if grep -Fq "check_default org.p0deje.Maccy" "$script"; then
   echo "expected Maccy acceptance check to avoid defaults(1), which can hang on this host" >&2
   exit 1
 fi
-assert_contains "emacs" "expected Emacs absence check"
+assert_not_contains "emacs.*plus\|Emacs.*plus" "expected no emacs-plus brew formula reference in acceptance script"

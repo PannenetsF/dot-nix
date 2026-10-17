@@ -4,6 +4,7 @@ let
   localTapPath = "${homeDir}/.cache/dot-nix/homebrew-local-tap";
   aerospacePatchedCask = ../config/homebrew/Casks/aerospace-patched.rb;
   aerospacePatchedVersion = "0.21.3-Beta-pf.1";
+  herdiCask = ../config/homebrew/Casks/herdi.rb;
 in {
   system.activationScripts.preActivation.text = lib.mkAfter ''
         if [ -x "${brewBin}" ]; then
@@ -11,6 +12,8 @@ in {
           install -d -o ${username} -g staff "${localTapPath}/Casks"
           install -m 0644 "${aerospacePatchedCask}" \
             "${localTapPath}/Casks/aerospace-patched.rb"
+          install -m 0644 "${herdiCask}" \
+            "${localTapPath}/Casks/herdi.rb"
 
           cat > "${localTapPath}/Casks/whatpulse-chmodbpf.rb" <<'RUBY'
     cask "whatpulse-chmodbpf" do
@@ -208,6 +211,9 @@ in {
       "firefox"
       "font-ubuntu-mono-nerd-font"
       "font-sf-pro"
+      # herdr-remote menu-bar client; ad-hoc signed and unnotarized, so the
+      # first launch needs a right-click -> Open (see config/homebrew/Casks/herdi.rb).
+      "dot-nix/local/herdi"
       "input-source-pro"
       "karabiner-elements"
       "keycastr"
@@ -246,6 +252,10 @@ in {
 
     brews = [
       "daipeihust/tap/im-select"
+      # Emacs for Doom — emacs-plus on macOS gives native Cocoa GUI
+      # with compile-time options (modern icon, imagemagick, mailutils)
+      # that nixpkgs emacs-pgtk (GTK3/X11 on macOS) cannot match.
+      "emacs-plus"
       # JankyBorders draws the focused-window outline AeroSpace deliberately
       # does not: macOS has no public API for it, so the border has to come
       # from a separate always-on daemon.
@@ -276,6 +286,16 @@ in {
       launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
         env BREW_BIN="${brewBin}" PATH="${config.homebrew.brewPrefix}:/usr/bin:/bin" \
         bash "${../brew/unquarantine-casks.sh}" || true
+      # Bootstrap Doom Emacs after brew bundle (emacs-plus must be
+      # installed first). Runs as the user so ~/.config/doom and
+      # ~/.config/emacs are owned correctly.
+      if launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+        env PATH="${config.homebrew.brewPrefix}:/usr/bin:/bin" \
+        emacs --batch --version >/dev/null 2>&1; then
+        launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+          env PATH="${config.homebrew.brewPrefix}:/usr/bin:/bin" \
+          bash "${../.}/install-doom.sh" || true
+      fi
     fi
   '';
 }

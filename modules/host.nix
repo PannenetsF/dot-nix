@@ -12,6 +12,10 @@ in {
     aerc
     automake
     bash-language-server
+    # Bun runtime for the herdr-web-ui plugin's build/startup hooks (needs
+    # >= 1.4; its scripts also probe ~/.bun and Homebrew, but the Nix profile
+    # keeps activation self-contained on both macOS and Linux hosts).
+    bun
     cmake
     docker
     dockerfile-language-server-nodejs
@@ -22,6 +26,7 @@ in {
     helix
     htop
     hugo
+    imagemagick
     ispell
     jq
     ltex-ls
@@ -45,5 +50,7 @@ in {
   ]) ++ (with pkgsUnstable; [ gh go tokei tree-sitter ty ])
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin
     ((with pkgs; [ colima rar sketchybar terminal-notifier yabai ])
-      ++ (with pkgsUnstable; [ macism ]));
+      ++ (with pkgsUnstable; [ macism ]))
+    ++ lib.optionals (!pkgs.stdenv.hostPlatform.isDarwin)
+    ((with pkgs; [ imagemagick emacs-pgtk ]));
 }

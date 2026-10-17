@@ -93,7 +93,7 @@ for cask in \
   assert_contains "$homebrew_module" "\"$cask\"" "expected $cask to be installed as a Homebrew cask"
 done
 
-for unwanted in brave inkscape soduto updf demumble emacs; do
+for unwanted in brave inkscape soduto updf demumble; do
   assert_not_contains "$homebrew_module" "$unwanted" "did not expect $unwanted in nix-darwin Homebrew config"
   assert_not_contains "$gui_module" "$unwanted" "did not expect $unwanted in Nix GUI packages"
 done
