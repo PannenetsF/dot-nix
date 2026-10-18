@@ -82,9 +82,8 @@
         "NSStatusItem VisibleCC Item-0" = false;
       };
 
-      "com.apple.spaces" = {
-        spans-displays = true;
-      };
+      # The separate-Spaces preference (com.apple.spaces) is owned solely by
+      # window-manager.nix, where OmniWM requires separate Spaces.
 
       # Do not attach a com.apple.quarantine xattr to downloaded files. Without
       # this, once an app like Skim is a file's default handler, opening a

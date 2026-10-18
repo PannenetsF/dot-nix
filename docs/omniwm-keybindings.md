@@ -2,9 +2,10 @@
 
 配置源：OmniWM **v0.7.6** 上游默认键位（本机 `/Applications/OmniWM.app` 即 0.7.6；
 源码 `Sources/OmniWM/Core/Input/ActionCatalog*`，官方文档
-`website/src/content/docs/guides/keyboard-shortcuts.md`）。试用分支不做 AeroSpace
-键位迁移、也不预置 settings.toml；首次启动由 OmniWM 自己生成完整可写配置
-`~/.config/omniwm/settings.toml`。改键优先用 **Settings → Hotkeys** 录制界面。
+`website/src/content/docs/guides/keyboard-shortcuts.md`）。仓库不做 AeroSpace
+键位整体迁移（只固化后述 niri 风格子集）、也不预置 settings.toml；首次启动由
+OmniWM 自己生成完整可写配置 `~/.config/omniwm/settings.toml`。改键优先用
+**Settings → Hotkeys** 录制界面。
 
 记号：`⌥` = Option（Alt）、`⌃` = Control、`⇧` = Shift、`⌘` = Command、
 `↵` = Return、`` ` `` = 反引号（Tab 上方）。默认布局是 **Niri**：屏幕上横向
@@ -12,15 +13,15 @@
 **Shared** = Niri/Dwindle 通用；**Niri** / **Dwindle** = 仅对应布局，工作区可
 用 `⌥⇧L` 整体切换。
 
-> 下表是上游 v0.7.6 **默认**键位；试用分支激活后实际生效的 hjkl / 逗号句号卷轴
-> 固化键位见后面的「本分支固化的键位」一节。
+> 下表是上游 v0.7.6 **默认**键位；激活后实际生效的 hjkl / 逗号句号卷轴
+> 固化键位见后面的「固化的键位」一节。
 
 ## 先记这几条：和 AeroSpace 肌肉记忆冲突最大
 
-| 事项 | AeroSpace 旧键 | OmniWM v0.7.6 默认（本分支固化后） |
+| 事项 | AeroSpace 旧键 | OmniWM v0.7.6 默认（固化后） |
 | --- | --- | --- |
-| 移动焦点 | 裸 `⌥h/j/k/l` | 上游默认 `⌥←↓↑→`；**本分支固化为 `⌥h/j/k/l`**（方向键被替换） |
-| 移动窗口 | `⌥⇧h/j/k/l` | 上游默认 `⌥⇧←↓↑→`；**本分支固化为 `⌥⇧h/j/k/l`** |
+| 移动焦点 | 裸 `⌥h/j/k/l` | 上游默认 `⌥←↓↑→`；**固化为 `⌥h/j/k/l`**（方向键被替换） |
+| 移动窗口 | `⌥⇧h/j/k/l` | 上游默认 `⌥⇧←↓↑→`；**固化为 `⌥⇧h/j/k/l`** |
 | 工作区来回 | `⌥Tab` | `⌃⌥Tab`；`⌥Tab` 在 OmniWM 是「上一个聚焦窗口」 |
 | 工作区甩到另一块屏 | `⌥⇧Tab` | 默认无绑定；切显示器焦点用 `⌃⌘Tab` / `` ⌃⌘` `` |
 | 调整大小 | `⌥⇧-` / `⌥⇧=` | `⌥-`/`⌥=` 调列宽；`⌥⇧-`/`⌥⇧=` 调窗口高度 |
@@ -46,7 +47,7 @@
 单窗口时全屏看不出变化，先并两列再试。横向 Niri 方向下，`⌥⇧←→` 负责跨列
 吸入/抽出，`⌥⇧↑↓` 在列内重排；纵向（vertical）方向下两者角色对调。
 
-## 本分支固化的键位（激活自动 seed）
+## 固化的键位（激活自动 seed）
 
 仓库的 `config/omniwm/apply-hotkey-overrides.sh` 在 nix-darwin postActivation
 以用户身份运行，把下面这套**机器无关**的键位改写进 OmniWM 自有的
@@ -57,7 +58,7 @@ settings.toml（只动固定 action id 的 `binding` 和 `systemHyperTrigger`，
 可能还没生成 settings.toml（首次启动是手动步骤），脚本会跳过；首次启动后重跑
 一次 `bash config/omniwm/apply-hotkey-overrides.sh` 或再激活一次即可。
 
-| 操作 | 上游默认 | 本分支固化 |
+| 操作 | 上游默认 | 固化键位 |
 | --- | --- | --- |
 | 焦点左下上右 | `⌥←↓↑→` | `⌥H/J/K/L`（方向键替换，不并存） |
 | 窗口吸入/抽出/重排 | `⌥⇧←↓↑→` | `⌥⇧H/J/K/L` |
@@ -84,7 +85,7 @@ settings.toml（只动固定 action id 的 `binding` 和 `systemHyperTrigger`，
 | 按顺序聚焦下一块显示器 | `⌃⌘Tab` | Shared |
 | 聚焦上一块活跃显示器 | `` ⌃⌘` `` | Shared |
 | 在鼠标位置打开 OmniWM 菜单 | `⌃⌥M` | Shared |
-| Quake 下拉终端 | `` ⌥` `` | Shared（试用不用它：kitty 下拉仍走 skhd 的 `⌘'`） |
+| Quake 下拉终端 | `` ⌥` `` | Shared（不用它：kitty 下拉仍走 skhd 的 `⌘'`） |
 
 ## 列与布局调整
 
@@ -146,7 +147,7 @@ Dwindle 组复用 Focus/Move 绑定，不另设键：
 - **herdr（终端内）**：herdr 的 prefix `P` = `⌃B`，另有 `⌃⌥` 直连和弦；
   OmniWM 是全局热键，终端聚焦时也由它先吃掉。默认绑定里唯一实质冲突是
   **`⌃⌥F`**：herdr 的 `C-A-f` 是模糊跳转，OmniWM 里是高级动作
-  「Expand Container to Available Primary Span」——试用时建议在
+  「Expand Container to Available Primary Span」——初期建议在
   Settings → Hotkeys 把 OmniWM 这条解绑或改键。其余 herdr `C-A-字母`
   （c/v/s/x/z/e/hjkl 等）与 OmniWM 默认不重；`C-A-方向` 调 pane 大小也不与
   带 `⇧` 的 OmniWM 容器移动冲突。
@@ -172,3 +173,4 @@ Dwindle 组复用 Focus/Move 绑定，不另设键：
 
 参考：<https://omniwm.app/guides/keyboard-shortcuts/>（v0.7.6）；
 试用与回退流程见 [omniwm-trial.md](omniwm-trial.md)。
+rial.md)。

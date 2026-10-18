@@ -2,8 +2,6 @@
 set -euo pipefail
 
 failures=0
-aerospace_patched_version="0.21.3-Beta-pf.1"
-aerospace_release_commit="3121c4ba5862a49d834a2df301739ac95c08cc4a"
 herdi_version="0.8.1"
 
 if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
@@ -139,22 +137,20 @@ check_launch_agent() {
 
 require_darwin || true
 
-window_manager="${NIX_HM_WM:-$(cat /etc/dot-nix/window-manager 2>/dev/null || echo aerospace)}"
+window_manager="${NIX_HM_WM:-$(cat /etc/dot-nix/window-manager 2>/dev/null || echo unknown)}"
 case "$window_manager" in
-aerospace | omniwm) ;;
-*) fail "unknown window manager: $window_manager" ;;
+omniwm) ;;
+*) fail "expected /etc/dot-nix/window-manager to be omniwm, got: $window_manager" ;;
 esac
 
 check_command nix
 check_command brew
 check_command duti
-check_command aerospace
 check_command_absent alacritty
 check_command_absent wezterm
 
 for app in \
   "1Password" \
-  "AeroSpace" \
   "Firefox" \
   "Herdi" \
   "Karabiner-Elements" \
@@ -168,10 +164,6 @@ for app in \
   check_app "$app"
 done
 
-if [[ "$window_manager" == aerospace ]]; then
-  check_path "${HOME}/.config/aerospace/aerospace.toml"
-  check_absent "${HOME}/.aerospace.toml"
-fi
 check_path "${HOME}/.config/skhd/skhdrc"
 check_path "${HOME}/.skhdrc"
 check_path "${HOME}/.config/skhd/toggle_kitty_dropdown.sh"
@@ -193,58 +185,29 @@ for removed_cask in wezterm wezterm@nightly; do
   fi
 done
 
-installed_aerospace_cask="$(brew list --cask --versions aerospace-patched 2>/dev/null || true)"
-if [[ "$installed_aerospace_cask" == "aerospace-patched ${aerospace_patched_version}" ]]; then
-  pass "patched AeroSpace cask version: ${aerospace_patched_version}"
+check_app OmniWM
+check_command omniwmctl
+check_default com.apple.spaces spans-displays 0
+for process in AeroSpace borders; do
+  if pgrep -u "$(id -u)" -x "$process" >/dev/null 2>&1; then
+    fail "conflicting process still running: $process"
+  else
+    pass "conflicting process absent: $process"
+  fi
+done
+# First launch, permissions, and monitor setup intentionally remain manual.
+if pgrep -u "$(id -u)" -x OmniWM >/dev/null 2>&1; then
+  pass "OmniWM is running (verify permissions and tiling manually)"
 else
-  fail "patched AeroSpace cask: expected '${aerospace_patched_version}', got '${installed_aerospace_cask}'"
+  fail "OmniWM not running; complete manual onboarding before acceptance"
 fi
-
-check_binary_contains "/Applications/AeroSpace.app/Contents/MacOS/AeroSpace" \
-  "$aerospace_release_commit" "AeroSpace app"
-aerospace_cli="$(command -v aerospace || true)"
-check_binary_contains "$aerospace_cli" \
-  "$aerospace_release_commit" "AeroSpace CLI"
-
-if [[ "$window_manager" == aerospace ]]; then
-  if grep -Riq "emacs" "${HOME}/.config/aerospace" 2>/dev/null; then
-    fail "unexpected Emacs reference in AeroSpace config"
-  else
-    pass "AeroSpace config has no Emacs reference"
-  fi
-
-  if grep -Fq "start-at-login = false" "${HOME}/.config/aerospace/aerospace.toml"; then
-    pass "AeroSpace self-managed login startup disabled"
-  else
-    fail "AeroSpace self-managed login startup is not disabled"
-  fi
-
-  check_launch_agent org.nix-community.home.aerospace
+omniwm_settings="${HOME}/.config/omniwm/settings.toml"
+if [[ -f "$omniwm_settings" ]] \
+    && grep -B1 'id = "focus.left"' "$omniwm_settings" | grep -Fq 'binding = "Option+H"' \
+    && grep -B1 'id = "switchWorkspace.next"' "$omniwm_settings" | grep -Fq 'binding = "Option+Period"'; then
+  pass "OmniWM curated keybindings seeded"
 else
-  check_app OmniWM
-  check_command omniwmctl
-  check_default com.apple.spaces spans-displays 0
-  for process in AeroSpace borders; do
-    if pgrep -u "$(id -u)" -x "$process" >/dev/null 2>&1; then
-      fail "conflicting process still running: $process"
-    else
-      pass "conflicting process absent: $process"
-    fi
-  done
-  # First launch, permissions, and monitor setup intentionally remain manual.
-  if pgrep -u "$(id -u)" -x OmniWM >/dev/null 2>&1; then
-    pass "OmniWM is running (verify permissions and tiling manually)"
-  else
-    fail "OmniWM not running; complete manual onboarding before acceptance"
-  fi
-  omniwm_settings="${HOME}/.config/omniwm/settings.toml"
-  if [[ -f "$omniwm_settings" ]] \
-      && grep -B1 'id = "focus.left"' "$omniwm_settings" | grep -Fq 'binding = "Option+H"' \
-      && grep -B1 'id = "switchWorkspace.next"' "$omniwm_settings" | grep -Fq 'binding = "Option+Period"'; then
-    pass "OmniWM curated keybindings seeded"
-  else
-    fail "OmniWM curated keybindings missing; run config/omniwm/apply-hotkey-overrides.sh"
-  fi
+  fail "OmniWM curated keybindings missing; run config/omniwm/apply-hotkey-overrides.sh"
 fi
 check_launch_agent org.nix-community.home.skhd
 

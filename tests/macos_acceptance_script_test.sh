@@ -28,21 +28,12 @@ assert_contains "Karabiner-Elements" "expected Karabiner-Elements app check"
 assert_contains "Raycast" "expected Raycast app check"
 assert_contains "Maccy" "expected Maccy app check"
 assert_contains "Snipaste" "expected Snipaste app check"
-assert_contains "check_command aerospace" "expected AeroSpace command check"
 assert_contains "check_command_absent alacritty" "expected Alacritty command absence check"
 assert_contains "check_command_absent wezterm" "expected WezTerm command absence check"
-assert_contains '"AeroSpace"' "expected AeroSpace app check"
-assert_contains "brew list --cask --versions aerospace-patched" "expected patched AeroSpace cask version check"
-assert_contains "3121c4ba5862a49d834a2df301739ac95c08cc4a" "expected patched AeroSpace release commit check"
-assert_contains "check_binary_contains \"/Applications/AeroSpace.app/Contents/MacOS/AeroSpace\"" "expected AeroSpace app provenance check"
-assert_contains 'aerospace_cli="$(command -v aerospace || true)"' "expected the AeroSpace CLI path to be architecture independent"
-assert_contains 'check_binary_contains "$aerospace_cli"' "expected AeroSpace CLI provenance check"
-if grep -Fq '/opt/homebrew/bin/aerospace' "$script"; then
-  echo "expected AeroSpace acceptance to support both Apple Silicon and Intel Homebrew prefixes" >&2
-  exit 1
-fi
-assert_contains ".config/aerospace/aerospace.toml" "expected AeroSpace config check"
-assert_contains "check_absent \"\${HOME}/.aerospace.toml\"" "expected legacy AeroSpace config path absence check"
+# The retired AeroSpace stack is archived, not acceptance-checked.
+assert_not_contains "check_command aerospace" "did not expect a managed AeroSpace command check"
+assert_not_contains "aerospace-patched" "did not expect the retired patched cask version check"
+assert_not_contains "check_launch_agent org.nix-community.home.aerospace" "did not expect a retired AeroSpace LaunchAgent check"
 assert_contains ".config/skhd/skhdrc" "expected skhd config check"
 assert_contains "check_absent \"\${HOME}/.config/alacritty/alacritty.toml\"" "expected managed Alacritty config to be removed"
 assert_contains "check_absent \"\${HOME}/.config/wezterm/wezterm.lua\"" "expected managed WezTerm config to be removed"
@@ -51,7 +42,6 @@ assert_contains "check_absent \"/Applications/WezTerm.app\"" "expected WezTerm a
 assert_contains "for removed_cask in wezterm wezterm@nightly" "expected both WezTerm casks to be absent"
 assert_contains ".config/kitty/kitty.conf" "expected kitty config check"
 assert_contains ".config/kitty/theme.conf" "expected kitty theme check"
-assert_contains "org.nix-community.home.aerospace" "expected AeroSpace LaunchAgent check"
 assert_contains "org.nix-community.home.skhd" "expected skhd LaunchAgent check"
 
 # herdr-remote relay + web-ui: launchd agent, loopback HTTP services, pinned

@@ -39,7 +39,7 @@ assert_contains "$repo_root/nix-darwin/configuration.nix" "dscl . -create /Users
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "autohide = true;" \
   "expected Dock autohide to be configured"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "orientation = \"bottom\";" \
-  "expected Dock to be positioned on the bottom for AeroSpace hidden-window parking"
+  "expected Dock to be positioned on the bottom"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "_HIHideMenuBar = true;" \
   "expected menu bar autohide to be configured"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "KeyRepeat = 2;" \
@@ -58,8 +58,12 @@ assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "NowPlaying = false;"
   "expected Now Playing/Music to be hidden from the menu bar"
 assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "\"NSStatusItem VisibleCC Item-0\" = false;" \
   "expected Spotlight to be hidden from the menu bar"
-assert_contains "$repo_root/nix-darwin/macos-defaults.nix" "spans-displays = true;" \
-  "expected Displays have separate Spaces to be disabled for AeroSpace stability"
+if grep -Fq "spans-displays" "$repo_root/nix-darwin/macos-defaults.nix"; then
+  echo "expected spans-displays to be owned solely by window-manager.nix" >&2
+  exit 1
+fi
+assert_contains "$repo_root/nix-darwin/window-manager.nix" "spans-displays =" \
+  "expected OmniWM to own the separate-Spaces preference"
 
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "write_user_default com.raycast.macos" \
   "expected Raycast preferences to be configured"

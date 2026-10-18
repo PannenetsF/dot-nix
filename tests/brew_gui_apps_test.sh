@@ -40,20 +40,19 @@ assert_not_contains "$homebrew_module" '"alacritty"' "did not expect the depreca
 assert_contains "$homebrew_module" '"font-ubuntu-mono-nerd-font"' "expected the terminal-safe UbuntuMono Nerd Font cask"
 assert_not_contains "$homebrew_module" '"font-ubuntu-nerd-font"' "did not expect the proportional Ubuntu Nerd Font cask"
 assert_contains "$homebrew_module" "\"dot-nix/local\"" "expected local tap to provide patched casks"
-assert_contains "$homebrew_module" "../config/homebrew/Casks/aerospace-patched.rb" "expected the patched AeroSpace cask to come from a tracked source"
-assert_contains "$homebrew_module" '"${localTapPath}/Casks/aerospace-patched.rb"' "expected activation to stage the patched AeroSpace cask in the local tap"
 assert_contains "$homebrew_module" "trust dot-nix/local" "expected local tap to be trusted before Homebrew bundle"
 assert_contains "$homebrew_module" "branch -M main" "expected an existing local tap branch to be renamed without losing history"
 assert_contains "$homebrew_module" "symbolic-ref HEAD refs/heads/main" "expected the generated local tap to use a deterministic main branch"
 assert_contains "$homebrew_module" "pull --ff-only -q origin main" "expected the installed local tap checkout to refresh before cask migration"
-assert_contains "$homebrew_module" 'aerospacePatchedVersion = "0.21.3-Beta-pf.1";' "expected the patched AeroSpace release version to be pinned"
-assert_contains "$homebrew_module" "fetch --cask dot-nix/local/aerospace-patched" "expected the patched cask to be verified before migration"
-assert_contains "$homebrew_module" "fetch --cask nikitabobko/tap/aerospace" "expected the upstream rollback cask to be cached before migration"
-assert_contains "$homebrew_module" "CRITICAL: failed to restore upstream AeroSpace" "expected failed rollback to be reported explicitly"
-assert_contains "$homebrew_module" "migrating AeroSpace to dot-nix/local/aerospace-patched" "expected an explicit migration from the upstream cask"
+# The retired AeroSpace cask/JankyBorders formula are archived under
+# deprecated/ and must no longer be managed by Homebrew.
+assert_not_contains "$homebrew_module" "aerospace-patched" "did not expect the retired patched AeroSpace cask to be staged"
+assert_not_contains "$homebrew_module" "nikitabobko/tap/aerospace" "did not expect the upstream AeroSpace cask"
+assert_not_contains "$homebrew_module" '"felixkratz/formulae"' "did not expect the retired JankyBorders tap"
+assert_not_contains "$homebrew_module" "formulae/borders" "did not expect the retired JankyBorders formula"
 assert_contains "$homebrew_module" "untap nikitabobko/tap" "expected the obsolete upstream AeroSpace tap to be removed"
-assert_not_contains "$homebrew_module" '      "nikitabobko/tap"' "did not expect the upstream AeroSpace tap in the declarative tap list"
-assert_not_contains "$homebrew_module" '      "nikitabobko/tap/aerospace"' "did not expect the upstream AeroSpace cask in the declarative cask list"
+assert_contains "$homebrew_module" "untap felixkratz/formulae" "expected the obsolete JankyBorders tap to be removed"
+assert_contains "$homebrew_module" '"omniwm"' "expected the OmniWM cask in the declarative cask list"
 assert_contains "$homebrew_module" "untap whatpulse/whatpulse" "expected stale upstream WhatPulse tap to be removed before Homebrew bundle"
 assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
 assert_contains "$homebrew_module" "whatpulse-mac-latest.dmg" "expected the WhatPulse cask to provide the Intel latest DMG URL"
@@ -73,7 +72,7 @@ fi
 
 for cask in \
   1password \
-  dot-nix/local/aerospace-patched \
+  omniwm \
   chatgpt \
   cc-switch \
   claude \
@@ -102,18 +101,11 @@ for moved in _1password-gui karabiner-elements kitty maccy raycast vscode; do
   assert_not_contains "$gui_module" "$moved" "expected $moved to move out of Nix GUI packages"
 done
 
-assert_contains "$gui_module" "aerospace" "expected AeroSpace to be managed from nix-darwin GUI module"
-assert_not_contains "$gui_module" "    aerospace" "expected AeroSpace app to be installed by Homebrew, not Nix packages"
-assert_contains "$gui_module" 'config.homebrew.brewPrefix' "expected AeroSpace CLI paths to follow the active Homebrew architecture"
-assert_not_contains "$gui_module" "/opt/homebrew/bin/aerospace" "did not expect an Apple-Silicon-only AeroSpace CLI path"
+# The retired tiling-WM stack moved to deprecated/00-aerospace-indicator/;
+# the GUI module only keeps fonts and must define none of its launchd glue.
+assert_not_contains "$gui_module" "launchd.user.agents.aerospace" "did not expect a retired AeroSpace launchd agent"
+assert_not_contains "$gui_module" "launchd.user.agents.borders" "did not expect a retired borders launchd agent"
+assert_not_contains "$gui_module" "bordersCli" "did not expect retired JankyBorders glue in the GUI module"
+assert_not_contains "$gui_module" "renderAerospaceConfig" "did not expect the retired AeroSpace renderer in the GUI module"
 assert_contains "$gui_module" "nerd-fonts.shure-tech-mono" "expected desktop fonts to move into nix-darwin GUI module"
 assert_contains "$gui_module" "sketchybar-app-font" "expected sketchybar app font to move into nix-darwin GUI module"
-
-# JankyBorders supplies the focused-window highlight AeroSpace cannot draw.
-assert_contains "$homebrew_module" '"felixkratz/formulae"' "expected the JankyBorders tap to be declared"
-assert_contains "$homebrew_module" '"felixkratz/formulae/borders"' "expected borders to be installed as a Homebrew formula"
-assert_contains "$homebrew_module" "trust felixkratz/formulae" "expected the JankyBorders tap to be trusted; brew bundle refuses to load formulae from untrusted taps"
-assert_contains "$gui_module" 'bordersCli = "${config.homebrew.brewPrefix}/borders"' "expected the borders CLI path to follow the active Homebrew architecture"
-assert_not_contains "$gui_module" "/opt/homebrew/bin/borders" "did not expect an Apple-Silicon-only borders CLI path"
-assert_contains "$gui_module" "org.nix-community.home.borders" "expected a launchd agent for the borders daemon"
-assert_contains "$gui_module" "active_color=" "expected the borders daemon to be configured with an active color"

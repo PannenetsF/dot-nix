@@ -10,28 +10,24 @@ snapshot="$(NIX_HM_USER=omniwm-test NIX_HM_HOME=/Users/omniwm-test \
     let
       f = builtins.getFlake ("path:" + toString ./.);
       arm = f.darwinConfigurations.aarch64-darwin;
-      intel = f.darwinConfigurations.x86_64-darwin;
-      rollback = arm.extendModules {
-        modules = [{ dotNix.windowManager = f.inputs.nixpkgs.lib.mkForce "aerospace"; }];
-      };
-      summarize = withActivation: system: let c = system.config; in {
-        wm = c.dotNix.windowManager;
+      summarize = system: let c = system.config; in {
         agents = builtins.attrNames c.launchd.user.agents;
         casks = map (cask: cask.name) c.homebrew.casks;
+        taps = map (tap: if builtins.isAttrs tap then tap.name else tap) c.homebrew.taps;
+        brews = map (brew: if builtins.isAttrs brew then brew.name else brew) c.homebrew.brews;
         spansDisplays = c.system.defaults.CustomUserPreferences."com.apple.spaces".spans-displays;
         marker = c.environment.etc."dot-nix/window-manager".text;
-      } // f.inputs.nixpkgs.lib.optionalAttrs withActivation {
         preActivation = c.system.activationScripts.preActivation.text;
         postActivation = c.system.activationScripts.postActivation.text;
       };
-    # Intel policy can be checked without forcing unsupported unstable packages.
-    in { arm = summarize true arm; intel = summarize false intel; rollback = summarize true rollback; }
+    in { arm = summarize arm; }
   ')"
 
 printf '%s\n' "$snapshot" | jq -e '
-  .arm.wm == "omniwm" and
   (.arm.casks | index("omniwm") != null) and
-  (.arm.casks | index("dot-nix/local/aerospace-patched") != null) and
+  (.arm.casks | index("dot-nix/local/aerospace-patched") == null) and
+  (.arm.taps | index("felixkratz/formulae") == null) and
+  ([.arm.brews[] | endswith("/borders")] | any | not) and
   (.arm.agents | index("aerospace") == null) and
   (.arm.agents | index("aerospaceWorkspaceIndicator") == null) and
   (.arm.agents | index("borders") == null) and
@@ -41,16 +37,6 @@ printf '%s\n' "$snapshot" | jq -e '
   (.arm.preActivation | contains("stop-aerospace.sh")) and
   (.arm.postActivation | contains("aerospace config...") | not) and
   (.arm.postActivation | contains("existing settings are not overwritten")) and
-  (.arm.postActivation | contains("apply-hotkey-overrides.sh")) and
-  ([.intel, .rollback] | all(
-    .wm == "aerospace" and
-    (.casks | index("omniwm") == null) and
-    (.agents | index("aerospace") != null) and
-    (.agents | index("aerospaceWorkspaceIndicator") != null) and
-    (.agents | index("borders") != null) and
-    .spansDisplays == true
-  )) and
-  (.rollback.preActivation | contains("stop-aerospace.sh") | not) and
-  (.rollback.postActivation | contains("aerospace config..."))
+  (.arm.postActivation | contains("apply-hotkey-overrides.sh"))
 ' >/dev/null
-echo 'OmniWM trial ARM/Intel/rollback Nix evaluation checks passed'
+echo 'OmniWM-only Nix evaluation checks passed'

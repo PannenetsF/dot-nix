@@ -172,28 +172,33 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 
 ## 4. macOS 系统层：nix-darwin
 
-`nix-darwin/window-manager.nix`（OmniWM 试用分支）
+`nix-darwin/window-manager.nix`（OmniWM 是唯一受管窗口管理器）
 
-- `dotNix.windowManager` 选择 `aerospace` / `omniwm`；本分支在
-  `configuration.nix` 为 Apple Silicon 选择 OmniWM，Intel 保留 AeroSpace。
-- OmniWM stable cask 声明仍在 `homebrew.nix`。`gui-apps.nix` 条件启用
-  AeroSpace、指示器、JankyBorders 及其激活体；OmniWM 模式不运行这些激活体。
-- 用户激活时运行 `config/omniwm/stop-aerospace.sh`，先卸载旧 LaunchAgents，
-  再仅对当前用户的残留进程发 SIGTERM。求值/测试不影响桌面。
+- OmniWM 是 Apple Silicon（macOS 26+）唯一的受管 WM；旧 AeroSpace +
+  workspace 指示器 + JankyBorders 组合已停用并整体归档到
+  `deprecated/00-aerospace-indicator/`（含 nix 胶水冻结快照与手动恢复说明），
+  不参与求值/激活/测试。
+- OmniWM stable cask 在 `homebrew.nix` 无条件声明；旧 cask/formula 不自动
+  卸载（brew `cleanup = "none"`），留在磁盘以便手动回滚。
+- 用户激活时 preActivation 运行 `config/omniwm/stop-aerospace.sh`，先卸载旧
+  AeroSpace/indicator/borders LaunchAgents，再仅对当前用户残留进程发
+  SIGTERM（拒绝 force-kill）。求值/测试不影响桌面。
 - OmniWM 不设自动启动 agent，首次启动、授权、显示器路由由用户操作。
   设置由 OmniWM 首次生成并保持可写，nix 不软链、不整文件覆盖。
 - 机器无关的固化键位由 `config/omniwm/apply-hotkey-overrides.sh` 在
   postActivation 以用户身份改写进 OmniWM 自有的 settings.toml：只改固定
   action id 的 `binding`（hjkl 焦点/移动、逗号句号卷轴、`⌥R` 尺寸循环、
-  `⌥⇧/` 布局切换）和 `systemHyperTrigger = "None"`，不碰显示器路由 /
-  workspace UUID 等机器本地段。脚本平台中立（禁止特权/包管理关键词，有测试
-  断言），nix 模块只负责越权运行。每个 REV seed-once 并写
+  `⌥⇧/` 布局切换）和 `[general].systemHyperTrigger = "None"`，不碰显示器
+  路由 / workspace UUID 等机器本地段。脚本平台中立（禁止特权/包管理关键词，
+  有测试断言），nix 模块只负责越权运行。每个 REV seed-once 并写
   `.hotkey-overrides.rev`，之后 GUI 改键不被覆盖；改固化键位要 bump REV，
-  `OMNIWM_HOTKEY_FORCE=1` 强制重跑。改键表时同步
-  `docs/omniwm-keybindings.md` 与测试 `tests/omniwm_hotkey_overrides_test.sh`。
-- OmniWM 强制 `spans-displays = false`（开启独立 Spaces），改变后需注销登录。
-  `/etc/dot-nix/window-manager` 记录激活的选择，供 acceptance 判断。
-- 试用、手动激活、回退说明见 `docs/omniwm-trial.md`。激活只能用户自己执行。
+  `OMNIWM_HOTKEY_FORCE=1` 强制重跑。settings.toml 尚未生成时脚本跳过。
+  改键表时同步 `docs/omniwm-keybindings.md` 与测试
+  `tests/omniwm_hotkey_overrides_test.sh`。
+- OmniWM 强制 `spans-displays = false`（开启独立 Spaces，是该偏好的唯一
+  声明处，`macos-defaults.nix` 不再设置它），改变后需注销登录。
+  `/etc/dot-nix/window-manager` 固定写 `omniwm`，供 acceptance 判断。
+- 上手指南见 `docs/omniwm-trial.md`（含首次启动顺序）。激活只能用户自己执行。
 
 `nix-darwin/configuration.nix`
 
@@ -221,9 +226,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - preActivation 会在 `~/.cache/dot-nix/homebrew-local-tap` 生成本地 tap，
   用于 patched WhatPulse cask，并 trust `dot-nix/local`。
 - GUI app cask 例如 `1password`、`chatgpt`、`claude`、`claude-code`、`codex`、
-  `firefox`、`kitty`、`maccy`、`microsoft-edge`、`obsidian`、`raycast`、
-  `visual-studio-code`、`zed`、`zotero`，以及本地 tap 的 AeroSpace/WhatPulse
-  系列在这里维护。
+  `firefox`、`kitty`、`maccy`、`microsoft-edge`、`obsidian`、`omniwm`、
+  `raycast`、`visual-studio-code`、`zed`、`zotero`，以及本地 tap 的
+  Herdi/WhatPulse 系列在这里维护。停用的 AeroSpace cask 只留在
+  `deprecated/00-aerospace-indicator/`，不进 tap staging 和 Brewfile；
+  preActivation 会 `untap` 掉 `nikitabobko/tap` 与 `felixkratz/formulae`。
 - **quarantine 解封**：Homebrew 7 已彻底移除 `--no-quarantine`（flag、
   `HOMEBREW_CASK_OPTS` 转义口和 Cask::Config 全部删除，commit
   `ba25213c81`），cask 产物一律被强制打 `com.apple.quarantine`。`claude-code`
@@ -237,37 +244,15 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   invalid option；Skim 的旧写法已因此移除）。`.app` 产物受 TCC App
   Management 保护，xattr 删除即使用户/sudo 也是 EPERM，脚本不处理它们，
   公证 app 走一次首次启动审批、Homebrew 7 会在后续升级继承该审批。
-- AeroSpace 使用本地 tap 的 `dot-nix/local/aerospace-patched` cask。固定 Release
-  `v0.21.3-Beta-pf.1` 来自 `PannenetsF/AeroSpace`，同时安装匹配版本的 universal
-  App、CLI、补全和 man page；cask 源文件为
-  `config/homebrew/Casks/aerospace-patched.rb`。不要恢复“官方 cask + 启动时从 cache
-  覆盖 App 二进制”的旧方案，否则 App/CLI 可能再次版本错配。
-
 `nix-darwin/gui-apps.nix`
 
-- 管理适合 Nix 安装或 system launchd 管理的 GUI 辅助项。
-- 当前包括 `nerd-fonts.shure-tech-mono` 和 `sketchybar-app-font`；AeroSpace 使用
-  本地 patched Homebrew cask，不在 Nix 包里。
-- 用 `config/aerospace/render-config.py` 从 `config/aerospace/aerospace.toml`
-  模板生成 `~/.config/aerospace/aerospace.toml`，安装并（用 `swiftc`）编译
-  workspace 指示器，删除旧的 `~/.aerospace.toml` 和已废弃的 HUD 脚本，并用
-  `launchd.user.agents.aerospace` / `.aerospaceWorkspaceIndicator` 启动两者。
-- **workspace→monitor 分配**：`render-config.py` 输出自愈的 fallback 数组，
-  形如 `[<target>, 'main']`；AeroSpace 取第一个已连接的显示器匹配，因此某个显示器
-  消失（合盖、拔线、断电重连导致重新编号）时会退回 `main`，而不是把 workspace
-  卡在不存在的显示器上。分配目标顺序：`main`、非主外接屏从左到右、内置屏最后。
-- **显示器变化重配**：`reconfigure-aerospace` 脚本重跑渲染 + `reload-config` +
-  touch dirty 文件；AeroSpace 在显示器重连时不会自动重新套用 force-assignment
-  （上游 issue #520），所以需要显式 nudge。它通过 `AEROSPACE_RECONFIGURE`
-  launchd 环境变量暴露给指示器，由指示器在（去抖后的）显示器变化时触发。
-- **workspace 指示器**（`config/aerospace/workspace_indicator.swift`）：一个
-  accessory `NSApplication`，在每个显示器上浮动一个 `NSPanel`，显示当前 workspace、
-  workspace chips 和打开的 app 图标；中央还有一个切换 workspace 时的 HUD。关键
-  健壮性约定（改动时勿回退）：所有 per-display 状态按 `CGDirectDisplayID` 建键
-  （不是 `localizedName`，避免两台同名显示器碰撞/崩溃）；`NSPanel` 设
-  `isReleasedWhenClosed = false` 且用 `orderOut` 拆除（避免过度释放崩溃）；
-  显示器变化去抖（~0.4s）；`runAerospace` 查询失败返回 `nil`（区别于空结果），
-  失败时保留现有面板而非清空；dirty 文件监听在 rename/delete 后重新挂载。
+- 只管理适合 Nix 安装的 GUI 辅助项：`nerd-fonts.iosevka`、
+  `nerd-fonts.shure-tech-mono` 和 `sketchybar-app-font`。
+- 旧 AeroSpace 渲染器、workspace 指示器、borders 守护及三个 launchd agent
+  已全部移走；归档目录 `deprecated/00-aerospace-indicator/` 里有冻结的
+  `legacy-gui-apps.nix` 快照和恢复步骤。该模块里不允许再出现
+  `launchd.user.agents.aerospace` / `bordersCli` / `renderAerospaceConfig`
+  （有测试断言）。
 
 `nix-darwin/herdr.nix` / `modules/herdr.nix`（macOS 与 Linux 共用一份激活体）
 
@@ -287,7 +272,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     `~/.local/bin`。herdr 本体**刻意不进 nix 包**——Linux 保持官方 per-user 安装
     （与 macOS 的 Homebrew cask 对称），缺二进制时脚本只落模板、跳过插件。
   `modules/darwin.nix` 不再为 config.toml 建 `home.file` 软链。
-- 键位是 nvim 习惯迁移（prefix `ctrl+b`＋ctrl+alt 直连和弦，裸 alt 归 AeroSpace
+- 键位是 nvim 习惯迁移（prefix `ctrl+b`＋ctrl+alt 直连和弦，裸 Option 归 OmniWM
   所有），速查表见 `docs/herdr-keybindings.md`，改动后同步两边。`P Space` 的
   which-key 浮层是手动安装的社区插件（`herdr plugin install
   CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
@@ -361,8 +346,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   wrapper 的 PATH 用 `config.homebrew.brewPrefix`（该值已含 `/bin`，不要再拼
   `/bin`），让 relay 能轮询本机 brew 版 `herdr`。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
-  `config/homebrew/Casks/herdi.rb` 走本地 tap（同 aerospace-patched 模式，
-  preActivation `install` 进 local tap，cask 清单写 `dot-nix/local/herdi`）。
+  `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
+  tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
+  模式，已随整套归档到 `deprecated/00-aerospace-indicator/`）。
   该 app ad-hoc 签名且**未公证**（`spctl --assess` rejected），首次启动需右键打开；
   不进 `brew/unquarantine-casks.sh`（.app 受 TCC App Management 保护，约定见下）。
 
@@ -414,16 +400,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `config/`
 
 - 这是 macOS app/user 配置的源码目录：
-  - `config/aerospace/aerospace.toml`、`config/aerospace/render-config.py`、
-    `config/aerospace/rehome-workspaces.py`、
-    `config/aerospace/workspace_indicator.swift`、
-    `config/aerospace/start_workspace_indicator.sh`
+  - `config/omniwm/stop-aerospace.sh`（激活前卸载旧 AeroSpace 栈）、
+    `config/omniwm/apply-hotkey-overrides.sh`（seed-once 的 niri 风格键位）
   - `config/skhd/skhdrc`、`config/skhd/toggle_kitty_dropdown.sh`
   - `config/karabiner/karabiner.json`
-  - `config/homebrew/Casks/aerospace-patched.rb`
+  - `config/homebrew/Casks/herdi.rb`
   - `config/kitty/*`、`config/herdr/config.toml`、`config/neovide/config.toml`、
     `config/neovide/agent-open-neovide.sh`
   - `config/zed/*`
+- 已停用的 AeroSpace + workspace 指示器整套源码（含 patched cask 与冻结的 nix
+  胶水快照）不在 `config/`，见 `deprecated/00-aerospace-indicator/`。
 - Kitty theme 上游通过 `.gitmodules` 中的 `config/kitty/kitty-themes` submodule
   记录。不要恢复旧的 `dot-kitty` clone 流程。
 
@@ -449,7 +435,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   的解释器依赖（bun/node/uv）加进 `modules/host.nix` 或对应 nix-darwin 模块。
 - 新增只发 GitHub release、无 brew cask 的 macOS app：在
   `config/homebrew/Casks/` 加 tracked cask 并由 homebrew.nix preActivation
-  `install` 进本地 tap（herdi.rb / aerospace-patched.rb 模式）。
+  `install` 进本地 tap（`herdi.rb` 模式）。
 - 新增用户 dotfile 链接或 Home Manager service：改 `modules/darwin.nix` 或
   对应平台模块。
 - 修改启动、Nix 安装、cache、git pull、激活选择逻辑：改 `init.sh`。
@@ -470,9 +456,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 6. `TERM` fallback 逻辑不要轻易删除；它避免没有 kitty terminfo 的环境启动报错。
 7. `.config/kitty` 由本仓库管理；activation 里只做清理和链接，不再 clone 外部
    kitty 配置仓库。
-8. AeroSpace 配置以“合盖/断电重连后仍可自愈”为目标：workspace 分配用 fallback
-   数组、显示器变化触发 `reconfigure-aerospace`、指示器按 `CGDirectDisplayID`
-   建键并避免 NSPanel 过度释放。改这块时保留这些不变量（见 `gui-apps.nix` 一节）。
+8. OmniWM 是唯一受管 WM。改 `nix-darwin/window-manager.nix` 与
+   `config/omniwm/` 时保留这些不变量：`~/.config/omniwm/settings.toml` 是机器本地
+   可写文件（不进 git、不做软链），固化键位只能经
+   `apply-hotkey-overrides.sh` 按 rev stamp「seed 一次」下发，脚本必须平台无关、
+   幂等、检出绑定冲突时回滚；旧 AeroSpace 栈的卸载在 preActivation 完成
+   （`stop-aerospace.sh`）。归档在 `deprecated/00-aerospace-indicator/` 的文件只作
+   手动恢复参考，不要重新接回任何激活路径。
 9. `docs/superpowers/specs/2026-03-27-nix-macos-home-manager-design.md` 是历史设计，
    其中“不引入 nix-darwin”的约束已经过时，只能作为演进背景参考。
 
@@ -502,8 +492,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`
-- OmniWM 试用：`bash tests/omniwm_trial_test.sh`（桌面命令全部 stub）、
-  `bash tests/omniwm_trial_eval_test.sh`（ARM / Intel / 回退求值，不激活）、
+- OmniWM（受管窗口管理器）：`bash tests/omniwm_eval_test.sh`（darwin 配置求值，
+  不激活）、`bash tests/omniwm_trial_test.sh`（`stop-aerospace.sh` 清理脚本，桌面
+  命令全部 stub）、
   `bash tests/omniwm_hotkey_overrides_test.sh`（固化键位 seed/幂等/冲突回滚）
 - cask quarantine 解封：`bash tests/unquarantine_casks_test.sh`（配套
   `init_brew_upgrade_test.sh` 验证 `hm-upgrade` 在 bundle 之后调用脚本）
@@ -511,10 +502,6 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/darwin_touchid_sudo_test.sh`
 - macOS 用户环境 / 激活 PATH：`bash tests/darwin_user_env_test.sh`、
   `bash tests/darwin_activation_nvim_path_test.sh`
-- AeroSpace 配置渲染：`bash tests/aerospace_render_config_test.sh`
-- AeroSpace 自定义 cask：`bash tests/aerospace_custom_cask_test.sh`
-- AeroSpace workspace 重归位（`rehome-workspaces.py`）：
-  `bash tests/aerospace_rehome_workspaces_test.sh`
 - app config sync：`bash tests/darwin_app_config_sync_test.sh`
 - Neovide agent 打开脚本：`bash tests/neovide_agent_open_test.sh`
 - Kitty：`bash tests/kitty_config_test.sh`
@@ -527,9 +514,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 
 改动后优先跑与变更相关的测试。涉及 flake、home/darwin module 或 shell startup
 时，至少跑对应的 `nix eval` 测试；涉及 `init.sh` 时跑 `init_*` 测试；涉及
-AeroSpace 时跑 `aerospace_render_config_test.sh` 并尽量本地 `swiftc` 编译
-指示器；涉及 macOS GUI/Homebrew/defaults 时跑 `brew_*`、`darwin_*` 和必要的
-acceptance。无 root 时可用 `nix eval .#...drvPath` / `nix build` 校验配置是否
+OmniWM / `window-manager.nix` / 键位脚本时跑 `omniwm_eval_test.sh`、
+`omniwm_trial_test.sh`、`omniwm_hotkey_overrides_test.sh`；涉及 macOS
+GUI/Homebrew/defaults 时跑 `brew_*`、`darwin_*` 和必要的 acceptance。无 root 时可用 `nix eval .#...drvPath` / `nix build` 校验配置是否
 可求值/可构建，而不必真正 activate。
 
 Nix 文件格式保持 `nixfmt-classic` 风格；shell 脚本保持 Bash 语义，测试中大量使用

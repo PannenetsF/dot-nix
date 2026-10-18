@@ -29,37 +29,26 @@ assert_module_links() {
 	fi
 }
 
-assert_module_mentions() {
-	local module="$1"
-	local target="$2"
-	local source="$3"
-
-	if ! grep -Fq "${target}" "${module}"; then
-		echo "expected ${module#${repo_root}/} to mention ${target}" >&2
-		exit 1
-	fi
-
-	if ! grep -Fq "${source}" "${module}"; then
-		echo "expected ${module#${repo_root}/} to source ${source}" >&2
-		exit 1
-	fi
-}
-
-assert_file_exists "config/aerospace/aerospace.toml"
-assert_file_exists "config/aerospace/render-config.py"
-assert_file_exists "config/aerospace/start_workspace_indicator.sh"
-assert_file_exists "config/aerospace/workspace_indicator.swift"
 assert_file_exists "config/skhd/skhdrc"
 assert_file_exists "config/skhd/toggle_kitty_dropdown.sh"
 assert_file_exists "config/neovide/agent-open-neovide.sh"
 
-assert_module_mentions "$darwin_gui_module" ".config/aerospace/aerospace.toml" "../config/aerospace/aerospace.toml"
-assert_module_mentions "$darwin_gui_module" "render-aerospace-config" "../config/aerospace/render-config.py"
-assert_module_mentions "$darwin_gui_module" "start_workspace_indicator.sh" "../config/aerospace/start_workspace_indicator.sh"
-assert_module_mentions "$darwin_gui_module" "workspace_indicator.swift" "../config/aerospace/workspace_indicator.swift"
 assert_module_links "$darwin_module" ".skhdrc" "../config/skhd/skhdrc"
 assert_module_links "$darwin_module" ".config/skhd/toggle_kitty_dropdown.sh" "../config/skhd/toggle_kitty_dropdown.sh"
 assert_module_links "$darwin_module" ".local/bin/agent-open-neovide" "../config/neovide/agent-open-neovide.sh"
+
+# The retired AeroSpace stack lives under deprecated/; the active GUI module
+# must contain none of its launchd, renderer or symlink glue.
+for retired_glue in \
+  "launchd.user.agents.aerospace" \
+  "launchd.user.agents.borders" \
+  "config/aerospace" \
+  "render-aerospace-config"; do
+  if grep -Fq "$retired_glue" "$darwin_gui_module"; then
+    echo "expected ${darwin_gui_module#${repo_root}/} not to contain retired glue: $retired_glue" >&2
+    exit 1
+  fi
+done
 
 if grep -Fq '".config/zed/settings.json"' "${darwin_module}"; then
 	echo "expected Zed settings to stay writable instead of being linked into the Nix store" >&2
@@ -81,98 +70,6 @@ assert_module_contains() {
 	fi
 }
 
-if grep -Fq "launchd.agents.aerospace" "${darwin_module}"; then
-	echo "expected AeroSpace LaunchAgent to move out of Home Manager darwin module" >&2
-	exit 1
-fi
-
-if ! grep -Fq "launchd.user.agents.aerospace" "${darwin_gui_module}"; then
-	echo "expected AeroSpace to be managed by nix-darwin launchd.user.agents" >&2
-	exit 1
-fi
-if ! grep -Fq "launchd.user.agents.aerospaceWorkspaceIndicator" "${darwin_gui_module}"; then
-	echo "expected AeroSpace workspace indicator to be managed by nix-darwin launchd.user.agents" >&2
-	exit 1
-fi
-if ! grep -Fq '"$app_path/Contents/MacOS/AeroSpace"' "${darwin_gui_module}"; then
-	echo "expected AeroSpace launchd agent to execute the stable app bundle binary path" >&2
-	exit 1
-fi
-if ! grep -Fq "pgrep -x AeroSpace" "${darwin_gui_module}" ||
-	! grep -Fq 'kill "$pid"' "${darwin_gui_module}"; then
-	echo "expected AeroSpace launch wrapper to clean up duplicate instances before launch" >&2
-	exit 1
-fi
-if ! grep -Fq '/Applications/AeroSpace.app' "${darwin_gui_module}"; then
-	echo "expected AeroSpace launchd agent to use the Homebrew-installed app path" >&2
-	exit 1
-fi
-
-if grep -Fq 'AeroSpace-patched.app' "${darwin_gui_module}" ||
-	grep -Fq '/usr/bin/ditto "$patched_app" "$app_path"' "${darwin_gui_module}"; then
-	echo "expected the packaged AeroSpace release to replace the cache restoration workaround" >&2
-	exit 1
-fi
-if ! grep -Fq 'dot-nix/local/aerospace-patched' "${darwin_gui_module}"; then
-	echo "expected the AeroSpace launch wrapper to reference the patched Homebrew cask" >&2
-	exit 1
-fi
-if grep -Fq '/Applications/Nix Apps/AeroSpace.app' "${darwin_gui_module}"; then
-	echo "expected AeroSpace launchd agent not to use the Nix Apps bundle path" >&2
-	exit 1
-fi
-if grep -Fq 'pkgs.aerospace' "${darwin_gui_module}" || grep -Fq '    aerospace' "${darwin_gui_module}"; then
-	echo "expected AeroSpace app to be installed by Homebrew, not Nix packages" >&2
-	exit 1
-fi
-if ! grep -Fq "KeepAlive = { SuccessfulExit = false; };" "${darwin_gui_module}"; then
-	echo "expected AeroSpace launchd agent to restart only after unsuccessful exits" >&2
-	exit 1
-fi
-if ! grep -Fq "monitors unavailable; keeping existing config" "${darwin_gui_module}"; then
-	echo "expected AeroSpace reconfigure to preserve config until monitor state is readable" >&2
-	exit 1
-fi
-if ! grep -Fq 'for attempt in $(seq 1 8)' "${darwin_gui_module}" ||
-	! grep -Fq 'attempt $attempt failed; retrying' "${darwin_gui_module}"; then
-	echo "expected AeroSpace reload and workspace re-home to retry transient socket failures" >&2
-	exit 1
-fi
-if ! grep -Fq 'triggerReconfigure(isRetry: true)' \
-	"${repo_root}/config/aerospace/workspace_indicator.swift" ||
-	! grep -Fq 'process.terminationStatus' \
-	"${repo_root}/config/aerospace/workspace_indicator.swift"; then
-	echo "expected the workspace indicator to retry a failed reconfigure helper" >&2
-	exit 1
-fi
-if grep -Fq "system.activationScripts.aerospaceConfig" "${darwin_gui_module}"; then
-	echo "expected AeroSpace config sync to use a nix-darwin activation hook that runs" >&2
-	exit 1
-fi
-if ! grep -Fq "system.activationScripts.postActivation.text" "${darwin_gui_module}"; then
-	echo "expected AeroSpace config sync to run during nix-darwin postActivation" >&2
-	exit 1
-fi
-if ! grep -Fq 'rm -f "${homeDir}/.aerospace.toml"' "${darwin_gui_module}"; then
-	echo "expected legacy ~/.aerospace.toml to be removed to avoid AeroSpace ambiguous config errors" >&2
-	exit 1
-fi
-if grep -F 'ln -sfn' "${darwin_gui_module}" | grep -Fq '.aerospace.toml'; then
-	echo "expected nix-darwin GUI module not to create legacy ~/.aerospace.toml" >&2
-	exit 1
-fi
-if grep -F 'ln -sfn' "${darwin_gui_module}" | grep -Fq '.config/aerospace/aerospace.toml'; then
-	echo "expected AeroSpace config to be generated, not symlinked directly" >&2
-	exit 1
-fi
-if ! grep -Fq "start-at-login = false" "${repo_root}/config/aerospace/aerospace.toml"; then
-	echo "expected AeroSpace self-managed login startup to be disabled" >&2
-	exit 1
-fi
-if ! grep -Fq "exec-on-workspace-change = ['/bin/sh', '-c', 'printf . > /tmp/aerospace-workspace-indicator-dirty']" "${repo_root}/config/aerospace/aerospace.toml"; then
-	echo "expected AeroSpace workspace changes to do only a lightweight dirty-file write" >&2
-	exit 1
-fi
 assert_module_contains "services.skhd" \
 	"expected modules/darwin.nix to enable skhd"
 assert_module_contains "config = builtins.readFile ../config/skhd/skhdrc;" \
@@ -184,7 +81,6 @@ if ! grep -Fq "toggle_kitty_dropdown.sh" "${repo_root}/config/skhd/skhdrc"; then
 fi
 
 if grep -Riq "emacs" \
-	"${repo_root}/config/aerospace" \
 	"${repo_root}/config/skhd" \
 	"${repo_root}/config/karabiner"; then
 	echo "did not expect Emacs references in managed macOS app configs" >&2

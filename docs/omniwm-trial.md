@@ -1,42 +1,48 @@
-# OmniWM trial
+# OmniWM
 
-This branch selects OmniWM on Apple Silicon and leaves Intel Macs on AeroSpace.
-It uses the official Homebrew `omniwm` stable cask, not canaries. The cask is
-not version-pinned; normal activation does not upgrade installed casks.
-OmniWM requires Apple Silicon and macOS 26 or newer.
+OmniWM is the managed window manager on Apple Silicon Macs (macOS 26+). It is
+installed from the official Homebrew `omniwm` stable cask (not canaries); the
+cask is not version-pinned and normal activation never upgrades installed
+casks. `nix-darwin/window-manager.nix` asserts `aarch64-darwin` — Intel hosts
+are no longer supported by the managed setup.
 
-## Scope and isolation
+This document was written during the `feat/omniwm-trial` trial (now merged to
+`main`); it is kept as the operational reference for the adopted setup. The
+previous AeroSpace + workspace-indicator + JankyBorders stack is not deleted:
+it is archived under `deprecated/00-aerospace-indicator/` with a manual
+restore guide.
 
-- Work only in the separate `nix-hm-omniwm-trial` worktree on
-  `feat/omniwm-trial`. It starts from committed `main`, not the other worktree's
-  uncommitted edits. Review other ongoing environment changes before activating.
-- Evaluation and tests do not install software or change the running desktop.
-- Only the user runs activation. It stops the managed AeroSpace/indicator/borders
-  agents and gracefully terminates remaining user-owned AeroSpace/borders
-  instances. Their packages and source configuration are retained for rollback.
-- OmniWM has no launch agent in this trial. First launch, TCC permissions and
-  optional Start at Login are manual choices.
+## What the configuration does
+
+- Evaluation and tests never install software or change the running desktop;
+  only the user runs activation (`bash ./init.sh`).
+- Activation's preActivation runs `config/omniwm/stop-aerospace.sh`: it unloads
+  the old managed AeroSpace/indicator/borders LaunchAgents and gracefully
+  terminates remaining user-owned AeroSpace/borders instances. Their brew
+  packages (cask cleanup is `none`) and `~/.config/aerospace/` stay on disk for
+  rollback.
+- OmniWM itself has no launch agent managed by Nix. First launch, TCC
+  permissions and optional Start at Login are manual choices.
 - The existing skhd shortcuts (Chrome and kitty quick-access terminal) remain.
   OmniWM's optional Quake terminal is not needed for the kitty shortcut.
 
 ## User-run activation and first launch
 
-From this worktree, after reviewing the diff:
+From the repository after reviewing the diff:
 
 ```bash
 bash ./init.sh
 ```
 
-Do not use the existing `hm-update` alias: it points at the original checkout.
-Do not use `--upgrade` just to try this branch. `init.sh` uses its own worktree
-because `flake.nix` is beside the script. Its current pull helpers skip linked
-worktrees (`.git` is a file rather than a directory).
-This applies the whole branch snapshot, not only the window-manager module.
+Do not use `--upgrade` just to apply this setup. This applies the whole
+configuration snapshot, not only the window-manager module.
 
 1. Save work. Activation stops AeroSpace; do not run two window managers.
-2. This branch sets `com.apple.spaces spans-displays = false`, meaning
+2. The config sets `com.apple.spaces spans-displays = false`, meaning
    **Displays have separate Spaces is enabled**. Log out and back in if the
-   value changed; merely restarting OmniWM is not enough.
+   value changed; merely restarting OmniWM is not enough. (Accessibility and
+   Input Monitoring grants likewise only take effect after a logout/login on
+   some machines.)
 3. Open `/Applications/OmniWM.app` manually. Grant Accessibility and Input
    Monitoring. Screen Recording is optional for Overview thumbnails; Full Disk
    Access is unnecessary for tiling.
@@ -52,40 +58,40 @@ Let OmniWM generate its complete `settings.toml` on first launch. Its schema is
 strict: a partial hand-written TOML file can invalidate the whole configuration.
 We deliberately do not install a read-only Home Manager symlink, overwrite an
 existing file, or copy settings from an unrelated release. GUI edits remain
-writable at `${XDG_CONFIG_HOME:-$HOME/.config}/omniwm/settings.toml` (OmniWM only
-honors an absolute XDG path).
+writable at `${XDG_CONFIG_HOME:-$HOME/.config}/omniwm/settings.toml` (OmniWM
+only honors an absolute XDG path).
 
-Use these settings for the first trial:
+Suggested baseline settings:
 
 - **Layout:** Niri (the upstream default); use column width presets before
   changing many layout settings at once.
 - **Focus Follows Mouse:** off initially, to avoid edge-sliver focus surprises.
 - **Workspaces/Displays:** assign at least one workspace to each display using
-  the setup assistant. Do not copy AeroSpace's numeric monitor IDs.
+  the setup assistant. Do not copy the old AeroSpace numeric monitor IDs.
 - **Workspace Bar/Borders:** use OmniWM's built-ins; the old indicator and
   JankyBorders are disabled.
-- **Gestures:** turn column scrolling off for the initial keyboard-only baseline,
-  then configure a
-  three/four-finger column scroll and disable conflicting macOS gestures.
+- **Gestures:** turn column scrolling off for the initial keyboard-only
+  baseline, then configure a three/four-finger column scroll and disable
+  conflicting macOS gestures.
 - **Automation:** enable IPC in General only if you want `omniwmctl` queries.
-- **Login startup:** leave off until the trial passes the checks below.
+- **Login startup:** leave off until the setup passes the checks below.
 
-Shortcuts are upstream defaults, not an AeroSpace keymap migration. The default
-binding cheat sheet (Chinese, with the AeroSpace migration and skhd/herdr
-conflict notes) is [omniwm-keybindings.md](omniwm-keybindings.md). Change them
-in Settings > Hotkeys after confirming the basic layout works. Avoid the
-existing skhd `Cmd+Shift+Return` and `Cmd+'`, and note the default
-`Ctrl+Option+F` clash with herdr's `C-A-f` documented in the cheat sheet.
+The curated niri-style keymap (see below) is seeded automatically; the binding
+cheat sheet (Chinese, with skhd/herdr conflict notes) is
+[omniwm-keybindings.md](omniwm-keybindings.md). Avoid the existing skhd
+`Cmd+Shift+Return` and `Cmd+'`, and note the `Ctrl+Option+F` clash with
+herdr's `C-A-f` documented in the cheat sheet.
 
 ### Curated keybindings (seeded, not owned by Nix)
 
 `config/omniwm/apply-hotkey-overrides.sh` rewrites a fixed, machine-independent
-keymap onto the OmniWM-owned settings.toml: `Option+hjkl` focus/move (arrows are
-replaced), comma/period workspace scrolling in the niri style, `Option+R` size
-cycle, layout toggle moved to `Option+Shift+/`, and `systemHyperTrigger =
-"None"`. Monitor routing and workspace identities in the file are never touched.
+keymap onto the OmniWM-owned settings.toml: `Option+hjkl` focus (move with
+Shift), comma/period workspace scrolling in the niri style, `Option+R` size
+cycle, layout toggle on `Option+Shift+/`, and `systemHyperTrigger = "None"`
+(under `[general]`) so bare Option keys reach OmniWM instead of typing `¡` etc.
+Monitor routing and workspace identities in the file are never touched.
 
-- nix-darwin postActivation runs it as the target user. On the first trial
+- nix-darwin postActivation runs it as the target user. On the very first
   activation settings.toml does not exist yet (first launch is manual), so the
   script skips; after opening OmniWM once, rerun it manually
   (`bash config/omniwm/apply-hotkey-overrides.sh`) or activate again.
@@ -109,25 +115,19 @@ dialogs, native terminal tabs, sleep/wake, dock/undock and lid close/reopen.
 Check every display for stranded windows and incorrect focus. These checks
 require a real desktop and are not established by Nix evaluation.
 
-The Intel selection is structurally evaluated, but the repository's current
-unstable nixpkgs input has dropped `x86_64-darwin` package support. Full Intel
-system evaluation is a pre-existing limitation, not validated by this trial.
+## Rollback to AeroSpace
 
-## Rollback
+There is no Nix option to switch back — the old WM glue is archived, not
+wired. To restore the AeroSpace + indicator + borders stack, follow the
+4-step manual procedure in
+[`deprecated/00-aerospace-indicator/README.md`](../deprecated/00-aerospace-indicator/README.md).
 
-1. Disable OmniWM's Start at Login if you enabled it; quit OmniWM normally from
-   its menu, so it can release parked windows. Do not force-kill it.
-2. In this worktree's `nix-darwin/configuration.nix`, replace the
-   `dotNix.windowManager` assignment with `dotNix.windowManager = "aerospace";`.
-3. Run `bash ./init.sh` yourself. This restores the AeroSpace agents, rendering,
-   indicator and JankyBorders, and the previous separate-Spaces preference.
-4. Log out/in if the Spaces preference changed. Do not relaunch OmniWM alongside
-   AeroSpace. Its app and writable settings remain installed because Homebrew
-   cleanup is `none`; uninstall only if you no longer want to keep the trial.
-
-Alternatively activate your original checkout after accounting for its unrelated
-uncommitted changes. Merely changing Git branches/worktrees does not activate or
-roll back the running system.
+Before any rollback: disable OmniWM's Start at Login if enabled, and quit
+OmniWM normally from its menu so it can release parked windows — do not
+force-kill it. The OmniWM app and its writable settings stay installed
+(Homebrew cleanup is `none`); uninstall the cask only if you no longer want
+it. Merely changing Git branches/worktrees never activates or rolls back the
+running system.
 
 ## References
 

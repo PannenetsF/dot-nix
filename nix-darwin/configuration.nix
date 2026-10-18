@@ -9,10 +9,6 @@
     ./window-manager.nix
   ];
 
-  # Trial branch: change to "aerospace" to restore the previous WM stack.
-  dotNix.windowManager =
-    if system == "aarch64-darwin" then "omniwm" else "aerospace";
-
   system.stateVersion = 6;
   system.primaryUser = username;
 

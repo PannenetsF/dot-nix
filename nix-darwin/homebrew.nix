@@ -2,16 +2,12 @@
 let
   brewBin = "${config.homebrew.brewPrefix}/brew";
   localTapPath = "${homeDir}/.cache/dot-nix/homebrew-local-tap";
-  aerospacePatchedCask = ../config/homebrew/Casks/aerospace-patched.rb;
-  aerospacePatchedVersion = "0.21.3-Beta-pf.1";
   herdiCask = ../config/homebrew/Casks/herdi.rb;
 in {
   system.activationScripts.preActivation.text = lib.mkAfter ''
         if [ -x "${brewBin}" ]; then
           echo >&2 "preparing local Homebrew tap..."
           install -d -o ${username} -g staff "${localTapPath}/Casks"
-          install -m 0644 "${aerospacePatchedCask}" \
-            "${localTapPath}/Casks/aerospace-patched.rb"
           install -m 0644 "${herdiCask}" \
             "${localTapPath}/Casks/herdi.rb"
 
@@ -122,65 +118,14 @@ in {
             /usr/bin/git -C "$tap_checkout" pull --ff-only -q origin main
           brew_as_user trust dot-nix/local --quiet
 
-          # Third-party taps must be trusted before `brew bundle` will install
-          # from them; an untrusted tap fails silently mid-bundle, leaving the
-          # tap present but the formula missing.
-          brew_as_user tap felixkratz/formulae
-          brew_as_user trust felixkratz/formulae --quiet
-
           brew_as_user tap furkankly/tap
           brew_as_user trust furkankly/tap --quiet
 
-          # Fetch and verify both the replacement and rollback artifact before
-          # removing the upstream cask. If installation still fails, make the
-          # rollback result explicit rather than hiding a second failure.
-          if brew_as_user list --cask --versions aerospace >/dev/null 2>&1; then
-            echo >&2 "migrating AeroSpace to dot-nix/local/aerospace-patched..."
-            if ! brew_as_user fetch --cask dot-nix/local/aerospace-patched; then
-              echo >&2 "failed to fetch patched AeroSpace; keeping the upstream cask"
-              exit 1
-            fi
-            if ! brew_as_user fetch --cask nikitabobko/tap/aerospace; then
-              echo >&2 "failed to cache the upstream AeroSpace rollback; keeping the upstream cask"
-              exit 1
-            fi
-            if ! brew_as_user uninstall --cask --force nikitabobko/tap/aerospace; then
-              echo >&2 "failed to uninstall the upstream AeroSpace cask"
-              exit 1
-            fi
-            if ! brew_as_user install --cask dot-nix/local/aerospace-patched; then
-              echo >&2 "failed to install patched AeroSpace; restoring the upstream cask"
-              brew_as_user uninstall --cask --force aerospace-patched >/dev/null 2>&1 || true
-              if ! brew_as_user tap nikitabobko/tap; then
-                echo >&2 "warning: could not re-add nikitabobko/tap during rollback"
-              fi
-              if ! brew_as_user trust nikitabobko/tap --quiet; then
-                echo >&2 "warning: could not re-trust nikitabobko/tap during rollback"
-              fi
-              if ! brew_as_user install --cask nikitabobko/tap/aerospace; then
-                echo >&2 "warning: upstream AeroSpace reinstall command failed"
-              fi
-              if brew_as_user list --cask --versions aerospace >/dev/null 2>&1; then
-                echo >&2 "restored the upstream AeroSpace cask"
-              else
-                echo >&2 "CRITICAL: failed to restore upstream AeroSpace; reinstall nikitabobko/tap/aerospace manually"
-              fi
-              exit 1
-            fi
-          fi
-
-          installed_patched_version="$(
-            brew_as_user list --cask --versions aerospace-patched 2>/dev/null \
-              | /usr/bin/awk '{print $2}' || true
-          )"
-          if [ -n "$installed_patched_version" ] && \
-             [ "$installed_patched_version" != "${aerospacePatchedVersion}" ]; then
-            echo >&2 "upgrading patched AeroSpace to ${aerospacePatchedVersion}..."
-            brew_as_user fetch --cask dot-nix/local/aerospace-patched
-            brew_as_user upgrade --cask dot-nix/local/aerospace-patched
-          fi
-
+          # AeroSpace/JankyBorders are retired (see
+          # deprecated/00-aerospace-indicator/). Their installed casks/formulae
+          # are left on disk for manual rollback; only the stale taps go.
           brew_as_user untap nikitabobko/tap || true
+          brew_as_user untap felixkratz/formulae || true
           brew_as_user untap whatpulse/whatpulse || true
         fi
   '';
@@ -190,7 +135,6 @@ in {
 
     taps = [
       "daipeihust/tap"
-      "felixkratz/formulae"
       "furkankly/tap"
       "gromgit/fuse"
       {
@@ -199,11 +143,11 @@ in {
       }
     ];
 
-    # Retain AeroSpace for rollback; only its services are disabled during the
-    # trial. OmniWM uses the official signed/notarized stable cask, not canaries.
+    # OmniWM is the managed window manager; it uses the official signed/
+    # notarized stable cask, not canaries. The retired AeroSpace cask and
+    # JankyBorders formula live on in deprecated/00-aerospace-indicator/.
     casks = [
       "1password"
-      "dot-nix/local/aerospace-patched"
       "chatgpt"
       "cc-switch"
       "claude"
@@ -250,7 +194,8 @@ in {
       "dot-nix/local/whatpulse"
       "zed"
       "zotero"
-    ] ++ lib.optionals (config.dotNix.windowManager == "omniwm") [ "omniwm" ];
+      "omniwm"
+    ];
 
     brews = [
       "daipeihust/tap/im-select"
@@ -258,10 +203,6 @@ in {
       # with compile-time options (modern icon, imagemagick, mailutils)
       # that nixpkgs emacs-pgtk (GTK3/X11 on macOS) cannot match.
       "emacs-plus"
-      # JankyBorders draws the focused-window outline AeroSpace deliberately
-      # does not: macOS has no public API for it, so the border has to come
-      # from a separate always-on daemon.
-      "felixkratz/formulae/borders"
       "furkankly/tap/zoetrope"
       "gromgit/fuse/sshfs-mac"
       "herdr"

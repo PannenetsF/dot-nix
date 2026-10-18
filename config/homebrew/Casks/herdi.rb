@@ -1,6 +1,8 @@
 # Herdi: the herdr-remote menu-bar client (https://github.com/dcolinmorgan/herdr-remote).
 # Upstream publishes only a GitHub DMG (no Homebrew cask), so it rides the
-# repo's dot-nix/local tap like aerospace-patched. The app bundle is ad-hoc
+# repo's dot-nix/local tap (the retired aerospace-patched cask, now under
+# deprecated/00-aerospace-indicator/, used the same mechanism). The app bundle
+# is ad-hoc
 # signed and NOT notarized (`spctl --assess` rejects it): on first launch the
 # user must right-click -> Open (or System Settings -> Privacy & Security ->
 # Open Anyway). The .app is deliberately not added to
