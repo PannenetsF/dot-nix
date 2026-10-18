@@ -172,6 +172,29 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 
 ## 4. macOS 系统层：nix-darwin
 
+`nix-darwin/window-manager.nix`（OmniWM 试用分支）
+
+- `dotNix.windowManager` 选择 `aerospace` / `omniwm`；本分支在
+  `configuration.nix` 为 Apple Silicon 选择 OmniWM，Intel 保留 AeroSpace。
+- OmniWM stable cask 声明仍在 `homebrew.nix`。`gui-apps.nix` 条件启用
+  AeroSpace、指示器、JankyBorders 及其激活体；OmniWM 模式不运行这些激活体。
+- 用户激活时运行 `config/omniwm/stop-aerospace.sh`，先卸载旧 LaunchAgents，
+  再仅对当前用户的残留进程发 SIGTERM。求值/测试不影响桌面。
+- OmniWM 不设自动启动 agent，首次启动、授权、显示器路由由用户操作。
+  设置由 OmniWM 首次生成并保持可写，nix 不软链、不整文件覆盖。
+- 机器无关的固化键位由 `config/omniwm/apply-hotkey-overrides.sh` 在
+  postActivation 以用户身份改写进 OmniWM 自有的 settings.toml：只改固定
+  action id 的 `binding`（hjkl 焦点/移动、逗号句号卷轴、`⌥R` 尺寸循环、
+  `⌥⇧/` 布局切换）和 `systemHyperTrigger = "None"`，不碰显示器路由 /
+  workspace UUID 等机器本地段。脚本平台中立（禁止特权/包管理关键词，有测试
+  断言），nix 模块只负责越权运行。每个 REV seed-once 并写
+  `.hotkey-overrides.rev`，之后 GUI 改键不被覆盖；改固化键位要 bump REV，
+  `OMNIWM_HOTKEY_FORCE=1` 强制重跑。改键表时同步
+  `docs/omniwm-keybindings.md` 与测试 `tests/omniwm_hotkey_overrides_test.sh`。
+- OmniWM 强制 `spans-displays = false`（开启独立 Spaces），改变后需注销登录。
+  `/etc/dot-nix/window-manager` 记录激活的选择，供 acceptance 判断。
+- 试用、手动激活、回退说明见 `docs/omniwm-trial.md`。激活只能用户自己执行。
+
 `nix-darwin/configuration.nix`
 
 - 导入：
@@ -479,6 +502,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`
+- OmniWM 试用：`bash tests/omniwm_trial_test.sh`（桌面命令全部 stub）、
+  `bash tests/omniwm_trial_eval_test.sh`（ARM / Intel / 回退求值，不激活）、
+  `bash tests/omniwm_hotkey_overrides_test.sh`（固化键位 seed/幂等/冲突回滚）
 - cask quarantine 解封：`bash tests/unquarantine_casks_test.sh`（配套
   `init_brew_upgrade_test.sh` 验证 `hm-upgrade` 在 bundle 之后调用脚本）
 - macOS defaults / Touch ID：`bash tests/darwin_defaults_test.sh`、

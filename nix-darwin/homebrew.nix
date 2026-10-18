@@ -199,6 +199,8 @@ in {
       }
     ];
 
+    # Retain AeroSpace for rollback; only its services are disabled during the
+    # trial. OmniWM uses the official signed/notarized stable cask, not canaries.
     casks = [
       "1password"
       "dot-nix/local/aerospace-patched"
@@ -248,7 +250,7 @@ in {
       "dot-nix/local/whatpulse"
       "zed"
       "zotero"
-    ];
+    ] ++ lib.optionals (config.dotNix.windowManager == "omniwm") [ "omniwm" ];
 
     brews = [
       "daipeihust/tap/im-select"
