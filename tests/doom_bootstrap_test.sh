@@ -63,3 +63,7 @@ assert_contains "nix-darwin/homebrew.nix" '"font-iosevka-nerd-font"' \
 	"expected the Iosevka Nerd Font cask (kitty font_family and doom-font)"
 assert_contains "nix-darwin/homebrew.nix" '"font-lxgw-wenkai"' \
 	"expected the LXGW WenKai cask (Doom CJK fallback face)"
+assert_contains "nix-darwin/homebrew.nix" '"font-symbols-only-nerd-font"' \
+	"expected the Symbols Nerd Font cask (nerd-icons/doom-modeline hardcode that family)"
+assert_contains "modules/host.nix" "nerd-fonts.symbols-only" \
+	"expected Linux hosts to ship Symbols Nerd Font for doom-modeline"

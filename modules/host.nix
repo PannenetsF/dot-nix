@@ -52,5 +52,15 @@ in {
     ((with pkgs; [ colima rar sketchybar terminal-notifier yabai ])
       ++ (with pkgsUnstable; [ macism ]))
     ++ lib.optionals (!pkgs.stdenv.hostPlatform.isDarwin)
-    ((with pkgs; [ imagemagick emacs-pgtk fswatch ]));
+    ((with pkgs; [
+      imagemagick
+      emacs-pgtk
+      fswatch
+      # Parity with the macOS Homebrew casks: kitty/Doom main face,
+      # doom-modeline's hardcoded "Symbols Nerd Font Mono" family, and
+      # Doom's CJK fallback.
+      nerd-fonts.iosevka
+      nerd-fonts.symbols-only
+      lxgw-wenkai
+    ]));
 }

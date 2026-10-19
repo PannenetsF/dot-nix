@@ -168,6 +168,12 @@ in {
       # config.el); LXGW WenKai Mono is Doom's CJK fallback face.
       "font-iosevka-nerd-font"
       "font-lxgw-wenkai"
+      # nerd-icons/doom-modeline render icons with the family hardcoded
+      # to "Symbols Nerd Font Mono" (no fallback to the default face when
+      # use-default-font-for-symbols is nil); without this cask every
+      # modeline icon shows as a hex tofu box. kitty also auto-uses it as
+      # the PUA symbol_map fallback.
+      "font-symbols-only-nerd-font"
       "font-ubuntu-mono-nerd-font"
       "font-sf-pro"
       # herdr-remote menu-bar client; ad-hoc signed and unnotarized, so the

@@ -233,11 +233,17 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `deprecated/00-aerospace-indicator/`，不进 tap staging 和 Brewfile；
   preActivation 会 `untap` 掉 `nikitabobko/tap` 与 `felixkratz/formulae`。
 - 字体 cask（`font-iosevka-nerd-font`、`font-lxgw-wenkai`、
-  `font-ubuntu-mono-nerd-font`、`font-sf-pro`）也在这里声明：GUI app
-  （kitty、Emacs）只走 CoreText 字体注册表，而 `gui-apps.nix` 里的 nix
-  `nerd-fonts.*` 包装在 nix store、不注册给 CoreText，没有 cask 两边都看不到。
-  Iosevka NF 是 kitty 与 Doom 的共用字体，LXGW WenKai Mono 是 Doom 的 CJK
-  fallback（详见 §5 `install-doom.sh`）。
+  `font-symbols-only-nerd-font`、`font-ubuntu-mono-nerd-font`、
+  `font-sf-pro`）也在这里声明：GUI app（kitty、Emacs）只走 CoreText
+  字体注册表，而 `gui-apps.nix` 里的 nix `nerd-fonts.*` 包装在 nix store、
+  不注册给 CoreText，没有 cask 两边都看不到。Iosevka NF 是 kitty 与 Doom
+  的共用字体，LXGW WenKai Mono 是 Doom 的 CJK fallback；**Symbols Nerd
+  Font Mono 不可省**——nerd-icons/doom-modeline 把图标家族写死成它，在
+  `use-default-font-for-symbols=nil` 下不回退 Iosevka，缺了 modeline
+  所有图标都显示成十六进制 tofu 方框（kitty 也会拿它当 PUA symbol_map
+  回退）。Linux host 对等字体在 `modules/host.nix`
+  （`nerd-fonts.iosevka`/`nerd-fonts.symbols-only`/`lxgw-wenkai`，经
+  fontconfig 生效）。
 - **quarantine 解封**：Homebrew 7 已彻底移除 `--no-quarantine`（flag、
   `HOMEBREW_CASK_OPTS` 转义口和 Cask::Config 全部删除，commit
   `ba25213c81`），cask 产物一律被强制打 `com.apple.quarantine`。`claude-code`
