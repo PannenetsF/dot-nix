@@ -58,6 +58,9 @@ assert_contains "$homebrew_module" '"omniwm"' "expected the OmniWM cask in the d
 # "No available formula with the name emacs-plus".
 assert_contains "$homebrew_module" '"d12frosted/emacs-plus"' "expected the emacs-plus tap to be declared"
 assert_contains "$homebrew_module" '"d12frosted/emacs-plus/emacs-plus"' "expected emacs-plus to be installed from its tap, fully-qualified"
+# Homebrew 4.4+ refuses formulae from new taps until explicitly trusted.
+assert_contains "$homebrew_module" "tap d12frosted/emacs-plus" "expected the emacs-plus tap to be tapped before bundle"
+assert_contains "$homebrew_module" "trust d12frosted/emacs-plus" "expected the emacs-plus tap to be trusted before bundle"
 if grep -Eq '^[[:space:]]*"emacs-plus"[[:space:]]*$' "$homebrew_module"; then
   echo "did not expect a bare emacs-plus formula with no tap" >&2
   exit 1

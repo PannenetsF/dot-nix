@@ -121,6 +121,11 @@ in {
           brew_as_user tap furkankly/tap
           brew_as_user trust furkankly/tap --quiet
 
+          # Homebrew 4.4+ refuses formulae from newly added third-party taps
+          # until explicitly trusted; emacs-plus exists only in this tap.
+          brew_as_user tap d12frosted/emacs-plus
+          brew_as_user trust d12frosted/emacs-plus --quiet
+
           # AeroSpace/JankyBorders are retired (see
           # deprecated/00-aerospace-indicator/). Their installed casks/formulae
           # are left on disk for manual rollback; only the stale taps go.
