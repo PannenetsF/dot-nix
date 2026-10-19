@@ -225,7 +225,7 @@ check_http_200 "http://127.0.0.1:8375/"
 check_http_200 "http://127.0.0.1:7317/"
 
 herdr_plugins="$(herdr plugin list 2>/dev/null || true)"
-for plugin in devswha.herdr-web-ui herdr.push; do
+for plugin in devswha.herdr-web-ui herdr-portal herdr.push; do
   if grep -Fq "$plugin" <<<"$herdr_plugins"; then
     pass "herdr plugin installed: $plugin"
   else

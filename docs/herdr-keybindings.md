@@ -67,6 +67,8 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | herdr-projects 再开一个 coordinator | `P C-n` | n = new；当前项目免选 |
 | herdr-projects 给项目追加仓库 | `P S-a` | fzf 多选，免手打路径 |
 | roadboard 路线图看板（可选插件，见下） | `P S-r` | 7 态任务树；再按一次关闭 |
+| herdr-portal 全局 agent 看板 TUI（可选插件，见下） | `P S-o` | ↑↓ 选 agent、Enter 跳 pane；只读导航 |
+| herdr-portal 全局 agent 看板 web 大屏 | `P C-o` | 浏览器 127.0.0.1:8787；可回消息 |
 | Copy/滚动模式（vim 键位、`/` 搜索、`v` 选择、`y` 复制） | `P [` | — |
 | 编辑滚动历史到 `$EDITOR` | `P S-e` | 原默认 `e`，给 sidebar 让位 |
 | 设置界面 | `P S-s` | 原默认 `s`，给横分让位 |
@@ -201,6 +203,24 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
   在自己的 pane 里 priming、
   `P a` 总控弹窗（configure 管理）；不带 `--repo` 的裸 `herdr-projects new`
   只建元数据目录，所以模板里的新建键走选择器
+
+## 可选：herdr-portal 全局 agent 看板
+
+`herdr-portal`（loofare/herdr-portal，pinned v1.2.0 提交 `cae8ea0`，纯
+Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚合成一个
+按 blocked/working/idle/done 分列的看板，数据走 herdr 自己的 CLI/JSON，和
+radar/projects 共存。
+
+- `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、
+  `Enter` 跳到该 agent 的 pane 且看板自动关闭；`Tab`/`v` 切普通窗口视图；
+  `N` 新 tab、`s/S` 右/下 split、`E` 重命名、`X` 释放闲置 pane、`Q` 退出。
+  看板本身只读（只移动焦点，不发输入）。
+- `P C-o`：web 大屏（`herdr-portal.open-web`，stdlib HTTP daemon
+  `127.0.0.1:8787`，日志 `~/.local/state/herdr-portal/server.log`）。
+  点击卡片同样跳 pane；web 端额外能直接给 agent **回消息**，不是纯只读。
+- 插件按需打开、无 startup hook；激活只负责 pin 安装，不自动起看板。
+- 占的是空着的 o 命名空间：上游 README 建议 `P a`，但该键在本配置属于
+  herdr-projects。
 
 ## 卸载 / 重置
 

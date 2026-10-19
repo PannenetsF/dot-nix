@@ -94,6 +94,13 @@ echo "$log1" | grep -q "plugin install -y --ref v0.4.11 devswha/herdr-web-ui" \
 echo "$log1" | grep -q "action invoke start --plugin devswha.herdr-web-ui" \
   || fail "web-ui start action missing"
 
+# herdr-portal: pinned v1.2.0 commit, installed on every platform; it opens on
+# demand, so no action is invoked by activation.
+echo "$log1" | grep -q "plugin install -y --ref cae8ea07a51f54d6e73b6e5a40d0930c8d4f074f loofare/herdr-portal" \
+  || fail "herdr-portal not installed at the pinned ref"
+echo "$log1" | grep -q "herdr-portal.open" \
+  && fail "portal opens on user request only; activation must not invoke it" || true
+
 # herdr-push: pinned install, .env seeded once with the relay URL, mode 0600.
 echo "$log1" | grep -q "plugin install -y --ref f4fdb06d5413ac2d96ca225ea33f288f41bfc001 dcolinmorgan/herdr-push" \
   || fail "herdr-push not installed at the pinned ref"
@@ -124,6 +131,7 @@ echo "$log3" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope insta
 echo "$log3" | grep -q "PannenetsF/herdr-radar" && fail "radar needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.1 server" || true
 echo "$log3" | grep -q "devswha/herdr-web-ui" && fail "web-ui needs a reachable >=0.9.0 server" || true
+echo "$log3" | grep -q "loofare/herdr-portal" && fail "portal installs inside the version gate" || true
 echo "$log3" | grep -q "dcolinmorgan/herdr-push" && fail "push must wait for a reachable server" || true
 [ ! -e "$home3/.config/herdr/plugins/config/herdr.push/.env" ] \
   || fail "push .env must not be seeded when the plugin did not install"

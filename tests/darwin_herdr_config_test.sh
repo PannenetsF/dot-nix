@@ -112,6 +112,16 @@ assert_contains "$body" "v0.4.11"
 assert_contains "$body" "action invoke start"
 assert_contains "$body" "--plugin devswha.herdr-web-ui"
 
+# herdr-portal: pinned v1.2.0 commit (upstream has no matching tag), on-demand
+# only — activation must not open the board itself — with both keybindings in
+# the template on the o namespace (prefix+a belongs to Projects).
+assert_contains "$body" "loofare/herdr-portal"
+assert_contains "$body" "cae8ea07a51f54d6e73b6e5a40d0930c8d4f074f"
+assert_contains "config/herdr/config.toml" 'key = "prefix+shift+o"'
+assert_contains "config/herdr/config.toml" 'command = "herdr-portal.open-board"'
+assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+o"'
+assert_contains "config/herdr/config.toml" 'command = "herdr-portal.open-web"'
+
 # Bun (>= 1.4) is the web-ui build/startup runtime and must be in the host set.
 assert_contains "modules/host.nix" "bun"
 

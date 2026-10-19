@@ -326,6 +326,15 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `tailscale serve`，仓库不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`
   （需 ≥1.4，node 22 已由 radar 引入）；激活安装后显式 invoke 一次
   `start` action，不必重启 herdr 即拉起 bridge。
+- herdr-portal（pinned v1.2.0 提交 `cae8ea0`，loofare/herdr-portal；上游 tag
+  只到 v1.0.3，故 pin 完整 commit 同 herdr-push）是纯 Python stdlib（curses）
+  看板插件，把全部 workspace/tab/pane 的 agent 按 blocked/working/idle/done
+  聚合成一个 board，数据经 herdr 自身 CLI/JSON 采集，无 node/uv 依赖、无
+  startup hook。`P S-o` 打开 TUI overlay（只读导航，Enter 只跳 pane），
+  `P C-o` 起 stdlib HTTP daemon（`127.0.0.1:8787`）开 web 大屏（web 端可回
+  agent 消息）。键位在 `config/herdr/config.toml` 的 o 命名空间（上游建议的
+  `P a` 属于 Projects）；激活只 pin 安装，不自动开看板。速查表见
+  `docs/herdr-keybindings.md`。
 - herdr-push（pinned HEAD `f4fdb06`，dcolinmorgan/herdr-push）是纯 shell+curl
   事件插件，把 `pane.agent_status_changed` POST 给 herdr-remote relay。它由共享脚本
   内的 `HERDR_PUSH_RELAY_URL` 门控：仅 nix-darwin 封装传
@@ -483,7 +492,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
-  web-ui v0.4.11、herdr-push pin + .env seed-once、relay launchd 模块和
+  web-ui v0.4.11、herdr-portal v1.2.0 commit pin（只安装、不自动 invoke）、
+  herdr-push pin + .env seed-once、relay launchd 模块和
   Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件和
   cask 验收在 `macos_acceptance.sh`（静态断言在
   `macos_acceptance_script_test.sh`）。

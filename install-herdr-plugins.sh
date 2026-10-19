@@ -189,6 +189,20 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
   "$herdr_cli" plugin action invoke start \
     --plugin devswha.herdr-web-ui >/dev/null 2>&1 || true
 
+  # herdr-portal: global read-mostly agent board (loofare/herdr-portal).
+  # Pure-stdlib Python curses TUI opened on demand as an overlay pane
+  # (prefix+shift+o), plus a stdlib HTTP "big screen" daemon started by its
+  # own open-web action (prefix+ctrl+o, 127.0.0.1:8787). No startup hook and
+  # no interpreter prerequisites, so nothing to invoke here: the board opens
+  # only when the user asks. Upstream has no tag past v1.0.3, so pin the full
+  # commit of the v1.2.0 release, like herdr-push.
+  if ! "$herdr_cli" plugin list 2>/dev/null \
+      | grep -q "herdr-portal.*loofare/herdr-portal@cae8ea0"; then
+    "$herdr_cli" plugin install -y \
+      --ref cae8ea07a51f54d6e73b6e5a40d0930c8d4f074f \
+      loofare/herdr-portal || true
+  fi
+
   # herdr-push: emits pane.agent_status_changed events to a herdr-remote relay
   # for the Herdi menu-bar app / phone / Telegram clients. Pure shell+curl;
   # only installed when the platform layer supplies a relay URL (the macOS

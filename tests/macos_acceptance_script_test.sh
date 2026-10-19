@@ -52,6 +52,7 @@ assert_contains 'http://127.0.0.1:8375/' "expected herdr-remote relay HTTP check
 assert_contains 'http://127.0.0.1:7317/' "expected herdr-web-ui HTTP check"
 assert_contains "devswha.herdr-web-ui" "expected herdr-web-ui plugin check"
 assert_contains "herdr.push" "expected herdr-push plugin check"
+assert_contains "herdr-portal" "expected herdr-portal plugin check"
 assert_contains 'brew list --cask --versions herdi' "expected Herdi cask version check"
 assert_contains '/etc/dot-nix/window-manager' "expected acceptance to detect the activated WM, not the current Git branch"
 assert_contains 'check_app OmniWM' "expected OmniWM app check"

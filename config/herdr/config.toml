@@ -172,3 +172,20 @@ key = "prefix+comma"
 type = "plugin_action"
 command = "hhdebb.herdr-radar.settings"
 description = "Radar: settings popup"
+
+# herdr-portal (plugin installed by install-herdr-plugins.sh): global board
+# over every workspace/tab/pane. The TUI is the read-only fleet view (Enter
+# only jumps focus to the pane and closes the overlay); the web big screen can
+# also reply to an agent. Upstream suggests prefix+a, which is Projects' popup
+# here, so both ride the unused o namespace.
+[[keys.command]]
+key = "prefix+shift+o"
+type = "plugin_action"
+command = "herdr-portal.open-board"
+description = "Portal: global agent board (TUI popup)"
+
+[[keys.command]]
+key = "prefix+ctrl+o"
+type = "plugin_action"
+command = "herdr-portal.open-web"
+description = "Portal: global agent board (web big screen)"
