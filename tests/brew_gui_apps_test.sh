@@ -53,6 +53,15 @@ assert_not_contains "$homebrew_module" "formulae/borders" "did not expect the re
 assert_contains "$homebrew_module" "untap nikitabobko/tap" "expected the obsolete upstream AeroSpace tap to be removed"
 assert_contains "$homebrew_module" "untap felixkratz/formulae" "expected the obsolete JankyBorders tap to be removed"
 assert_contains "$homebrew_module" '"omniwm"' "expected the OmniWM cask in the declarative cask list"
+# emacs-plus lives only in the d12frosted/emacs-plus tap; the tap must be
+# declared and the formula fully-qualified, or `brew bundle` fails with
+# "No available formula with the name emacs-plus".
+assert_contains "$homebrew_module" '"d12frosted/emacs-plus"' "expected the emacs-plus tap to be declared"
+assert_contains "$homebrew_module" '"d12frosted/emacs-plus/emacs-plus"' "expected emacs-plus to be installed from its tap, fully-qualified"
+if grep -Eq '^[[:space:]]*"emacs-plus"[[:space:]]*$' "$homebrew_module"; then
+  echo "did not expect a bare emacs-plus formula with no tap" >&2
+  exit 1
+fi
 assert_contains "$homebrew_module" "untap whatpulse/whatpulse" "expected stale upstream WhatPulse tap to be removed before Homebrew bundle"
 assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
 assert_contains "$homebrew_module" "whatpulse-mac-latest.dmg" "expected the WhatPulse cask to provide the Intel latest DMG URL"

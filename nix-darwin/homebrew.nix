@@ -134,6 +134,7 @@ in {
     enable = true;
 
     taps = [
+      "d12frosted/emacs-plus"
       "daipeihust/tap"
       "furkankly/tap"
       "gromgit/fuse"
@@ -201,8 +202,10 @@ in {
       "daipeihust/tap/im-select"
       # Emacs for Doom — emacs-plus on macOS gives native Cocoa GUI
       # with compile-time options (modern icon, imagemagick, mailutils)
-      # that nixpkgs emacs-pgtk (GTK3/X11 on macOS) cannot match.
-      "emacs-plus"
+      # that nixpkgs emacs-pgtk (GTK3/X11 on macOS) cannot match. The
+      # formula only exists in the d12frosted/emacs-plus tap (declared
+      # above), so it must stay fully-qualified here.
+      "d12frosted/emacs-plus/emacs-plus"
       "furkankly/tap/zoetrope"
       "gromgit/fuse/sshfs-mac"
       "herdr"
