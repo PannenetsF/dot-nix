@@ -112,11 +112,11 @@ assert_contains "$body" "v0.4.11"
 assert_contains "$body" "action invoke start"
 assert_contains "$body" "--plugin devswha.herdr-web-ui"
 
-# herdr-portal: pinned v1.2.0 commit (upstream has no matching tag), on-demand
-# only — activation must not open the board itself — with both keybindings in
-# the template on the o namespace (prefix+a belongs to Projects).
-assert_contains "$body" "loofare/herdr-portal"
-assert_contains "$body" "cae8ea07a51f54d6e73b6e5a40d0930c8d4f074f"
+# herdr-portal: forked pinned tag (unknown-state agents stay visible in a
+# multi-agent tab), on-demand only — activation must not open the board
+# itself — with both keybindings in the template on the o namespace.
+assert_contains "$body" "PannenetsF/herdr-portal"
+assert_contains "$body" "v1.2.1-pf.1"
 assert_contains "config/herdr/config.toml" 'key = "prefix+shift+o"'
 assert_contains "config/herdr/config.toml" 'command = "herdr-portal.open-board"'
 assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+o"'

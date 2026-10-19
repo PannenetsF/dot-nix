@@ -206,10 +206,11 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 
 ## 可选：herdr-portal 全局 agent 看板
 
-`herdr-portal`（loofare/herdr-portal，pinned v1.2.0 提交 `cae8ea0`，纯
-Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚合成一个
-按 blocked/working/idle/done 分列的看板，数据走 herdr 自己的 CLI/JSON，和
-radar/projects 共存。
+`herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.2.1-pf.1`，fork 自
+上游 v1.2.0 提交 `cae8ea0`，纯 Python stdlib，无 node/uv 依赖）把全部
+workspace/tab/pane 的 agent 聚合成一个按 blocked/working/idle/done 分列的看板，
+状态尚未上报的 agent 单独落在按需出现的琥珀色「状态未知」列（不会再从看板
+消失），数据走 herdr 自己的 CLI/JSON，和 radar/projects 共存。
 
 - `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、
   `Enter` 跳到该 agent 的 pane 且看板自动关闭；`Tab`/`v` 切普通窗口视图；
