@@ -162,7 +162,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `modules/linux.nix`
 
 - Linux 桌面/服务器层。激活后执行 Nix store 中的 `install-linux-server.sh`
-  （联网 clone dot-nvim、初始化 Neovim）。
+  （联网 clone dot-nvim、初始化 Neovim），随后在 emacs 可用时执行
+  `install-doom.sh` 引导 Doom Emacs（细节见 §5）。
 
 `modules/linux-docker.nix`
 
@@ -231,6 +232,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   Herdi/WhatPulse 系列在这里维护。停用的 AeroSpace cask 只留在
   `deprecated/00-aerospace-indicator/`，不进 tap staging 和 Brewfile；
   preActivation 会 `untap` 掉 `nikitabobko/tap` 与 `felixkratz/formulae`。
+- 字体 cask（`font-iosevka-nerd-font`、`font-lxgw-wenkai`、
+  `font-ubuntu-mono-nerd-font`、`font-sf-pro`）也在这里声明：GUI app
+  （kitty、Emacs）只走 CoreText 字体注册表，而 `gui-apps.nix` 里的 nix
+  `nerd-fonts.*` 包装在 nix store、不注册给 CoreText，没有 cask 两边都看不到。
+  Iosevka NF 是 kitty 与 Doom 的共用字体，LXGW WenKai Mono 是 Doom 的 CJK
+  fallback（详见 §5 `install-doom.sh`）。
 - **quarantine 解封**：Homebrew 7 已彻底移除 `--no-quarantine`（flag、
   `HOMEBREW_CASK_OPTS` 转义口和 Cask::Config 全部删除，commit
   `ba25213c81`），cask 产物一律被强制打 `com.apple.quarantine`。`claude-code`
@@ -401,6 +408,31 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   fallback 并初始化 Neovim。
 - 锁文件为 `$HOME/pf-init`；不使用 `set -e`（与 macOS 入口的刻意差异）。
 
+`install-doom.sh`
+
+- Doom Emacs 引导（macOS nix-darwin postActivation、Linux `modules/linux.nix`
+  激活），emacs 二进制就绪后运行（macOS 是 Homebrew emacs-plus，Linux 是
+  nixpkgs emacs-pgtk）。
+- 安全同步两个仓库：`dot-doom`（`PannenetsF/dot-doom`）到
+  `$HOME/.config/doom`，上游 `doomemacs/doomemacs` 到 `$HOME/.config/emacs`。
+- 每次激活都刷新 doomenv：Doom CLI v2 里 `doom env -o FILE` 已删除，输出文件
+  是位置参数且**不能**加 `--` 分隔（加了会被 parser 丢掉，报
+  “Output file location required”）。正确形式：
+  `doom env --allow-all "$DOOM_DIR/doomenv"`。
+- 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync`；锁文件
+  `$HOME/pf-init-doom`。
+- dot-doom 的 `config.el` 直接 `(doom-load-envvars-file …/doomenv)`，缺文件会
+  file-error 中断启动（v2 该函数有 `noerror` 第二参，dot-doom 已传 `t`）。
+- 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Iosevka NF` 16.0，
+  dot-doom `config.el` 的 `doom-font` 用 CoreText 名 `Iosevka Nerd Font` 16
+  （同一 ttf 的 family alias，改字体两边一起改），CJK fallback 是
+  `LXGW WenKai Mono`。字体必须以 Homebrew cask 安装（见 §4 homebrew.nix）。
+- dot-doom 是独立 git 仓库，机器本地内容（`doomenv`）走该仓库自己的
+  `.gitignore`；升级 Doom 大版本后留意被移除的 module flag（如
+  `+pomodoro`/`+hugo` 在 25.04 删除，包要在 dot-doom `packages.el` 显式声明）。
+- vulpea 文件监听依赖 `fswatch`（homebrew.nix brews 声明），缺了它每次启动
+  提示 “fswatch not found, using polling”。
+
 注意：这些脚本在 Home Manager activation 中经模块以 `${../.}/script.sh`
 目录引用进入只读 Nix store（保证与 `install-common.sh` 同目录）后执行。
 脚本必须依赖运行时的 `$HOME`、`PATH` 和传入环境变量，不应假设
@@ -434,6 +466,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   cask（`spctl --assess` 报 Unnotarized Developer ID），还要把 cask token
   加进 `brew/unquarantine-casks.sh` 的 `CASKS` 白名单。
 - 新增 macOS 系统 defaults：改 `nix-darwin/macos-defaults.nix`。
+- 修改 Doom Emacs 引导：改 `install-doom.sh`（Doom CLI v2 的 `doom env`
+  输出文件走位置参数，勿用 `-o` 或 `--`）。个人 Doom 配置不在本仓库，在
+  独立的 `PannenetsF/dot-doom`（`~/.config/doom`）；换编辑器字体要三处一起
+  改：`config/kitty/kitty.conf`、dot-doom `config.el` 的 `doom-font`、
+  homebrew.nix 的字体 cask（细节见 §5）。
 - 新增 macOS app defaults 或默认打开方式：改 `nix-darwin/app-defaults.nix`。
 - 新增 macOS launchd/system 管理的 GUI 工具：改 `nix-darwin/gui-apps.nix`；
   非 GUI 的后台服务（如 herdr-remote relay）建独立 `nix-darwin/<name>.nix`
@@ -514,6 +551,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/darwin_activation_nvim_path_test.sh`
 - app config sync：`bash tests/darwin_app_config_sync_test.sh`
 - Neovide agent 打开脚本：`bash tests/neovide_agent_open_test.sh`
+- Doom Emacs 引导（`doom env` v2 位置参数语法、kitty/Doom 共用字体 cask）：
+  `bash tests/doom_bootstrap_test.sh`
 - Kitty：`bash tests/kitty_config_test.sh`
 - Python 工具 profile / pip 兼容：`bash tests/install_python_tools_profile_test.sh`、
   `bash tests/install_macos_pip_options_test.sh`

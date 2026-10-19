@@ -161,6 +161,13 @@ in {
       "codex"
       "codex-app"
       "firefox"
+      # Fonts must come from casks: nix nerd-fonts packages land in the
+      # nix store and are never registered with CoreText, so neither
+      # kitty nor Emacs can see them. Iosevka NF is kitty's font_family
+      # (config/kitty/kitty.conf) and Doom's doom-font (dot-doom
+      # config.el); LXGW WenKai Mono is Doom's CJK fallback face.
+      "font-iosevka-nerd-font"
+      "font-lxgw-wenkai"
       "font-ubuntu-mono-nerd-font"
       "font-sf-pro"
       # herdr-remote menu-bar client; ad-hoc signed and unnotarized, so the
@@ -212,6 +219,9 @@ in {
       # above), so it must stay fully-qualified here.
       "d12frosted/emacs-plus/emacs-plus"
       "furkankly/tap/zoetrope"
+      # vulpea (Doom org-roam) prefers fswatch for file change events and
+      # otherwise falls back to polling with a startup message.
+      "fswatch"
       "gromgit/fuse/sshfs-mac"
       "herdr"
     ];

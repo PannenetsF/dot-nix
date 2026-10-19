@@ -33,9 +33,14 @@ fi
 
 # Refresh the Doom env file every activation — Nix profile or Homebrew
 # prefix changes can shift binary paths and a stale env file breaks
-# vterm, lsp servers, and other subprocess-spawning packages.
+# vterm, lsp servers, and other subprocess-spawning packages. Doom CLI
+# v2 takes the output file as a positional argument (the old `-o` flag
+# was removed and fails with "unknown option -o"); a `--` separator
+# makes the parser drop the positional, so it must not be used. A
+# missing doomenv otherwise aborts startup on
+# `doom-load-envvars-file' in config.el.
 echo "[install-doom.sh] refreshing doom env..."
-"$EMACS_DIR/bin/doom" env -o "$DOOM_DIR/doomenv" --allow-all || true
+"$EMACS_DIR/bin/doom" env --allow-all "$DOOM_DIR/doomenv" || true
 
 if [ -f "$DOOM_LOCK" ]; then
   echo "[install-doom.sh] lock file present, skipping first-time bootstrap: $DOOM_LOCK"

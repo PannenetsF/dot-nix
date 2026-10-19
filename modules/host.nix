@@ -52,5 +52,5 @@ in {
     ((with pkgs; [ colima rar sketchybar terminal-notifier yabai ])
       ++ (with pkgsUnstable; [ macism ]))
     ++ lib.optionals (!pkgs.stdenv.hostPlatform.isDarwin)
-    ((with pkgs; [ imagemagick emacs-pgtk ]));
+    ((with pkgs; [ imagemagick emacs-pgtk fswatch ]));
 }
