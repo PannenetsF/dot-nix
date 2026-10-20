@@ -429,8 +429,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   是位置参数且**不能**加 `--` 分隔（加了会被 parser 丢掉，报
   “Output file location required”）。正确形式：
   `doom env --allow-all "$DOOM_DIR/doomenv"`。
-- 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync`；锁文件
-  `$HOME/pf-init-doom`。
+- 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync --aot`；锁文件
+  `$HOME/pf-init-doom`。`--aot` 不可省：普通 `doom sync` 只字节编译，
+  ~2000 个包全靠 JIT 懒编译，首次用到时卡顿 + 后台 gcc 拖很多天；
+  `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器补做一次
+  手动 `doom sync --aot`（锁文件存在，activation 不会重跑首次引导）。
 - dot-doom 的 `config.el` 直接 `(doom-load-envvars-file …/doomenv)`，缺文件会
   file-error 中断启动（v2 该函数有 `noerror` 第二参，dot-doom 已传 `t`）。
 - 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Iosevka NF` 16.0，

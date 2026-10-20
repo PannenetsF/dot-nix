@@ -49,7 +49,13 @@ fi
 
 echo "[install-doom.sh] first-time Doom Emacs bootstrap..."
 "$EMACS_DIR/bin/doom" install --doomdir "$DOOM_DIR" --no-env
-"$EMACS_DIR/bin/doom" sync
+# `doom sync' alone only byte-compiles packages; without --aot every
+# package keeps running as .elc until JIT lazy native-compilation catches
+# up on first use, which shows up as repeated stutters and background
+# gcc churn long after startup. --aot natively compiles every package
+# once at bootstrap (a slow one-off, several minutes) and is a no-op
+# ("if available") on Emacs builds without NATIVE_COMP.
+"$EMACS_DIR/bin/doom" sync --aot
 
 touch "$DOOM_LOCK"
 echo "[install-doom.sh] Doom Emacs bootstrap done"

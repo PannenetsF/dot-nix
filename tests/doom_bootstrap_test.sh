@@ -56,6 +56,13 @@ assert_not_contains "install-doom.sh" 'doom" env -o' \
 assert_contains "install-doom.sh" 'doom" env --allow-all "$DOOM_DIR/doomenv"' \
 	"expected install-doom.sh to refresh the doomenv via positional output file"
 
+# Plain `doom sync' only byte-compiles; without --aot the first run on a
+# new machine leaves ~2000 packages on .elc with only lazy JIT
+# native-compilation, causing per-feature stutters and background gcc
+# churn for days. The first-time bootstrap must AOT-compile once.
+assert_contains "install-doom.sh" 'doom" sync --aot' \
+	"expected the first-time bootstrap to run 'doom sync --aot'"
+
 # macOS GUI apps (kitty, Emacs) resolve fonts through CoreText; nix
 # nerd-fonts packages stay invisible in the nix store, so the shared
 # font families must be installed as casks.
