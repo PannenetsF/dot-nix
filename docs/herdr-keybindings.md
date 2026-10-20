@@ -10,6 +10,11 @@ macOS 经 `nix-darwin/herdr.nix` postActivation、Linux host 经
 **`C-A-x` = `ctrl+alt+x` 同时按下**（直连和弦，无需 prefix；注意 `C-A` 是
 ctrl+alt，不是 tmux 的 ctrl+a）。
 
+> 中文输入法：已启用 `experimental.switch_ascii_input_source_in_prefix`。
+> 按住 `P` 进入前缀模式时 macOS 自动切到 ASCII 输入源，退出前缀模式后恢复
+> 原输入法，所以 `P S-o` 这类带 shift 的组合不会再被输入法吞掉（best-effort，
+> 仅 macOS/Windows；直连 `C-A-x` 和弦不走前缀模式、不触发切换）。
+
 设计原则：高频操作给 ctrl+alt 直连和弦，低频操作只走 prefix。裸 alt 全局被
 AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用，ctrl+alt
 是各终端均不占用的安全层，且 kitty 未开 `macos_option_as_alt` 也能传输。

@@ -22,6 +22,15 @@ delivery = "herdr"
 [ui.sound]
 enabled = true
 
+[experimental]
+# Allow launching herdr from inside a herdr-managed pane.
+allow_nested = true
+# While prefix mode is active, temporarily switch macOS to the ASCII-capable
+# input source so prefix chords register while a CJK IME is active (e.g.
+# prefix+shift+o), then restore the previous input source when prefix mode
+# exits. macOS-only, best-effort (herdr >= 0.9).
+switch_ascii_input_source_in_prefix = true
+
 # Keybindings chosen to match nvim habits (see nvim/lua/vimconf/easy-keymap.lua):
 # plain alt is globally owned by AeroSpace, so direct chords use ctrl+alt.
 # Cheat sheet: docs/herdr-keybindings.md
