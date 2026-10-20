@@ -346,9 +346,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   采集，无 node/uv 依赖、无 startup hook。fork 修复：agent 进程已识别但
   生命周期状态尚未上报（`agent_status=unknown`，一个 tab 里多个 agent 刚
   启动时常见）时上游把该 pane 从所有列丢弃，多 agent tab 看起来「只剩一
-  个」；pf.1 给它单独一列按需出现的「状态未知」（TUI/web 均为琥珀色），
-  闲置回收也保护这类 pane。`P S-o` 打开 TUI overlay（只读导航，Enter 只
-  跳 pane），`P C-o` 起 stdlib HTTP daemon（`127.0.0.1:8787`）开 web 大屏
+  个」；pf.1 只改 collect.py 约 15 行，把这类卡并入「执行中」列（显示
+  「状态未知」阶段、保持 active），闲置回收也保护这类 pane。
+  `P S-o` 打开 TUI overlay（只读导航，Enter 只跳 pane），`P C-o` 起 stdlib HTTP daemon（`127.0.0.1:8787`）开 web 大屏
   （web 端可回 agent 消息）。键位在 `config/herdr/config.toml` 的 o 命名
   空间（上游建议的 `P a` 属于 Projects）；激活只 pin 安装，不自动开看板。
   速查表见 `docs/herdr-keybindings.md`。

@@ -197,9 +197,10 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
   # the board opens only when the user asks. Upstream main (v1.2.0 commit
   # cae8ea0) drops agent_status=unknown panes from every board column, so in a
   # tab with several freshly spawned agents the not-yet-reported ones vanish
-  # from the TUI/web board; the fork adds an on-demand "unknown" column
-  # (v1.2.1-pf.1) and protects those panes in idle reclaim. Pin the fork tag
-  # like the other PannenetsF herdr-* forks.
+  # from the TUI/web board; the fork routes those cards into the RUNNING column
+  # with a 状态未知 phase (and protects them in idle reclaim) in a ~15-line
+  # collect.py-only patch. Pin the fork tag like the other PannenetsF herdr-*
+  # forks.
   if ! "$herdr_cli" plugin list 2>/dev/null \
       | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.2.1-pf.1"; then
     "$herdr_cli" plugin install -y --ref v1.2.1-pf.1 \
