@@ -80,7 +80,7 @@ echo "$log1" | grep -q "server reload-config" || fail "server config not reloade
 
 # radar configure must precede projects install (marker-block ownership order).
 radar_cfg=$(echo "$log1" | grep -n "action invoke configure" | head -1 | cut -d: -f1)
-proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.1" | head -1 | cut -d: -f1)
+proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.2" | head -1 | cut -d: -f1)
 [ -n "$radar_cfg" ] && [ -n "$proj_inst" ] && [ "$radar_cfg" -lt "$proj_inst" ] \
   || fail "radar configure ($radar_cfg) must run before projects install ($proj_inst)"
 

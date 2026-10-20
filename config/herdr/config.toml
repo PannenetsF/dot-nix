@@ -137,12 +137,25 @@ height = "60%"
 
 # Open another coordinator for the current project. The script resolves the
 # project from cwd / the underlying pane (HERDR_ACTIVE_PANE_ID), else fzf.
-# C-n = new coordinator, alongside the other <leader>a project keys.
+# C-n = new coordinator, alongside the other <leader>a project keys. On an
+# unregistered agent sitting in the project home it registers that pane in
+# place (`coordinator adopt`) instead of opening a duplicate.
 [[keys.command]]
 key = "prefix+ctrl+n"
 type = "popup"
 command = "sh -c 'exec \"$HOME/.local/bin/herdr-new-coordinator\"'"
 description = "Projects: another coordinator"
+width = "60%"
+height = "60%"
+
+# Focus the project's registered coordinator (coordinator.json pane, then any
+# live hpc-<slug> family member); adopt the unregistered root pane underneath
+# the popup when it is not registered yet.
+[[keys.command]]
+key = "prefix+ctrl+f"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-focus-coordinator\"'"
+description = "Projects: focus coordinator"
 width = "60%"
 height = "60%"
 

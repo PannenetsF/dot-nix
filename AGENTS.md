@@ -115,7 +115,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   - `isHost && !isDocker` 时导入 `modules/host.nix`（容器保持精简，`isDocker`
     强制关闭 host 层）。
   - host 层（macOS 与 Linux host）共同导入 `modules/herdr-launchers.nix`，
-    四个 herdr popup launcher 链接只有这一个来源。
+    五个 herdr popup launcher 链接只有这一个来源。
   - Linux：`isDocker` 时导入 `modules/linux-docker.nix`，否则
     `modules/linux.nix`。
   - Darwin 导入 `modules/darwin.nix`。
@@ -293,6 +293,14 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
   pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.1
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
+  herdr-projects pin 在 fork **`v0.2.34-pf.2`**：coordinator 身份是注册的
+  agent 名（`hpc-<slug>`/`hpc-<slug>-N`，cwd 同时在项目家目录），取代上游
+  「cwd 在根目录就是 coordinator」的启发式；fork 加了 `coordinator adopt
+  <slug> [--pane]`（首次登记成 primary，记录 pane 在同会话连 shell pane 都
+  不存在时视为过期被顶替；之后登记是 `-N` 次 coordinator，primary 不动）、
+  `context` 的未注册 pane 拒绝门（peek 也拒、不标 seen）、nudge 会话粘性
+  （`ticker.json` 的 `nudge_session`，粘住后不合格返回 None 不横流），根
+  目录野会话 sidebar 落 `~` 尾段（严格子目录的第二 harness guest claim 保留）。
   herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
   `herdr-projects configure`，由插件自己写 live config（journal 校验）。
   `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，由共享模块
@@ -301,8 +309,15 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `HP_PROJECT_ROOTS` 覆盖（默认冒号分隔的 `~/Documents:~/.config`）。`P C-p` 的项目
   选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
   自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
-  四个 popup launcher（new-project/pick-project/add-repo/new-coordinator）
-  只有 `modules/herdr-launchers.nix` 这一个来源，新增第五个只改这里：
+  `P C-n`（new-coordinator）与 `P C-f`（focus-coordinator）按**注册身份**
+  工作：`P C-n` 在未注册但 cwd 是项目家目录的底层 pane 上 detach 跑
+  `coordinator adopt --pane` 而非再开一个，其他情形仍 `open --new --tab`；
+  `P C-f` 按 `.state/coordinator.json` 的 pane_id（再退在线名字族成员）
+  `herdr agent focus`，无注册 coordinator 时提示 adopt。截断/名字族判定
+  只在共享库 `config/herdr/herdr-popup-lib.sh` 实现一次（bash 镜像 Rust
+  `names.rs` 的 24/22 规则）。
+  五个 popup launcher（new-project/pick-project/add-repo/new-coordinator/
+  focus-coordinator）只有 `modules/herdr-launchers.nix` 这一个来源，新增第六个只改这里：
   config.toml 的键位无条件下发，任何 host 层漏链都会让
   `P C-p` 等静默失败（Linux host 上曾因此静默失败）。
 - herdr-radar（pinned fork `v1.4.4-pf.6`，PannenetsF/herdr-radar）是首个 Node
@@ -542,6 +557,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
+  herdr-projects pin v0.2.34-pf.2、五个 popup launcher 的单一来源模块与
+  `P C-f` 键位/共享库名字族判定、
   web-ui v0.4.11、herdr-portal fork tag pin v1.2.1-pf.1（只安装、不自动 invoke）、
   herdr-push pin + .env seed-once、relay launchd 模块和
   Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件和
@@ -604,7 +621,7 @@ stub 命令，请避免引入难以 stub 的外部副作用。
    的 `system`）。确实需要平台分叉时拆模板或按层导入。
 5. **单一来源，禁止镜像复制**：跨模块共用的 home.file 放进共享模块
    （`modules/herdr-launchers.nix`）；多个脚本共用的前言/函数进共享库
-   （`config/herdr/herdr-popup-lib.sh`、`install-common.sh`）。新增第五个
+   （`config/herdr/herdr-popup-lib.sh`、`install-common.sh`）。新增第六个
    launcher 只改共享模块，不在 darwin/linux 两边各抄一份。
 6. **需要 sibling 文件的 Nix 脚本引用走目录形式** `bash ${../.}/script.sh`；
    直接 `${../script.sh}` 会把单文件压成扁平 store 对象，旁边的共享库不在

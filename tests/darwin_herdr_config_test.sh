@@ -165,18 +165,22 @@ assert_file_exists "config/herdr/new-project.sh"
 assert_contains "config/herdr/config.toml" 'herdr-new-project'
 assert_file_exists "config/herdr/pick-project.sh"
 assert_contains "config/herdr/config.toml" 'herdr-pick-project'
-# All four popup launchers are linked from the single shared
+# All five popup launchers are linked from the single shared
 # modules/herdr-launchers.nix, imported from every host layer (macOS and
 # Linux). The key bindings ship unconditionally in config.toml, so the
 # links must be platform-independent — a missing one makes prefix+ctrl+p
 # (and the rest of the project namespace) silently no-op on that layer.
 assert_file_exists "modules/herdr-launchers.nix"
 assert_contains "home.nix" "./modules/herdr-launchers.nix"
-for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator; do
+for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator herdr-focus-coordinator; do
 	assert_contains "modules/herdr-launchers.nix" "\".local/bin/$launcher\""
 	assert_not_contains "modules/herdr.nix" "\".local/bin/$launcher\""
 	assert_not_contains "modules/darwin.nix" "\".local/bin/$launcher\""
 done
+# Focus-coordinator (prefix+ctrl+f) ships its own binding.
+assert_file_exists "config/herdr/focus-coordinator.sh"
+assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+f"'
+assert_contains "config/herdr/config.toml" 'herdr-focus-coordinator'
 # Attach-repos picker (prefix+shift+a)
 assert_file_exists "config/herdr/add-repo.sh"
 assert_contains "config/herdr/config.toml" 'herdr-add-repo'
@@ -200,9 +204,24 @@ assert_not_contains "config/herdr/new-project.sh" 'invalid slug'
 assert_file_exists "config/herdr/herdr-popup-lib.sh"
 assert_contains "config/herdr/herdr-popup-lib.sh" "/etc/profiles/per-user/"
 assert_contains "config/herdr/herdr-popup-lib.sh" "/opt/homebrew/bin"
-for s in new-project pick-project add-repo new-coordinator; do
+for s in new-project pick-project add-repo new-coordinator focus-coordinator; do
 	assert_contains "config/herdr/$s.sh" "herdr-popup-lib.sh"
 done
+
+# Registered-coordinator identity (fork pf.2): the shared lib mirrors Rust
+# names.rs (head() truncation widths 24/22, structural family test), and the
+# two identity-aware launchers drive off those helpers.
+assert_contains "config/herdr/herdr-popup-lib.sh" "hp_slug_head"
+assert_contains "config/herdr/herdr-popup-lib.sh" "hp_pane_is_coordinator_of"
+assert_contains "config/herdr/herdr-popup-lib.sh" 'hp_slug_head "$slug" 24'
+assert_contains "config/herdr/herdr-popup-lib.sh" 'hp_slug_head "$slug" 22'
+assert_contains "config/herdr/herdr-popup-lib.sh" "hp_adopt_detached"
+assert_contains "config/herdr/herdr-popup-lib.sh" "coordinator adopt"
+assert_contains "config/herdr/new-coordinator.sh" "hp_adopt_detached"
+assert_contains "config/herdr/focus-coordinator.sh" "herdr agent focus"
+assert_contains "config/herdr/focus-coordinator.sh" ".state/coordinator.json"
+# The fork pin for the plugin is pf.2 in the shared activation body.
+assert_contains "$body" "v0.2.34-pf.2"
 
 # Repo paths containing @ are rejected before reaching the plugin (they break
 # TOML/shell handling); both scripts that accept repo paths must guard them.

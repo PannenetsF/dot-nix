@@ -64,7 +64,8 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | herdr-radar 设置弹窗（可选插件，见下） | `P ,` | — |
 | herdr-projects 项目总控（可选插件，见下） | `P a` | nvim `<leader>ao` explorer |
 | herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
-| herdr-projects 再开一个 coordinator | `P C-n` | n = new；当前项目免选 |
+| herdr-projects 再开 / 登记 coordinator | `P C-n` | n = new；未注册的根 pane 上改为当场 adopt |
+| herdr-projects 聚焦 coordinator | `P C-f` | f = focus；跳到注册的 coordinator，无则提示登记 |
 | herdr-projects 给项目追加仓库 | `P S-a` | fzf 多选，免手打路径 |
 | roadboard 路线图看板（可选插件，见下） | `P S-r` | 7 态任务树；再按一次关闭 |
 | herdr-portal 全局 agent 看板 TUI（可选插件，见下） | `P S-o` | ↑↓ 选 agent、Enter 跳 pane；只读导航 |
@@ -175,12 +176,21 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 「needs you / review / working」分组，tab 栏显示 `projects: N need you`。
 
 - 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
-  `v0.2.34-pf.1`，PannenetsF/herdr-projects；macOS 经
+  `v0.2.34-pf.2`，PannenetsF/herdr-projects；macOS 经
   `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
   两个薄封装调用；要求 herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示
   重启 herdr）
-- 版本被激活 pin 在 fork `v0.2.34-pf.1`：不要用插件自更新（`herdr-projects
+- 版本被激活 pin 在 fork `v0.2.34-pf.2`：不要用插件自更新（`herdr-projects
   update` 等），下次激活会被装回 pin 版本
+- **coordinator 身份是注册的 agent 名**（pf.2 起）：只有带 `hpc-<slug>` /
+  `hpc-<slug>-N` 名字、且 cwd 在项目家目录的 agent 才算 coordinator。
+  在项目根目录手动开的会话（split pane、`claude --resume`）默认是「野
+  会话」：ticker 不给它投递 inbox、`context` 会拒绝它（避免全局标 seen
+  把 inbox 从真 coordinator 眼前藏掉）、sidebar 落到 `~` 尾段。用
+  `coordinator adopt <slug> --pane <id>`（或在该 pane 内按 `P C-n`）登记，
+  首次登记成为 primary；记录里的 pane 在同会话里连 shell pane 都不存在
+  时视为过期，adopt 直接顶替；nudge 一旦选定某个 coordinator 会话就粘住，
+  它消失后才重选
 - sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
   写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块
   加进可写的 `~/.config/herdr/config.toml` 并记入 journal（幂等，`doctor`
@@ -195,14 +205,25 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
   `~/.local/bin/herdr-new-project`，仓库根用 `HP_PROJECT_ROOTS` 覆盖）、
   `P C-p` fzf 选已有项目打开（`~/.local/bin/herdr-pick-project`；不用插件
   自带 open 动作，因为它在项目 workspace 内不询问直接回当前项目）、
-  `P C-n` 给当前项目再开一个 coordinator（`~/.local/bin/herdr-new-coordinator`，
-  即 `open <slug> --new`；项目按 cwd → 底层 pane 的 `hp_project` → fzf
-  顺序解析，coordinator/thread pane 上都能直接用）。`open` 会等新 tab 的
-  shell 就绪（约几秒），脚本把它 detach 到后台（nohup，输出到
-  `$TMPDIR/herdr-new-coordinator-<slug>.log`），popup 立即关闭，coordinator
-  在自己的 pane 里 priming、
+  `P C-n`（`~/.local/bin/herdr-new-coordinator`；项目按 cwd → 底层 pane 的
+  `hp_project` → fzf 顺序解析）在**已注册** coordinator/thread、guest 或
+  外部 pane 上仍是 `open <slug> --new --tab` 再开一个 coordinator；在
+  **未注册但 cwd 正好是项目家目录**的 pane 上则 detach 跑
+  `coordinator adopt --pane` 把当前会话登记成 `hpc-<slug>`（日志
+  `$TMPDIR/herdr-adopt-coordinator-<slug>.log`），避免重复开新
+  coordinator 把会话越堆越多、
+  `P C-f`（`~/.local/bin/herdr-focus-coordinator`，f = focus）跳到项目的
+  注册 coordinator：先查 `<root>/<slug>/.state/coordinator.json` 的
+  pane_id，记录的 pane 没了就退到任意在线的 `hpc-<slug>` 名字族成员（
+  按 state_change_seq 取最新）；底层 pane 是未注册的根会话时同样改为
+  adopt；一个注册 coordinator 都没有时提示「在该 pane 按 P C-n 登记」。
+  `open`/adopt 都 detach 到后台（nohup），popup 立即关闭、
   `P a` 总控弹窗（configure 管理）；不带 `--repo` 的裸 `herdr-projects new`
   只建元数据目录，所以模板里的新建键走选择器
+- 五个 popup launcher（new-project/pick-project/add-repo/new-coordinator/
+  focus-coordinator）全部由单一来源 `modules/herdr-launchers.nix` 链到
+  `~/.local/bin`，共享 `herdr-popup-lib.sh` 里的截断/名字族判定（镜像
+  Rust `names.rs` 的 24/22 截断规则）；新增第六个只改这个模块
 
 ## 可选：herdr-portal 全局 agent 看板
 
