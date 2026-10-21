@@ -291,36 +291,53 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
   缺失兜底。
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
-  pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.1
+  pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.3
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
-  herdr-projects pin 在 fork **`v0.2.34-pf.2`**：coordinator 身份是注册的
-  agent 名（`hpc-<slug>`/`hpc-<slug>-N`，cwd 同时在项目家目录），取代上游
-  「cwd 在根目录就是 coordinator」的启发式；fork 加了 `coordinator adopt
-  <slug> [--pane]`（首次登记成 primary，记录 pane 在同会话连 shell pane 都
-  不存在时视为过期被顶替；之后登记是 `-N` 次 coordinator，primary 不动）、
-  `context` 的未注册 pane 拒绝门（peek 也拒、不标 seen）、nudge 会话粘性
-  （`ticker.json` 的 `nudge_session`，粘住后不合格返回 None 不横流），根
-  目录野会话 sidebar 落 `~` 尾段（严格子目录的第二 harness guest claim 保留）。
-  herdr-projects 的 sidebar/`P a`/tab 栏块不进模板：激活落模板后跑
-  `herdr-projects configure`，由插件自己写 live config（journal 校验）。
-  `P S-c` 的 fzf 仓库选择器是 `config/herdr/new-project.sh`，由共享模块
-  `modules/herdr-launchers.nix`（每个 host 层都导入，macOS/Linux 同源）链到
-  `~/.local/bin/herdr-new-project`，扫描根由
-  `HP_PROJECT_ROOTS` 覆盖（默认冒号分隔的 `~/Documents:~/.config`）。`P C-p` 的项目
-  选择器同理：`config/herdr/pick-project.sh` → `herdr-pick-project`（插件
-  自带 open 动作在项目 workspace 内不询问直接回当前项目，所以另写脚本）。
-  `P C-n`（new-coordinator）与 `P C-f`（focus-coordinator）按**注册身份**
-  工作：`P C-n` 在未注册但 cwd 是项目家目录的底层 pane 上 detach 跑
-  `coordinator adopt --pane` 而非再开一个，其他情形仍 `open --new --tab`；
-  `P C-f` 按 `.state/coordinator.json` 的 pane_id（再退在线名字族成员）
-  `herdr agent focus`，无注册 coordinator 时提示 adopt。截断/名字族判定
-  只在共享库 `config/herdr/herdr-popup-lib.sh` 实现一次（bash 镜像 Rust
-  `names.rs` 的 24/22 规则）。
+  herdr-projects 直接 pin **上游 `eliasstravik/herdr-projects@v1.2.13`**
+  （旧 0.2.x pf fork 已整体退役）。1.2 是另一套模型：单位是任务
+  （`repo/123`，delegate 后是 worktree space 里的普通 herdr agent），git
+  仓库首次使用时自动注册进 `~/.herdr-projects/data/repos.json`，每个仓库
+  有一个 pump 守护的 project coordinator（agent 名
+  `sw-coordinator-<repo>`，state 在
+  `data/coordinator/<session>/projects/<repo>/state.json`）。旧 fork 的
+  hpc- 身份/adopt/context 门/nudge 粘性针对的问题在这套模型里已不存在；
+  唯一保留的本地功能是**按仓库聚焦 coordinator**——上游只有顶层
+  open-coordinator action，没有按仓库进入的入口，由
+  `config/herdr/focus-coordinator.sh` 读 state.json（跨 session 时 pin 其
+  socket 到 `HERDR_SOCKET_PATH`）聚焦记录 pane，再退 `sw-coordinator-<repo>`
+  名字族在线成员（截断规则镜像 Rust `co.rs`：全名取 29 字符，给
+  `-2/-3` 去重后缀留位；判定只在 `herdr-popup-lib.sh` 实现一次），只聚焦
+  不自启。
+  1.2 没有 `configure` 步骤：看板键 `P a`（`herdr-projects.open`）直接发在
+  config.toml 模板里；它提议的 `[ui.sidebar.agents]` 任务三行与 radar
+  glyph 表互斥，模板有意不发（radar 保留侧边栏，插件检测到已有侧边栏表会
+  当用户手写表保留；任务三行在 board 弹窗里完整可见）；hooks/skill 由插件
+  startup hook 自管。首次运行会把旧 `~/.herdr-projects` 归档到
+  `~/.herdr-projects-legacy`；release 二进制由插件 bin/run.sh 安装期下载，
+  激活不需要 Rust 工具链。
+  `P S-c`（new-project）/`P S-a`（add-repo）是
+  `config/herdr/*.sh` 里的 fzf 注册前端：扫描
+  `HP_PROJECT_ROOTS`（默认冒号分隔 `~/Documents:~/.config`，深度 4 层，含
+  worktree）下的 git 仓库，注册走公开 CLI（建一个不 delegate 的占位任务后
+  立即 clear，不启动 agent、不需要 herdr 在跑），不手写 repos.json；
+  `P S-c` 多选注册后打开第一个仓库的 coordinator，`P S-a` 只注册。
+  `P C-p`（pick-project）聚焦在跑的 coordinator、pane 没了则
+  `coordinator restart` 续同一对话、从没起过才 `coordinator new`；
+  `P C-n`（new-coordinator）无条件起全新对话，仓库按 cwd → 底层 pane cwd
+  → fzf 注册表解析。
   五个 popup launcher（new-project/pick-project/add-repo/new-coordinator/
   focus-coordinator）只有 `modules/herdr-launchers.nix` 这一个来源，新增第六个只改这里：
   config.toml 的键位无条件下发，任何 host 层漏链都会让
   `P C-p` 等静默失败（Linux host 上曾因此静默失败）。
-- herdr-radar（pinned fork `v1.4.4-pf.6`，PannenetsF/herdr-radar）是首个 Node
+  `herdr_projects_bin()`（`config/herdr/herdr-popup-lib.sh`）的查找顺序：
+  `$HERDR_PROJECTS_BIN` → 数据目录 shim
+  `~/.herdr-projects/data/bin/herdr-projects`（看板首次打开时由插件写入，
+  `crates/board/src/board/run/start.rs` 调 `send::shim()`）→ `~/.local/bin`
+  → 插件 checkout 的 release 资产
+ （`~/.config/herdr/plugins/github/herdr-projects-*/bin/herdr-projects-<os>-<arch>`，
+  覆盖装完插件但看板还没打开过的首跑窗口）→ PATH；e2e 有三个对应发现路径用例。
+- herdr-radar（pinned fork `v1.4.9-pf.1`，PannenetsF/herdr-radar，基于上游
+  hhdebb/herdr-radar v1.4.9）是首个 Node
   插件：运行时 `node` 由 `modules/host.nix` 的 `nodejs_22` 提供，所以 Linux 侧
   herdr 激活也 gate 在 host 层（zoetrope/herdr-projects 是 Rust 单文件二进制，
   不需要解释器）。macOS postActivation 经 sudo 跑整个脚本，`env_reset` 的
@@ -342,11 +359,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   键位：上游建议的 `P a` 被 Projects 占用、裸 `P r` 是 resize 模式，
   故 view-flip 用 `P C-r`、settings 用 `P ,`，速查表同步
   `docs/herdr-keybindings.md`。
-  共存顺序：两个插件都写 tab-bar 和 `[ui.sidebar.agents]`；v0.2.34 的
-  herdr-projects 会把自己的条目合并进 radar 的 marker 块（反过来 radar
-  不认识 projects），所以 postActivation 必须 radar configure 在前、
-  projects configure 在后，且共用 0.9.0 版本门。radar 深浅色切换重写
-  侧边栏会临时丢掉 projects 的 `$hp_sub` 行，下次激活恢复。
+  共存：herdr-projects 1.2.x 不再安装全局 agents 视图（也没有 configure
+  步骤）；它提议的 sidebar 三行与 radar 的 glyph 表互斥，模板只发 radar
+  版，projects 检测到已有侧边栏表会当用户手写表保留，无激活顺序约定。
 
 - herdr-web-ui（pinned `v0.4.11`，devswha/herdr-web-ui）是 Bun 插件：浏览器/PWA
   客户端，经 herdr socket API 呈现 workspace/tab/pane、聊天和实时终端，默认只监听
@@ -354,19 +369,25 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `tailscale serve`，仓库不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`
   （需 ≥1.4，node 22 已由 radar 引入）；激活安装后显式 invoke 一次
   `start` action，不必重启 herdr 即拉起 bridge。
-- herdr-portal（pinned fork tag `v1.2.1-pf.1`，PannenetsF/herdr-portal；fork
-  自 loofare/herdr-portal v1.2.0 提交 `cae8ea0`，上游 tag 只到 v1.0.3）是纯
-  Python stdlib（curses）看板插件，把全部 workspace/tab/pane 的 agent 按
-  blocked/working/idle/done 聚合成一个 board，数据经 herdr 自身 CLI/JSON
-  采集，无 node/uv 依赖、无 startup hook。fork 修复：agent 进程已识别但
-  生命周期状态尚未上报（`agent_status=unknown`，一个 tab 里多个 agent 刚
-  启动时常见）时上游把该 pane 从所有列丢弃，多 agent tab 看起来「只剩一
-  个」；pf.1 只改 collect.py 约 15 行，把这类卡并入「执行中」列（显示
-  「状态未知」阶段、保持 active），闲置回收也保护这类 pane。
+- herdr-portal（pinned fork tag `v1.3.0-pf.1`，PannenetsF/herdr-portal，
+  基于上游 loofare/herdr-portal 未打 tag 的 1.3.0 release commit `ba47b65`）
+  是纯 Python stdlib（curses）看板插件，把全部 workspace/tab/pane 的 agent
+  按 blocked/working/idle/done/unknown 聚合成一个 board，数据经 herdr 自身
+  CLI/JSON 采集，无 node/uv 依赖、无 startup hook。上游 1.3.0 重写状态系统，
+  `agent_status=unknown`（agent 进程已识别但生命周期状态尚未上报，一个 tab
+  里多个 agent 刚启动时常见）有了状态标签、计数和 Spaces 视图，但
+  collect() 的 columns 只建 blocked/working/settled/window 四个桶、TUI/web
+  主看板只读这四个桶，这类卡仍会从主看板消失，空闲回收也把它们当候选。
+  fork pf.1 把 unknown 卡并入「执行中」列（保留「未知」标签和 unknown
+  计数），并在回收判定里保护 unknown；若上游以后给 unknown 补列/补保护可
+  弃用本 fork。
   `P S-o` 打开 TUI overlay（只读导航，Enter 只跳 pane），`P C-o` 起 stdlib HTTP daemon（`127.0.0.1:8787`）开 web 大屏
-  （web 端可回 agent 消息）。键位在 `config/herdr/config.toml` 的 o 命名
-  空间（上游建议的 `P a` 属于 Projects）；激活只 pin 安装，不自动开看板。
-  速查表见 `docs/herdr-keybindings.md`。
+  （web 端可回 agent 消息）；1.3.0 的 daemon 仍是纯 stdlib，但 `/api/*`
+  加了本机 token 鉴权（token 自动生成于
+  `~/.local/state/herdr-portal/token`，open-web 动作经 URL 一次性带入）与
+  Host/Origin 校验（挡 DNS rebinding）。键位在 `config/herdr/config.toml`
+  的 o 命名空间（上游建议的 `P a` 属于 Projects）；激活只 pin 安装，不自动
+  开看板。速查表见 `docs/herdr-keybindings.md`。
 - herdr-push（pinned HEAD `f4fdb06`，dcolinmorgan/herdr-push）是纯 shell+curl
   事件插件，把 `pane.agent_status_changed` POST 给 herdr-remote relay。它由共享脚本
   内的 `HERDR_PUSH_RELAY_URL` 门控：仅 nix-darwin 封装传
@@ -557,15 +578,18 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
-  herdr-projects pin v0.2.34-pf.2、五个 popup launcher 的单一来源模块与
-  `P C-f` 键位/共享库名字族判定、
-  web-ui v0.4.11、herdr-portal fork tag pin v1.2.1-pf.1（只安装、不自动 invoke）、
+  herdr-projects 上游 pin v1.2.13 + 0.9.3 版本门（无 configure 步骤）、
+  五个 popup launcher 的单一来源模块、`P a` 看板键、`P C-f` state.json
+  跨 session 聚焦/名字族回退、repos.json 注册（占位 task add+clear）、
+  web-ui v0.4.11、herdr-portal fork tag pin v1.3.0-pf.1（unknown 卡并入执行中列，只安装、不自动 invoke）、
   herdr-push pin + .env seed-once、relay launchd 模块和
   Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件和
   cask 验收在 `macos_acceptance.sh`（静态断言在
   `macos_acceptance_script_test.sh`）。
-- herdr 项目选择器 e2e（真实 herdr-projects 二进制 + stub fzf，全程跑在
-  mktemp 里）：`bash tests/herdr_pickers_e2e_test.sh`
+- herdr 仓库/coordinator 选择器 e2e（真实 herdr-projects 1.2.x 二进制 +
+  stub fzf/herdr（BASH_ENV 函数只能用 return，不能用 exit，否则带临时
+  环境变量前缀的调用会 127）+ stub coordinator，全程跑在 mktemp 里）：
+  `bash tests/herdr_pickers_e2e_test.sh`
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`

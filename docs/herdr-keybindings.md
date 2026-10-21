@@ -62,11 +62,12 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | zoetrope 会话流程图（可选插件，见下） | `P S-z` | — |
 | herdr-radar 切换 agent 排序（可选插件，见下） | `P C-r` | — |
 | herdr-radar 设置弹窗（可选插件，见下） | `P ,` | — |
-| herdr-projects 项目总控（可选插件，见下） | `P a` | nvim `<leader>ao` explorer |
-| herdr-projects 新建 / 打开项目 | `P S-c` / `P C-p` | nvim `<leader>ap`；C = create |
-| herdr-projects 再开 / 登记 coordinator | `P C-n` | n = new；未注册的根 pane 上改为当场 adopt |
-| herdr-projects 聚焦 coordinator | `P C-f` | f = focus；跳到注册的 coordinator，无则提示登记 |
-| herdr-projects 给项目追加仓库 | `P S-a` | fzf 多选，免手打路径 |
+| herdr-projects 工作看板（可选插件，见下） | `P a` | board 总控弹窗 |
+| herdr-projects 注册本地仓库并打开 coordinator | `P S-c` | fzf 多选 git 仓库；C = create |
+| herdr-projects 选仓库打开 coordinator | `P C-p` | 在跑就聚焦、挂了重启、第一次新建 |
+| herdr-projects 另开一个新 coordinator | `P C-n` | n = new；同一仓库的全新对话 |
+| herdr-projects 聚焦 coordinator | `P C-f` | f = focus；只跳转，绝不自启 |
+| herdr-projects 追加注册本地仓库 | `P S-a` | fzf 多选，已注册的自动隐藏 |
 | roadboard 路线图看板（可选插件，见下） | `P S-r` | 7 态任务树；再按一次关闭 |
 | herdr-portal 全局 agent 看板 TUI（可选插件，见下） | `P S-o` | ↑↓ 选 agent、Enter 跳 pane；只读导航 |
 | herdr-portal 全局 agent 看板 web 大屏 | `P C-o` | 浏览器 127.0.0.1:8787；可回消息 |
@@ -81,17 +82,17 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 goto 面板（`P f`）里的过滤单键：`b/w/i/d` 分别过滤
 blocked/working/idle/done 的 agent，`a` 恢复全部。
 
-> herdr-projects 三个选择器：`P S-c` 用 fzf 选一个或多个已有 git 仓库建
-> 多仓项目（Tab 勾选多个，Enter 确认；`config/herdr/new-project.sh`，
-> 扫描根 `HP_PROJECT_ROOTS`，默认冒号分隔的 `~/Documents:~/.config`，深度 4 层，
-> 选中后输入任意项目名（大小写和空格原样保留为显示名，如 `Erdos`、
-> `my project`；slug 由 `herdr-projects new` 自动派生）并打开，重名则
-> 转为给已有项目追加仓库）；
-> `P S-a` 给已有项目追加仓库（先选项目，再多选仓库，已挂的自动隐藏，
-> `config/herdr/add-repo.sh`）；
-> `P C-p` 用 fzf 选已有项目打开（`config/herdr/pick-project.sh`）。
-> 插件自带的 open 动作在项目 workspace 里会直接回当前项目而不询问，
-> 所以打开键走这个始终询问的脚本。三个弹窗出错都会停住显示错误。
+> herdr-projects 仓库选择器（1.2.x board 模型）：仓库注册信息保存在插件的
+> `data/repos.json`。`P S-c`（`config/herdr/new-project.sh`）用 fzf 多选本地
+> git 仓库（Tab 勾选，扫描根 `HP_PROJECT_ROOTS`，默认冒号分隔的
+> `~/Documents:~/.config`，深度 4 层，含 worktree），注册选中的第一个仓库并
+> 打开它的 project coordinator；`P S-a`
+> （`config/herdr/add-repo.sh`）只把多选到的本地仓库注册进注册表（已注册的
+> 自动隐藏），不开任何东西；`P C-p`
+> （`config/herdr/pick-project.sh`）在已注册仓库里 fzf 选一个，pane 还活着
+> 就直接聚焦、pane 没了但对话还在就重启、第一次用则新建。注册走公开 CLI
+> （建一个不 delegate 的占位 task 立刻 clear，不启动 agent、不需要 herdr
+> 在跑），不手写插件内部 JSON。弹窗出错都会停住显示错误。
 > 弹窗继承 herdr server 的环境变量：`HP_PROJECT_ROOTS` 用冒号分隔多个
 > 根，且不展开 `~`，需写绝对路径（在 shell 里用 `$HOME` 赋值会由 shell
 > 先展开，直接写 `~` 则不会）。
@@ -128,8 +129,8 @@ herdr server reload-config
 `hhdebb.herdr-radar` 把 herdr 自带的 Agents 列表改造成可读的状态视图：工作中
 braille spinner、完成绿勾保留到你看过为止、提问红色脉动、空闲按时间分三级
 变淡；按项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由共享激活
-脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.4-pf.6`，
-PannenetsF/herdr-radar；macOS 经 `nix-darwin/herdr.nix` postActivation、
+脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.9-pf.1`，
+PannenetsF/herdr-radar，基于上游 v1.4.9，fork 仅剩静态 ws_key 一个竞态修复；macOS 经 `nix-darwin/herdr.nix` postActivation、
 Linux host 经 `modules/herdr.nix` 两个薄封装调用；要求 herdr ≥ 0.9.0，是
 Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
 
@@ -147,11 +148,10 @@ Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
 - 插件默认跟随 macOS 深浅色模式并改写 `[theme] name`；模板把
   `light_name`/`dark_name` 都钉成 `"terminal"`，于是它只切换自己侧边栏
   的调色板，不会动 terminal 跟随 kitty 的主题
-- 与 herdr-projects 共存：v0.2.34 的 projects 会把自己的 tab-bar 命令和
-  `$hp_sub` 侧边栏行合并进 radar 的 marker 块，所以激活顺序固定为 radar
-  configure 在前、projects configure 在后。已知小缺口：macOS 深浅色切换
-  时 radar 重写侧边栏块会临时丢掉 `$hp_sub`（tab-bar 条目会保留），下次
-  `hm-update` 跑 projects configure 即恢复——属于上游未处理的 cosmetic 问题
+- 与 herdr-projects 共存：projects 1.2.x 自己提议的 `[ui.sidebar.agents]`
+  三行任务状态行与 radar 的 glyph 表互斥，仓库模板**只发 radar 版**；
+  projects 检测到侧边栏表已存在会把它当成用户手写表保留并跳过自己的块
+  （任务三行在 board 弹窗里完整可见），因此激活不再需要排序约定
 
 ## 可选：roadboard 路线图看板
 
@@ -164,75 +164,79 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 - `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
   `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）
 - 看板内：`j/k` 移动、状态键翻转、Enter 派活（先复核 prompt 再确认）、`q` 关
+- `C`：把选中节点**交给已有 herdr-projects coordinator**（不开新 agent）：
+  `j/k` 选项目 → 复核消息 → `y` 发送；目标项目可在 detail note frontmatter
+  写 `project: <slug>`（沿祖先继承，gate 里选中即写入绑定）。投递成功后节点
+  标 `[/]`，后续 `?`/`x` 仍由人翻；coordinator 不调 `roadboard done`（无 run）。
+  CLI：`roadboard projects` / `bind-project` / `handoff` / `preview --coordinator`
+  > **已知缺口（2026-10）**：这条桥接写的是 herdr-projects 0.2 的 API
+  > （`--root … list`、`coordinator prompt <slug>`）；nix-hm 已升到 1.2.13
+  > （仓库注册表 + `coordinator --project <repo> tell`），roadboard 侧尚未
+  > 适配，`C` 派活在改 roadboard 之前会失败；看板本身（状态翻转/树）不受影响。
 - 派活默认在目标 workspace 新开一个**后台独立 tab**（标签 `road-rN`，
   `--no-focus` 不抢焦点）；同一节点重派复用其 tab/pane
 - 占掉了 herdr 默认的 `P S-r`（重载配置）：需要时跑
   `herdr server reload-config`
 
-## 可选：herdr-projects 多 agent 协作
+## 可选：herdr-projects 任务看板与 project coordinator
 
-`herdr-projects` 提供一个 coordinator agent：描述大任务后它拆成多个 thread，
-每个 thread 是独立 worktree/分支上的 agent，共享目标与项目记忆；sidebar 按
-「needs you / review / working」分组，tab 栏显示 `projects: N need you`。
+`herdr-projects` 1.2.x 是一个工作看板：任务是 `repo/123` 形式的编号，每个被
+delegate 的任务作为普通 herdr agent 跑在自己的 worktree space 里；每个注册
+仓库还可以有一个 project coordinator（agent 名 `sw-coordinator-<repo>`），
+由插件的 pump 守护在该仓库的 tab 里拉起。sidebar/tab 栏的任务状态聚合由
+`P a` 打开的看板本身呈现。
 
-- 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
-  `v0.2.34-pf.2`，PannenetsF/herdr-projects；macOS 经
-  `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
-  两个薄封装调用；要求 herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示
-  重启 herdr）
-- 版本被激活 pin 在 fork `v0.2.34-pf.2`：不要用插件自更新（`herdr-projects
-  update` 等），下次激活会被装回 pin 版本
-- **coordinator 身份是注册的 agent 名**（pf.2 起）：只有带 `hpc-<slug>` /
-  `hpc-<slug>-N` 名字、且 cwd 在项目家目录的 agent 才算 coordinator。
-  在项目根目录手动开的会话（split pane、`claude --resume`）默认是「野
-  会话」：ticker 不给它投递 inbox、`context` 会拒绝它（避免全局标 seen
-  把 inbox 从真 coordinator 眼前藏掉）、sidebar 落到 `~` 尾段。用
-  `coordinator adopt <slug> --pane <id>`（或在该 pane 内按 `P C-n`）登记，
-  首次登记成为 primary；记录里的 pane 在同会话里连 shell pane 都不存在
-  时视为过期，adopt 直接顶替；nudge 一旦选定某个 coordinator 会话就粘住，
-  它消失后才重选
-- sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
-  写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块
-  加进可写的 `~/.config/herdr/config.toml` 并记入 journal（幂等，`doctor`
-  据此校验；hm-update 会先用模板覆盖，再由 configure 重新加回）
-- 同一个 configure 同时维护 agent 进度上报 hooks 和 `autoproject` skill
-  链接（也能修复被其他工具重写 settings.json 挤掉的 hooks）
-- 后台 ticker 在还没有任何项目时不会启动（`doctor` 会显示 not running，属
-  正常）；`herdr-projects open/new` 创建第一个项目时自动拉起
-- 新建项目：`herdr-projects new "名字" --repo <path>` 后
-  `herdr-projects open <名字>`，然后只跟 coordinator 对话
-- 快捷键：`P S-c` fzf 选已有仓库新建项目（脚本装为
-  `~/.local/bin/herdr-new-project`，仓库根用 `HP_PROJECT_ROOTS` 覆盖）、
-  `P C-p` fzf 选已有项目打开（`~/.local/bin/herdr-pick-project`；不用插件
-  自带 open 动作，因为它在项目 workspace 内不询问直接回当前项目）、
-  `P C-n`（`~/.local/bin/herdr-new-coordinator`；项目按 cwd → 底层 pane 的
-  `hp_project` → fzf 顺序解析）在**已注册** coordinator/thread、guest 或
-  外部 pane 上仍是 `open <slug> --new --tab` 再开一个 coordinator；在
-  **未注册但 cwd 正好是项目家目录**的 pane 上则 detach 跑
-  `coordinator adopt --pane` 把当前会话登记成 `hpc-<slug>`（日志
-  `$TMPDIR/herdr-adopt-coordinator-<slug>.log`），避免重复开新
-  coordinator 把会话越堆越多、
-  `P C-f`（`~/.local/bin/herdr-focus-coordinator`，f = focus）跳到项目的
-  注册 coordinator：先查 `<root>/<slug>/.state/coordinator.json` 的
-  pane_id，记录的 pane 没了就退到任意在线的 `hpc-<slug>` 名字族成员（
-  按 state_change_seq 取最新）；底层 pane 是未注册的根会话时同样改为
-  adopt；一个注册 coordinator 都没有时提示「在该 pane 按 P C-n 登记」。
-  `open`/adopt 都 detach 到后台（nohup），popup 立即关闭、
-  `P a` 总控弹窗（configure 管理）；不带 `--repo` 的裸 `herdr-projects new`
-  只建元数据目录，所以模板里的新建键走选择器
+- 插件由共享激活脚本 `install-herdr-plugins.sh` 直接 pin **上游**
+  `eliasstravik/herdr-projects@v1.2.13`（不再用 fork；macOS 经
+  `nix-darwin/herdr.nix` postActivation、Linux host 经
+  `modules/herdr.nix` 两个薄封装调用；要求 herdr server ≥ 0.9.3；server 过
+  旧时激活会跳过并提示重启 herdr。release 二进制由插件 bin/run.sh 安装期
+  下载，本机不需要 Rust 工具链）
+- 首次运行会把 0.2.x 时代的旧 `~/.herdr-projects`（slug 项目目录）归档到
+  `~/.herdr-projects-legacy`；新数据全部在 `~/.herdr-projects/data`
+  （`repos.json` 注册表、`tasks/<repo>/`、`coordinator/<session>/`）
+- 激活不再有 `configure` 步骤：看板键 `P a`（`herdr-projects.open`）直接
+  发在仓库 config.toml 模板里，插件因此不会再提议写键；它提议的
+  `[ui.sidebar.agents]` 任务三行与 radar glyph 表互斥，模板有意不发
+  （radar 保留侧边栏，插件会把已有表当用户手写表保留）；hooks/skill 由插件
+  自己的 startup hook 维护
+- 仓库注册：本地 git 仓库在首次被使用时注册进 `data/repos.json`。两个
+  选择器脚本只是这个动作的 fzf 前端——`P S-c` 多选本地仓库注册并打开第一个
+  仓库的 coordinator，`P S-a` 只注册不打开；注册不启动 agent（建一个不
+  delegate 的占位任务立即 clear，只剩注册表项）
+- `P C-p` 打开仓库：coordinator pane 还活着就聚焦；pane 没了但 state.json
+  里有对话（如 herdr 重启后）就 `coordinator restart` 续同一个对话；从没
+  起过才 `coordinator new`
+- `P C-n` 无条件 `coordinator new`：在同一仓库重开一个全新对话（不复用旧
+  上下文）。仓库按 cwd → 弹窗底层 pane 的 cwd → fzf 注册表解析
+- `P C-f` 是**仓库里保留的本地 shell 功能**：上游只有顶层 Coordinator 的
+  `open-coordinator` action，没有按仓库进入的入口。脚本读
+  `data/coordinator/<session>/projects/<repo>/state.json` 里记录的 pane，并
+  把 state 里的 socket 显式 pin 到 `HERDR_SOCKET_PATH` 再聚焦（跨 herdr
+  session 也能跳）；记录的 pane 没了就退而求其次，在该 socket 的 agent
+  列表里找名字为 `sw-coordinator-<repo>`（或 pump 去重产生的
+  `sw-coordinator-<repo>-2/-3`，名字截断规则镜像 Rust `co.rs`：全名截 29
+  字符留 3 个后缀位）、cwd 在仓库根的最新 agent。只聚焦、从不自启；没有在
+  跑的 coordinator 时提示用 `P C-n`/`P C-p`
 - 五个 popup launcher（new-project/pick-project/add-repo/new-coordinator/
   focus-coordinator）全部由单一来源 `modules/herdr-launchers.nix` 链到
-  `~/.local/bin`，共享 `herdr-popup-lib.sh` 里的截断/名字族判定（镜像
-  Rust `names.rs` 的 24/22 截断规则）；新增第六个只改这个模块
+  `~/.local/bin`，共享 `herdr-popup-lib.sh`；新增第六个只改这个模块
+- launcher 解析 CLI 的顺序：`$HERDR_PROJECTS_BIN` →
+  `~/.herdr-projects/data/bin/herdr-projects`（插件在看板首次打开时写入的
+  launcher shim，自带数据目录环境变量）→ `~/.local/bin` → 插件 checkout 里
+  `bin/run.sh` 下载的 release 资产
+  （`~/.config/herdr/plugins/github/herdr-projects-*/bin/herdr-projects-<os>-<arch>`）
+  → PATH；因此插件刚装完、看板还没打开过时 `P S-c` 注册也能找到二进制
 
 ## 可选：herdr-portal 全局 agent 看板
 
-`herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.2.1-pf.1`，fork 自
-上游 v1.2.0 提交 `cae8ea0`，纯 Python stdlib，无 node/uv 依赖）把全部
-workspace/tab/pane 的 agent 聚合成一个按 blocked/working/idle/done 分列的看板，
-状态尚未上报的 agent 并入「执行中」列（显示「状态未知」阶段，不会再从看板
-消失，闲置回收也保护这类 pane），数据走 herdr 自己的 CLI/JSON，和
-radar/projects 共存；fork 补丁只动 collect.py 约 15 行。
+`herdr-portal`（pinned fork `v1.3.0-pf.1`，PannenetsF/herdr-portal，基于
+上游 loofare/herdr-portal 未打 tag 的 1.3.0；纯
+Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚合成
+一个按 blocked/working/idle/done/unknown 分列的看板；状态尚未上报的
+`unknown`（未知）agent 在上游 1.3.0 主看板上仍会消失（columns 没有 unknown
+桶），pf.1 把它们并入「执行中」列，同一 tab 里多个刚启动的 agent 都可见，
+且不会被空闲回收误杀；数据走 herdr 自己的 CLI/JSON，和 radar/projects 共存。
 
 - `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、
   `Enter` 跳到该 agent 的 pane 且看板自动关闭；`Tab`/`v` 切普通窗口视图；
@@ -240,7 +244,10 @@ radar/projects 共存；fork 补丁只动 collect.py 约 15 行。
   看板本身只读（只移动焦点，不发输入）。
 - `P C-o`：web 大屏（`herdr-portal.open-web`，stdlib HTTP daemon
   `127.0.0.1:8787`，日志 `~/.local/state/herdr-portal/server.log`）。
-  点击卡片同样跳 pane；web 端额外能直接给 agent **回消息**，不是纯只读。
+  1.3.0 起 `/api/*` 需本机 token（自动生成于
+  `~/.local/state/herdr-portal/token`，打开时经 URL 一次性带入并校验
+  Host/Origin）。点击卡片同样跳 pane；web 端额外能直接给 agent **回消息**，
+  不是纯只读。
 - 插件按需打开、无 startup hook；激活只负责 pin 安装，不自动起看板。
 - 占的是空着的 o 命名空间：上游 README 建议 `P a`，但该键在本配置属于
   herdr-projects。
@@ -250,12 +257,13 @@ radar/projects 共存；fork 补丁只动 collect.py 约 15 行。
 手动清理配方（以 herdr-projects 为例）：
 
 ```sh
-# 1. 移除 configure 加进 live config 的块、hooks 和 skill 链接
-~/.local/bin/herdr-projects unconfigure
+# 1. 移除插件写进 live config 的块和 how-to 文件（看板键 P a 来自仓库模板，
+#    下次 hm-update 会随模板一起消失）
+herdr-projects remove-extras
 # 2. 卸载插件
 herdr plugin uninstall herdr-projects
 # 3. 移除 nix-darwin/configuration.nix imports 里的 ./herdr.nix 后重新激活
-# 4. 删除全部项目元数据（不可恢复）
+# 4. 删除全部看板数据（不可恢复；0.2.x 旧数据在 ~/.herdr-projects-legacy）
 rm -rf ~/.herdr-projects
 ```
 

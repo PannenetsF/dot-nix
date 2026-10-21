@@ -7,6 +7,13 @@
 # options, and this file must behave identically whether or not the caller set
 # them.
 #
+# These launchers speak herdr-projects 1.2.x's model: the board's unit of work
+# is a TASK (repo/123); git repos register themselves in data/repos.json on
+# first use, and each repo can have one pump-managed project coordinator
+# (agent name sw-coordinator-<repo>) whose state lives in
+# data/coordinator/<session>/projects/<repo>/state.json. There is no project
+# slug and no `configure` step anymore.
+#
 # Bash 3.2-safe (macOS ships 3.2): no readarray/mapfile, no readlink -f/realpath.
 
 # Popups close the moment the launcher script exits, so a bare error would
@@ -36,146 +43,400 @@ herdr_popup_prepend_path() {
   export PATH
 }
 
-# Echo the resolved herdr-projects binary, or nothing if it cannot be found:
-# $HERDR_PROJECTS_BIN when executable, else the per-user ~/.local/bin install,
-# else whatever `command -v` finds on the (already prepended) PATH. Callers
-# keep their own not-found handling (plain exit vs die) and wording.
+# Echo the resolved herdr-projects binary, or nothing if it cannot be found.
+# Resolution order:
+# 1. $HERDR_PROJECTS_BIN (explicit override, what the e2e tests use);
+# 2. the launcher shim the plugin writes into the data folder
+#    (~/.herdr-projects/data/bin/herdr-projects) the first time the board opens
+#    — upstream's blessed stable path ("so agents and hooks find it without
+#    anything on their PATH"; the shim already pins the board's data/config
+#    dirs, so it works even from a bare launchd environment);
+# 3. a manual ~/.local/bin install;
+# 4. the release asset bin/run.sh downloaded into the plugin checkout — this
+#    exists right after `plugin install` even before the board has ever opened,
+#    which is when a first-run prefix+shift+c registration happens;
+# 5. whatever `command -v` finds on the (already prepended) PATH.
+# Callers keep their own not-found handling (plain exit vs die) and wording.
 herdr_projects_bin() {
   if [ -n "${HERDR_PROJECTS_BIN:-}" ] && [ -x "$HERDR_PROJECTS_BIN" ]; then
     printf '%s\n' "$HERDR_PROJECTS_BIN"
-  elif [ -x "$HOME/.local/bin/herdr-projects" ]; then
-    printf '%s\n' "$HOME/.local/bin/herdr-projects"
-  else
-    command -v herdr-projects 2>/dev/null || true
+    return
   fi
+  local shim
+  shim="$(hp_home)/data/bin/herdr-projects"
+  if [ -x "$shim" ]; then
+    printf '%s\n' "$shim"
+    return
+  fi
+  if [ -x "$HOME/.local/bin/herdr-projects" ]; then
+    printf '%s\n' "$HOME/.local/bin/herdr-projects"
+    return
+  fi
+  local os arch cfg plugin
+  case "$(uname -s)" in
+    Linux) os=linux ;;
+    Darwin) os=macos ;;
+    *) os="" ;;
+  esac
+  case "$(uname -m)" in
+    x86_64 | amd64) arch=x86_64 ;;
+    aarch64 | arm64) arch=aarch64 ;;
+    *) arch="" ;;
+  esac
+  cfg="${HERDR_CONFIG_DIR:-$HOME/.config/herdr}"
+  if [ -n "$os" ] && [ -n "$arch" ]; then
+    for plugin in "$cfg"/plugins/github/herdr-projects-* "$cfg"/plugins/herdr-projects-*; do
+      [ -d "$plugin" ] || continue
+      if [ -x "$plugin/bin/herdr-projects-$os-$arch" ]; then
+        printf '%s\n' "$plugin/bin/herdr-projects-$os-$arch"
+        return
+      fi
+    done
+  fi
+  command -v herdr-projects 2>/dev/null || true
 }
 
-# --- Registered coordinator identity (fork pf.2) -----------------------------
-#
-# Coordinator identity is the agent NAME, not the working directory: only
-# `hpc-<slug>` / `hpc-<slug>-N` agents count. The helpers below mirror the
-# Rust names.rs exactly so the launchers decide the same way the plugin does.
+# --- herdr-projects 1.2 data layout ------------------------------------------
+
+# The data home: HERDR_PROJECTS_HOME names another folder, else the standard
+# per-user ~/.herdr-projects (same default as the Rust binary itself).
+hp_home() { printf '%s\n' "${HERDR_PROJECTS_HOME:-$HOME/.herdr-projects}"; }
+hp_repos_file() { printf '%s\n' "$(hp_home)/data/repos.json"; }
+
+# Pin the default for child processes once, so a popup launched with a bare
+# environment and the CLI agree on the same data folder.
+hp_export_env() { export HERDR_PROJECTS_HOME="$(hp_home)"; }
+
+# One small python3 front-end over data/repos.json (a {name: path} JSON object
+# the plugin maintains under its own flock). We never write that file from
+# shell: registration goes through the public CLI (hp_register_repo below).
+# Run from "/" with -I so a planted module in an arbitrary popup cwd cannot be
+# imported; all inputs arrive as arguments.
+_hp_repos_py() {
+  ( cd / && python3 -I - "$(hp_repos_file)" "$@" <<'PY'
+import json, os, sys
+path, cmd = sys.argv[1], sys.argv[2]
+try:
+    with open(path, encoding="utf-8") as fh:
+        repos = json.load(fh)
+    if not isinstance(repos, dict):
+        repos = {}
+except OSError:
+    repos = {}
+except ValueError:
+    repos = {}
+def real(p):
+    return os.path.realpath(os.path.expanduser(p))
+if cmd == "name-for-path":
+    # Longest registered repo path that contains the folder (the repo's own
+    # dir or a worktree/subfolder of it); empty when none.
+    p = real(sys.argv[3])
+    best = ""
+    for k, v in repos.items():
+        rp = real(v)
+        if (p == rp or p.startswith(rp.rstrip("/") + os.sep)) and len(rp) > len(best):
+            best = rp
+    if best:
+        for k, v in repos.items():
+            if real(v) == best:
+                print(k)
+                break
+elif cmd == "list":
+    for k in sorted(repos):
+        print("%s\t%s" % (k, repos[k]))
+elif cmd == "path":
+    print(repos.get(sys.argv[3], ""))
+PY
+  )
+}
+
+# Echo the registered repo name whose checkout contains the given folder
+# (longest-prefix match), or nothing.
+hp_known_repo_for_path() { _hp_repos_py name-for-path "$1"; }
+
+# Echo all known repos as name<TAB>path, sorted by name.
+hp_list_known_repos() { _hp_repos_py list; }
+
+# Echo a known repo's checkout path, or nothing when the name is not registered.
+hp_repo_path() { _hp_repos_py path "$1"; }
+
+# Registry names: ASCII letters/digits and _ . + - (mirrors store/repos.rs
+# repo_of's basename sanitizer), up to 28 chars, with -2/-3 disambiguation.
+hp_valid_repo_name() { case "$1" in ''|*[!A-Za-z0-9_.+-]*) return 1 ;; *) return 0 ;; esac; }
+
+# Register one local checkout into data/repos.json WITHOUT leaving a task on
+# the board: the plugin has no register-only command (a repo is "named on first
+# sight"), so add a plain todo task — no --delegate, so no agent is ever
+# started and herdr need not be running — and remove it at once. The repo
+# entry persists. Idempotent; prints one status line. Args: <hp_bin> <path>.
+hp_register_repo() {
+  local hp="$1" path="$2" name out id
+  name="$(hp_known_repo_for_path "$path")"
+  if [ -n "$name" ]; then
+    printf 'already registered: %s\n' "$name"
+    return 0
+  fi
+  [ -d "$path" ] || { echo "not a directory: $path" >&2; return 1; }
+  out="$("$hp" add "register local repository" --repo "$path" 2>&1)" || {
+    printf '%s\n' "$out" >&2
+    return 1
+  }
+  # Output is "<SHORTKEY>-<n>: added"; the short key names the same task as the
+  # canonical repo/n id, so clear it directly.
+  id="${out%%: added*}"
+  case "$id" in
+    ''|*[!A-Za-z0-9_.-]*) echo "unexpected add output: $out" >&2; return 1 ;;
+  esac
+  "$hp" clear "$id" >/dev/null 2>&1 || {
+    echo "registration task $id could not be cleared" >&2
+    return 1
+  }
+  name="$(hp_known_repo_for_path "$path")"
+  printf 'registered: %s\n' "${name:-$path}"
+}
+
+# Absolute paths of local git checkouts under HP_PROJECT_ROOTS (colon-
+# separated; default ~/Documents:~/.config), up to 4 levels deep. .git is a
+# directory in a plain repo but a file in worktrees/submodules; match both.
+hp_scan_local_repos() {
+  local roots="${HP_PROJECT_ROOTS:-$HOME/Documents:$HOME/.config}" old_ifs root
+  old_ifs=$IFS
+  IFS=:
+  for root in $roots; do
+    [ -d "$root" ] || continue
+    find "$root" -maxdepth 4 \( -type d -o -type f \) -name .git -prune 2>/dev/null |
+      while IFS= read -r gitdir; do printf '%s\n' "${gitdir%/.git}"; done
+  done
+  IFS=$old_ifs
+}
+
+# Filter a stdin list of checkout paths, echoing only the ones the registry
+# does not know yet (real-path compared, like the plugin's own lookup). Run
+# from "/" with -I so a planted module in the popup cwd cannot be imported.
+hp_filter_unknown_repos() {
+  ( cd / && python3 -I -c '
+import json, os, sys
+home = os.environ.get("HERDR_PROJECTS_HOME") or os.path.expanduser("~/.herdr-projects")
+try:
+    with open(os.path.join(home, "data", "repos.json"), encoding="utf-8") as fh:
+        repos = json.load(fh)
+    if not isinstance(repos, dict):
+        repos = {}
+except (OSError, ValueError):
+    repos = {}
+known = {os.path.realpath(os.path.expanduser(p)) for p in repos.values()}
+for line in sys.stdin:
+    p = line.rstrip("\n")
+    if p and os.path.realpath(os.path.expanduser(p)) not in known:
+        print(p)
+' )
+}
+
+# fzf over the registered repos; echoes the chosen repo name. Cancel (Esc),
+# an empty selection, or an empty registry echo nothing and return 1 — callers
+# that want the "empty registry" guidance must check the registry themselves
+# first: a `die` inside this command substitution would only exit the subshell.
+hp_pick_known_repo() {
+  local prompt="$1" list selection name
+  list="$(hp_list_known_repos)"
+  [ -n "$list" ] || return 1
+  selection="$(printf '%s\n' "$list" | fzf \
+    --prompt="$prompt" \
+    --header='Enter: choose   Esc: cancel')" || return 1
+  [ -n "$selection" ] || return 1
+  name="${selection%%$'\t'*}"
+  hp_valid_repo_name "$name" || die "unexpected repo list output: $selection"
+  [ -n "$(hp_repo_path "$name")" ] || die "repo vanished from the registry: $name"
+  printf '%s\n' "$name"
+}
 
 # The pane a popup was launched for ("underlying tiled pane"); empty outside
 # a popup (e.g. the script run straight from a shell).
-hp_active_pane() {
-  printf '%s\n' "${HERDR_ACTIVE_PANE_ID:-}"
-}
-
-# Mirror Rust `head(slug, n)`: the first n chars (slugs are ASCII), trailing
-# hyphens trimmed. `hpc-<head24>` / `hpc-<head22>-N` are the two name widths.
-hp_slug_head() {
-  local slug="$1" n="$2" s
-  s="${slug:0:$n}"
-  while [ "${s: -1}" = "-" ]; do s="${s%?}"; done
-  printf '%s\n' "$s"
-}
+hp_active_pane() { printf '%s\n' "${HERDR_ACTIVE_PANE_ID:-}"; }
 
 # Cached `herdr agent list` JSON for this launcher run; empty on any failure.
 hp_agent_list_json() {
+  local sock="$1"
   if [ -z "${_hp_agent_list_fetched:-}" ]; then
-    _hp_agent_list="$(herdr agent list 2>/dev/null || true)"
+    _hp_agent_list="$(HERDR_SOCKET_PATH="$sock" herdr agent list 2>/dev/null || true)"
     _hp_agent_list_fetched=1
   fi
   printf '%s' "$_hp_agent_list"
 }
 
-# Echo the registered agent name of a live pane (one line; empty when unnamed,
-# absent, or without jq).
-hp_agent_name_for_pane() {
-  local pane="$1"
-  command -v jq >/dev/null 2>&1 || return 0
-  hp_agent_list_json | jq -r --arg p "$pane" \
-    '.result.agents[]? | select(.pane_id == $p) | (.name // "")' 2>/dev/null | head -1
-}
-
 # Echo the cwd (fallback foreground_cwd) of a live pane, one line.
 hp_pane_cwd() {
-  local pane="$1" cwd
+  local sock="$1" pane="$2"
   command -v jq >/dev/null 2>&1 || return 0
-  cwd="$(hp_agent_list_json | jq -r --arg p "$pane" \
-    '.result.agents[]? | select(.pane_id == $p) | [.cwd, .foreground_cwd] | map(select(. != null and . != "")) | .[0] // ""' 2>/dev/null | head -1)"
-  printf '%s\n' "$cwd"
+  hp_agent_list_json "$sock" | jq -r --arg p "$pane" \
+    '.result.agents[]? | select(.pane_id == $p) | [.cwd, .foreground_cwd] | map(select(. != null and . != "")) | .[0] // ""' 2>/dev/null | head -1
 }
 
-# True when `name` is a registered coordinator name of `slug`: exactly
-# `hpc-<head24>` or `hpc-<head22>-N` with N >= 1. Structural equality, never a
-# prefix match (mirrors names::is_coordinator_name).
-hp_pane_is_coordinator_of() {
-  local slug="$1" name="$2" tail
-  [ "$name" = "hpc-$(hp_slug_head "$slug" 24)" ] && return 0
-  tail="hpc-$(hp_slug_head "$slug" 22)-"
-  case "$name" in
-    "$tail"*)
-      local n="${name#"$tail"}"
-      case "$n" in ''|*[!0-9]*) return 1 ;; esac
-      [ "$n" -ge 1 ] 2>/dev/null
-      ;;
-    *) return 1 ;;
-  esac
-}
-
-# True when `name` is a registered thread name of `slug`: `hp-<head21>-t-NNNN`.
-hp_pane_is_thread_of() {
-  local slug="$1" name="$2" head
-  head="hp-$(hp_slug_head "$slug" 21)-t-"
-  case "$name" in "$head"*) return 0 ;; *) return 1 ;; esac
-}
-
-# Resolve the project slug for the current context: cwd directly under the
-# projects root, then the active pane's hp_project token, then its cwd, then an
-# fzf picker. Echoes the slug and returns 0; on fzf cancel echoes nothing and
-# returns 1. Args: <hp_bin> <hp_root>.
-hp_resolve_project_slug() {
-  local hp_bin="$1" hp_root="$2" slug pane pane_json cwd projects selection
-
-  hp_valid_slug() { [[ "$1" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; }
-
-  case "$PWD/" in
-    "$hp_root"/*)
-      slug="${PWD#"$hp_root"/}"
-      case "$slug" in */*) : ;; *) hp_valid_slug "$slug" && { printf '%s\n' "$slug"; return 0; } ;; esac
-      ;;
-  esac
-
+# Resolve the repo for the current context: PWD inside a known checkout, then
+# the active pane's cwd, then an fzf picker over the registry. Echoes the repo
+# name and returns 0; on fzf cancel echoes nothing and returns 1.
+hp_resolve_repo() {
+  local name pane dir
+  name="$(hp_known_repo_for_path "$PWD")"
+  if [ -n "$name" ]; then printf '%s\n' "$name"; return 0; fi
   pane="$(hp_active_pane)"
-  if [ -n "$pane" ] && command -v herdr >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-    pane_json="$(herdr pane get "$pane" 2>/dev/null || true)"
-    if [ -n "$pane_json" ]; then
-      slug="$(printf '%s' "$pane_json" | jq -r '.result.pane.tokens.hp_project // empty' 2>/dev/null || true)"
-      if hp_valid_slug "$slug"; then printf '%s\n' "$slug"; return 0; fi
-      cwd="$(printf '%s' "$pane_json" | jq -r '.result.pane.cwd // empty' 2>/dev/null || true)"
-      if [ -n "$cwd" ]; then
-        case "$cwd/" in
-          "$hp_root"/*)
-            slug="${cwd#"$hp_root"/}"
-            case "$slug" in */*) : ;; *) hp_valid_slug "$slug" && { printf '%s\n' "$slug"; return 0; } ;; esac
-            ;;
-        esac
-      fi
+  if [ -n "$pane" ]; then
+    dir="$(hp_pane_cwd "$(hp_current_socket)" "$pane")"
+    if [ -n "$dir" ]; then
+      name="$(hp_known_repo_for_path "$dir")"
+      if [ -n "$name" ]; then printf '%s\n' "$name"; return 0; fi
     fi
   fi
-
   command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
-  projects="$("$hp_bin" --root "$hp_root" list 2>/dev/null)" || die "'herdr-projects list' failed"
-  [ -n "$projects" ] || die "no projects under $hp_root yet (use prefix+shift+c to create one)"
-  selection="$(printf '%s\n' "$projects" | fzf \
-    --prompt='project > ' \
-    --header='Esc: cancel')" || return 1
-  [ -n "$selection" ] || return 1
-  slug="${selection%%$'\t'*}"
-  hp_valid_slug "$slug" || die "unexpected project list output: $selection"
-  printf '%s\n' "$slug"
+  hp_pick_known_repo 'repo > '
 }
 
-# Run `coordinator adopt --pane` detached, mirroring open_new: the popup PTY
-# tears down on exit, so nohup + redirected fds keep it alive (SIGHUP), and the
-# output lands in a log for troubleshooting. The live herdr socket is passed
-# through explicitly in case the project has no recorded session yet.
-# Args: <hp_bin> <hp_root> <slug> <pane>
-hp_adopt_detached() {
-  local hp_bin="$1" hp_root="$2" slug="$3" pane="$4" log
-  log="${TMPDIR:-/tmp}/herdr-adopt-coordinator-$slug.log"
-  nohup env HERDR_SOCKET_PATH="${HERDR_SOCKET_PATH:-}" \
-    "$hp_bin" --root "$hp_root" coordinator adopt "$slug" --pane "$pane" >"$log" 2>&1 &
+# --- herdr sockets and coordinator state -------------------------------------
+
+# Mirror the plugin's session_name(): the session folder is the segment between
+# sessions/ and herdr.sock for a per-session socket, else "default".
+hp_session_name() {
+  local sock="$1"
+  case "$sock" in
+    */sessions/*/herdr.sock) printf '%s\n' "${sock%/herdr.sock}" | sed 's#.*/##' ;;
+    *) printf 'default\n' ;;
+  esac
+}
+
+# The herdr socket commands should talk to: the pinned env socket, else the
+# XDG default (with HERDR_SESSION selecting a session socket) — same fallback
+# order as the plugin's current_socket().
+hp_current_socket() {
+  if [ -n "${HERDR_SOCKET_PATH:-}" ]; then
+    printf '%s\n' "$HERDR_SOCKET_PATH"
+    return 0
+  fi
+  local base="${XDG_CONFIG_HOME:-$HOME/.config}"
+  if [ -n "${HERDR_SESSION:-}" ]; then
+    printf '%s/herdr/sessions/%s/herdr.sock\n' "$base" "$HERDR_SESSION"
+  else
+    printf '%s/herdr/herdr.sock\n' "$base"
+  fi
+}
+
+# Path of a repo coordinator's state.json, preferring the current herdr session
+# and otherwise the newest state folder; empty when no coordinator was ever
+# started for the repo.
+hp_coordinator_state_file() {
+  local repo="$1" data_dir session f latest
+  data_dir="$(hp_home)/data/coordinator"
+  [ -d "$data_dir" ] || return 0
+  session="$(hp_session_name "$(hp_current_socket)")"
+  f="$data_dir/$session/projects/$repo/state.json"
+  [ -f "$f" ] && { printf '%s\n' "$f"; return 0; }
+  latest="$(find "$data_dir" -maxdepth 4 -path "*/projects/$repo/state.json" -type f 2>/dev/null \
+    -exec stat -f '%m %N' {} \; 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)"
+  # GNU stat (Linux) has no -f '%m %N'; fall back to ls -t there.
+  if [ -z "$latest" ]; then
+    latest="$(find "$data_dir" -maxdepth 4 -path "*/projects/$repo/state.json" -type f -print0 2>/dev/null \
+      | xargs -0 ls -t 2>/dev/null | head -1)"
+  fi
+  printf '%s\n' "$latest"
+}
+
+# Echo the repos that have any coordinator state (across all sessions), one per
+# line, sorted and de-duped.
+hp_state_repos() {
+  local data_dir
+  data_dir="$(hp_home)/data/coordinator"
+  [ -d "$data_dir" ] || return 0
+  find "$data_dir" -maxdepth 4 -path '*/projects/*/state.json' -type f 2>/dev/null \
+    | sed 's#^.*/projects/##; s#/state.json$##' | sort -u
+}
+
+# Mirror co.rs agent_name() for a project coordinator: lowercase the repo, map
+# every char outside [a-z0-9_] to '-', build "sw-coordinator-<tail>", cut the
+# WHOLE string to 29 chars (room left for the -2/-3 disambiguation the pump
+# appends when the name is taken) and trim trailing hyphens.
+hp_coordinator_name_head() {
+  local repo="$1" tail full
+  tail="$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_]/-/g')"
+  full="sw-coordinator-$tail"
+  full="${full:0:29}"
+  while [ -n "$full" ] && [ "${full: -1}" = "-" ]; do full="${full%?}"; done
+  printf '%s\n' "$full"
+}
+
+# True when the pane is reachable on the given socket.
+hp_pane_alive() {
+  local sock="$1" pane="$2"
+  [ -n "$pane" ] || return 1
+  HERDR_SOCKET_PATH="$sock" herdr pane get "$pane" >/dev/null 2>&1
+}
+
+# Focus the repo's live coordinator pane. Tries the recorded pane in
+# state.json first, then any live agent still carrying the sw-coordinator-<repo>
+# name (head or head-N, the pump's disambiguation) with its cwd at the repo
+# root, newest state_change_seq wins. Never starts anything.
+# Echoes "focused" and returns 0 on success; echoes "none" and returns 1 when no
+# live coordinator exists. Args: <repo>.
+hp_focus_repo_coordinator() {
+  local repo="$1" state_file sock pane root head agents target best_seq cid cname cseq
+  state_file="$(hp_coordinator_state_file "$repo")"
+  if [ -n "$state_file" ] && [ -f "$state_file" ]; then
+    sock="$(jq -r '.socket // empty' "$state_file" 2>/dev/null || true)"
+    pane="$(jq -r '.pane // empty' "$state_file" 2>/dev/null || true)"
+  fi
+  [ -n "${sock:-}" ] || sock="$(hp_current_socket)"
+  if [ -n "${pane:-}" ] && hp_pane_alive "$sock" "$pane"; then
+    HERDR_SOCKET_PATH="$sock" herdr agent focus "$pane" >/dev/null 2>&1 \
+      && { printf 'focused\n'; return 0; }
+  fi
+
+  command -v jq >/dev/null 2>&1 || { printf 'none\n'; return 1; }
+  root="$(hp_repo_path "$repo")"
+  head="$(hp_coordinator_name_head "$repo")"
+  target=""; best_seq=-1
+  # The structural name test happens here in bash once per candidate; jq only
+  # pre-filters panes at the repo root. cwd is the coordinator's repo folder
+  # (task agents live in worktrees and carry different names anyway).
+  agents="$(HERDR_SOCKET_PATH="$sock" herdr agent list 2>/dev/null || true)"
+  [ -n "$agents" ] || { printf 'none\n'; return 1; }
+  while IFS=$'\t' read -r cid cname cseq; do
+    [ -n "$cid" ] || continue
+    if [ "$cname" = "$head" ]; then :; else
+      case "$cname" in
+        "$head"-*)
+          local n="${cname#"$head"-}"
+          case "$n" in ''|*[!0-9]*) continue ;; esac
+          [ "$n" -ge 1 ] 2>/dev/null || continue
+          ;;
+        *) continue ;;
+      esac
+    fi
+    if [ "$cseq" -gt "$best_seq" ] 2>/dev/null; then best_seq="$cseq"; target="$cid"; fi
+  done <<EOF
+$(printf '%s' "$agents" | jq -r --arg root "$root" '
+  .result.agents[]?
+  | select((.cwd // "") == $root or (.foreground_cwd // "") == $root)
+  | [.pane_id, (.name // ""), (.state_change_seq // 0)] | @tsv' 2>/dev/null || true)
+EOF
+
+  if [ -z "$target" ]; then printf 'none\n'; return 1; fi
+  HERDR_SOCKET_PATH="$sock" herdr agent focus "$target" >/dev/null 2>&1 \
+    && { printf 'focused\n'; return 0; }
+  printf 'none\n'
+  return 1
+}
+
+# Open a repo's project coordinator for the human: focus it when a live pane
+# exists, restart the same conversation when state exists but the pane is gone,
+# or start a fresh one on first use. The CLI only queues the request and kicks
+# its own detached pump (which opens the tab), so it returns immediately; the
+# popup can close. Args: <hp_bin> <repo>.
+hp_open_repo_coordinator() {
+  local hp="$1" repo="$2" status state_file action msg
+  status="$(hp_focus_repo_coordinator "$repo")" && { printf '%s\n' "$status"; return 0; }
+  state_file="$(hp_coordinator_state_file "$repo")"
+  if [ -n "$state_file" ] && [ -f "$state_file" ]; then action="restart"; else action="new"; fi
+  msg="$("$hp" coordinator --project "$repo" "$action" 2>&1)" || {
+    printf '%s\n' "$msg" >&2
+    return 1
+  }
+  printf '%s\n' "$msg"
 }

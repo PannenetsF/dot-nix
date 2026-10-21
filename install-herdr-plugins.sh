@@ -14,7 +14,6 @@
 #   HERDR_CLI            herdr binary. Defaults to PATH lookup, then common
 #                        install locations. Plugin work is skipped when absent.
 #   HERDR_CONFIG_DIR     Default: $HOME/.config/herdr.
-#   HERDR_PROJECTS_BIN   Default: $HOME/.local/bin/herdr-projects.
 #   HERDR_ROADBOARD_SRC  Default: $HOME/Documents/workspace/roadboard.
 #   HERDR_PUSH_RELAY_URL When set (http(s) URL of a herdr-remote relay), the
 #                        dcolinmorgan/herdr-push plugin is pinned-installed and
@@ -29,7 +28,6 @@ set -euo pipefail
 : "${HERDR_TEMPLATE:?install-herdr-plugins.sh needs HERDR_TEMPLATE}"
 
 config_dir="${HERDR_CONFIG_DIR:-$HOME/.config/herdr}"
-hp_bin="${HERDR_PROJECTS_BIN:-$HOME/.local/bin/herdr-projects}"
 roadboard_src="${HERDR_ROADBOARD_SRC:-$HOME/Documents/workspace/roadboard}"
 
 if [ -n "${HERDR_CLI:-}" ] && [ -x "$HERDR_CLI" ]; then
@@ -97,7 +95,7 @@ fi
 
 # Version gates: plugin install talks to the running server and fails hard
 # against one too old to know the plugin's manifest features. herdr-radar
-# needs >= 0.9.0, herdr-projects >= 0.9.1.
+# needs >= 0.9.0, herdr-projects >= 0.9.3.
 status_json="$("$herdr_cli" status --json 2>/dev/null || true)"
 # One status call feeds both gates. Python exits 0 = >= 0.9.0, 1 = older,
 # 2 = version unobtainable (server down / bad payload). Suffixes like
@@ -117,7 +115,7 @@ except Exception:
     | python3 -c 'import json,sys; print(json.load(sys.stdin)["server"]["version"])' 2>/dev/null || true)"
 
   # herdr-radar rewrites the sidebar Agents list with per-agent state glyphs
-  # (working/blocked/done/idle tiers), project grouping and activity ordering.
+  # (working/blocked/done/idle tiers), grouping and activity ordering.
   # It is a Node plugin: its interpreter is nodejs_22 from host.nix (macOS
   # builds take node from the PATH the nix-darwin activation prepends). Its
   # install build hook and daemon manage three marker-fenced blocks (tab-bar
@@ -129,12 +127,19 @@ except Exception:
   # plugin's exact font codepoint-map block — otherwise the build hook
   # hard-fails writing through the read-only Nix-store symlink (its setup.js
   # is not EACCES-safe).
+  # Fork pin v1.4.9-pf.1: the only patch left on top of upstream 1.4.9 is the
+  # static ws_key — per-pane group keys must not carry a recency component,
+  # or N panes' independent async metadata writes skew the key between retries
+  # and headers land mid-group. Older pf patches (header order, fingerprint
+  # hardening, projects-view coexistence) are all gone: #49 was fixed
+  # upstream via view reassert/keeper, and herdr-projects 1.2.x no longer
+  # installs a global agents view.
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.4-pf.6"; then
+      | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.9-pf.1"; then
     # Never let one plugin's install failure abort the activation: the
     # configure/state-start and projects steps below are independently guarded
     # and harmless on a partial install.
-    "$herdr_cli" plugin install -y --ref v1.4.4-pf.6 \
+    "$herdr_cli" plugin install -y --ref v1.4.9-pf.1 \
       PannenetsF/herdr-radar || true
   fi
   "$herdr_cli" plugin action invoke configure \
@@ -145,35 +150,39 @@ except Exception:
   "$herdr_cli" plugin action invoke state-start \
     --plugin hhdebb.herdr-radar >/dev/null 2>&1 || true
 
-  # herdr-projects requires server >= 0.9.1; plugin install talks to the
-  # running server and fails hard against a stale one, so skip until the
-  # server is restarted.
+  # herdr-projects 1.2.x: the task board + per-repo project coordinators.
+  # Requires server >= 0.9.3; plugin install talks to the running server and
+  # fails hard against a stale one, so skip until the server is restarted.
+  # Pinned to UPSTREAM eliasstravik/herdr-projects (the old 0.2.x pf fork is
+  # fully retired — its registered-coordinator identity, adoption, context
+  # gate and sticky-nudge patches all solve problems the 1.2 board model no
+  # longer has; the one behavior upstream still lacks, focusing a repo
+  # coordinator's pane across sessions, lives in the shell launchers,
+  # config/herdr/focus-coordinator.sh).
+  #
+  # Unlike the old fork there is no `configure` step:
+  #   - the prefix+a board key ships in this repo's config.toml template, so
+  #     the plugin never offers to write one (and template reinstalls could
+  #     not wipe it anyway);
+  #   - its proposed [ui.sidebar.agents] rows are deliberately not shipped —
+  #     they collide with radar's glyph table; the plugin detects radar's
+  #     rows as a hand-written table and leaves them alone, and the board
+  #     itself shows all three rows;
+  #   - hooks/skills are maintained by the plugin's own startup hook.
+  # First run archives a legacy ~/.herdr-projects from the 0.2.x model to
+  # ~/.herdr-projects-legacy; the release binary is downloaded by the
+  # plugin's bin/run.sh at install, no toolchain needed.
   if python3 -c 'import sys
 v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
 t = tuple(int(x) for x in v.split(".") if x != "")
-sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
-    # Fork pin v0.2.34-pf.2: coordinator identity is the REGISTERED agent name
-    # (`hpc-<slug>`), replacing upstream's cwd-only heuristic that made every
-    # hand-started root session a coordinator (cross-session inbox leaks,
-    # misrouted nudges). Adds `coordinator adopt`, the context registration
-    # gate, session-sticky nudges, and the untracked-pane claim for a second
-    # harness working in a tracked project folder.
+sys.exit(0 if t >= (0, 9, 3) else 1)' "$server_version" 2>/dev/null; then
     if ! "$herdr_cli" plugin list 2>/dev/null \
-        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.2"; then
-      "$herdr_cli" plugin install -y --ref v0.2.34-pf.2 \
-        PannenetsF/herdr-projects || true
-    fi
-    # Sidebar grouping rows, the prefix+a popup and tab-bar entry are NOT in
-    # the repo template: full configure adds them to the writable live config
-    # after the template lands (and journals them so the plugin's doctor
-    # validates them). It also maintains the agent progress hooks and
-    # autoproject skill links. Idempotent, and repairs hooks lost to other
-    # tools rewriting the agents' settings files.
-    if [ -x "$hp_bin" ]; then
-      "$hp_bin" configure >/dev/null 2>&1 || true
+      | grep -q "eliasstravik/herdr-projects@v1.2.13"; then
+      "$herdr_cli" plugin install -y --ref v1.2.13 \
+        eliasstravik/herdr-projects || true
     fi
   else
-    echo >&2 "herdr server is older than 0.9.1; restart herdr to install herdr-projects"
+    echo >&2 "herdr server is older than 0.9.3; restart herdr to install herdr-projects"
   fi
 
   # herdr-web-ui: browser/PWA client over the herdr socket API (workspaces,
@@ -191,21 +200,24 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
   "$herdr_cli" plugin action invoke start \
     --plugin devswha.herdr-web-ui >/dev/null 2>&1 || true
 
-  # herdr-portal: global read-mostly agent board (forked from
-  # loofare/herdr-portal). Pure-stdlib Python curses TUI opened on demand as
-  # an overlay pane (prefix+shift+o), plus a stdlib HTTP "big screen" daemon
-  # started by its own open-web action (prefix+ctrl+o, 127.0.0.1:8787). No
-  # startup hook and no interpreter prerequisites, so nothing to invoke here:
-  # the board opens only when the user asks. Upstream main (v1.2.0 commit
-  # cae8ea0) drops agent_status=unknown panes from every board column, so in a
-  # tab with several freshly spawned agents the not-yet-reported ones vanish
-  # from the TUI/web board; the fork routes those cards into the RUNNING column
-  # with a 状态未知 phase (and protects them in idle reclaim) in a ~15-line
-  # collect.py-only patch. Pin the fork tag like the other PannenetsF herdr-*
-  # forks.
+  # herdr-portal: global read-mostly agent board. Pure-stdlib Python curses
+  # TUI opened on demand as an overlay pane (prefix+shift+o), plus a stdlib
+  # HTTP "big screen" daemon started by its own open-web action
+  # (prefix+ctrl+o, 127.0.0.1:8787; 1.3.0 gates /api/* behind a loopback
+  # token plus Host/Origin checks). No startup hook and no interpreter
+  # prerequisites, so nothing to invoke here: the board opens only when the
+  # user asks. Upstream 1.3.0 rebuilt the status system so
+  # agent_status=unknown is a first-class status (label, counts, spaces
+  # view), but it never gives unknown a columns bucket — collect() builds
+  # only blocked/working/settled/window, and both the TUI and web board read
+  # just those, so several agents freshly started in one tab all vanish from
+  # the main board; idle reclaim also treated them as candidates. Our fork
+  # tag v1.3.0-pf.1 (on top of the 1.3.0 release commit ba47b65 — upstream
+  # never pushed a v1.3.0 tag) routes unknown cards into the working column
+  # while keeping the 未知 label/count, and protects them from reclaim.
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.2.1-pf.1"; then
-    "$herdr_cli" plugin install -y --ref v1.2.1-pf.1 \
+      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.1"; then
+    "$herdr_cli" plugin install -y --ref v1.3.0-pf.1 \
       PannenetsF/herdr-portal || true
   fi
 

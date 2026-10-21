@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# herdr-projects launcher: jump the client to the project's registered
-# coordinator. The primary comes from the project's coordinator.json; if that
-# pane is gone, any live pane still carrying the hpc-<slug> family name is
-# used. An unregistered agent sitting in the project home UNDER THE POPUP is
-# adopted in place instead (same identity rule as prefix+ctrl+n). Slug
-# resolution order: cwd, the underlying tiled pane, then an fzf picker.
-# Bound to prefix+ctrl+f in config/herdr/config.toml.
+# herdr-projects launcher (1.2.x board model): jump the client to a repo's
+# project coordinator WITHOUT starting one. The recorded pane in the
+# coordinator's state.json wins (across herdr sessions — its socket is pinned
+# in the state and exported for the focus call); if that pane is gone, any
+# live agent still carrying the sw-coordinator-<repo> name (or its -2/-3
+# disambiguation) at the repo root is used, newest activity first.
+#
+# The plugin ships no per-repo equivalent of its top-level open-coordinator
+# action, so this is and stays a shell feature. Repo resolution order: the
+# shell cwd / the underlying tiled pane, then fzf over repos that actually have
+# coordinator state. Bound to prefix+ctrl+f in config/herdr/config.toml.
 set -euo pipefail
 
 # Locate and source the shared popup library. Resolve one symlink hop: Home
@@ -20,78 +24,39 @@ self_dir="$(cd "$(dirname "$self")" && pwd)"
 . "$self_dir/herdr-popup-lib.sh"
 
 herdr_popup_prepend_path
+hp_export_env
 
-hp_bin="$(herdr_projects_bin)"
-[ -n "$hp_bin" ] || die "herdr-projects binary not found"
-hp_root="${HERDR_PROJECTS_ROOT:-$HOME/.herdr-projects}"
-
-slug="$(hp_resolve_project_slug "$hp_bin" "$hp_root")" || exit 0
-[ -n "$slug" ] || exit 0
-state_file="$hp_root/$slug/.state/coordinator.json"
-
-# An unregistered root pane invoking this popup wants to BE the coordinator:
-# register it in place, exactly like prefix+ctrl+n does.
-pane="$(hp_active_pane)"
-if [ -n "$pane" ]; then
-  name="$(hp_agent_name_for_pane "$pane")"
-  if [ -z "$name" ]; then
-    pane_cwd="$(hp_pane_cwd "$pane")"
-    case "$pane_cwd" in
-      "$hp_root/$slug"|"$hp_root/$slug"/)
-        hp_adopt_detached "$hp_bin" "$hp_root" "$slug" "$pane"
-        echo "registering this pane as hpc-$(hp_slug_head "$slug" 24); run context there"
-        exit 0
-        ;;
-    esac
+repo="$(hp_known_repo_for_path "$PWD")"
+if [ -z "$repo" ]; then
+  pane="$(hp_active_pane)"
+  if [ -n "$pane" ]; then
+    dir="$(hp_pane_cwd "$(hp_current_socket)" "$pane")"
+    [ -n "$dir" ] && repo="$(hp_known_repo_for_path "$dir")"
   fi
 fi
+if [ -z "$repo" ]; then
+  command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
+  state_repos="$(hp_state_repos)"
+  [ -n "$state_repos" ] || die "no project coordinator has ever run here (start one with prefix+ctrl+n)"
+  # Show the checkout path beside each name when known.
+  selection="$(while IFS= read -r name; do
+      path="$(hp_repo_path "$name")"
+      printf '%s\t%s\n' "$name" "$path"
+    done <<< "$state_repos" | fzf \
+      --prompt='focus coordinator > ' \
+      --header='Enter: jump to its pane   Esc: cancel')" || exit 0
+  [ -n "$selection" ] || exit 0
+  repo="${selection%%$'\t'*}"
+  hp_valid_repo_name "$repo" || die "unexpected coordinator list output: $selection"
+fi
+[ -n "$repo" ] || exit 0
 
-command -v jq >/dev/null 2>&1 || die "jq not found on PATH"
-
-# The recorded session wins; the CLI needs its socket explicitly when the
-# popup runs in another herdr session.
-record_socket="$(jq -r '.socket // empty' "$state_file" 2>/dev/null || true)"
-record_pane="$(jq -r '.pane_id // empty' "$state_file" 2>/dev/null || true)"
-if [ -n "$record_socket" ]; then
-  export HERDR_SOCKET_PATH="$record_socket"
+if [ "$(hp_focus_repo_coordinator "$repo")" = "focused" ]; then
+  exit 0
 fi
 
-agents_json="$(herdr agent list 2>/dev/null || true)"
-[ -n "$agents_json" ] || die "the project's herdr session is not reachable"
-
-# Candidate lines for family members in the project home:
-# `<pane_id>\t<name>\t<state_change_seq>`, ordered by agent list. The family
-# test runs once, in bash (hp_pane_is_coordinator_of), so the 24/22 truncation
-# rule lives in the shared library and never gets re-implemented in jq.
-candidates="$(printf '%s' "$agents_json" | jq -r --arg home "$hp_root/$slug" '
-  .result.agents[]?
-  | select((.cwd // "") == $home or (.foreground_cwd // "") == $home)
-  | [.pane_id, (.name // ""), (.state_change_seq // 0)] | @tsv' 2>/dev/null || true)"
-
-target=""
-best_seq=-1
-while IFS=$'\t' read -r cid cname cseq; do
-  [ -n "$cid" ] || continue
-  hp_pane_is_coordinator_of "$slug" "$cname" || continue
-  if [ "$cid" = "$record_pane" ]; then
-    target="$cid"
-    break
-  fi
-  if [ "$cseq" -gt "$best_seq" ] 2>/dev/null; then
-    best_seq="$cseq"
-    target="$cid"
-  fi
-done <<EOF
-$candidates
-EOF
-
-if [ -z "$target" ]; then
-  echo "no registered coordinator for '$slug'."
-  echo "open the pane that should coordinate it and press prefix+ctrl+n to register,"
-  echo "or run: $hp_bin coordinator adopt $slug --pane <id>"
-  printf 'press enter to close'
-  read -r _ || true
-  exit 1
-fi
-
-herdr agent focus "$target" || die "could not focus pane $target"
+echo "no live coordinator for '$repo'."
+echo "start a fresh one with prefix+ctrl+n, or reopen the conversation with prefix+ctrl+p."
+printf 'press enter to close'
+read -r _ || true
+exit 1

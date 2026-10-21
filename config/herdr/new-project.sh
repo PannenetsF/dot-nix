@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# herdr-projects launcher: pick one or more local git repositories with fzf,
-# then create (or open) the herdr-projects project attached to them. Bound to
-# prefix+shift+c as a herdr type="popup" command, so it has an interactive TTY.
+# herdr-projects launcher (1.2.x board model): pick one or more local git
+# checkouts with fzf, register them in the herdr-projects repo registry, and
+# open the first repo's project coordinator (focus the live pane, or start it).
+# Bound to prefix+shift+c as a herdr type="popup" command, so it has an
+# interactive TTY.
 #
 # Repository roots (colon-separated): HP_PROJECT_ROOTS, default
 # ~/Documents:~/.config. Repos up to 4 levels deep.
@@ -19,6 +21,7 @@ self_dir="$(cd "$(dirname "$self")" && pwd)"
 . "$self_dir/herdr-popup-lib.sh"
 
 herdr_popup_prepend_path
+hp_export_env
 
 hp_bin="$(herdr_projects_bin)"
 if [ -z "$hp_bin" ]; then
@@ -27,30 +30,12 @@ if [ -z "$hp_bin" ]; then
 fi
 command -v fzf >/dev/null 2>&1 || die "fzf not found on PATH"
 
-roots="${HP_PROJECT_ROOTS:-$HOME/Documents:$HOME/.config}"
-
-# Absolute repo paths, one per line (fuzzy match on the full path).
-list_repos() {
-  old_ifs=$IFS
-  IFS=:
-  for root in $roots; do
-    [ -d "$root" ] || continue
-    # .git is a directory in a plain repo but a file in git worktrees and
-    # submodules; match both so those show up in the picker too.
-    find "$root" -maxdepth 4 \( -type d -o -type f \) -name .git -prune 2>/dev/null |
-      while IFS= read -r gitdir; do
-        printf '%s\n' "${gitdir%/.git}"
-      done
-  done
-  IFS=$old_ifs
-}
-
-# --multi: Tab marks extra repos, Enter takes what is marked (or just the
-# highlighted line for a single-repo project).
-selection="$(list_repos | sort -u | fzf \
+# fzf multi: Tab marks extra checkouts, Enter takes the marked ones (or just
+# the highlighted line for a single repo).
+selection="$(hp_scan_local_repos | sort -u | fzf \
   --multi \
-  --prompt='repos for new project > ' \
-  --header='Enter: use selected (or highlighted) repo(s)   Tab: mark another   Esc: cancel')" || exit 0
+  --prompt='register repo(s) > ' \
+  --header='Enter: register selected (or highlighted) repo(s) and open the first   Tab: mark another   Esc: cancel')" || exit 0
 
 [ -n "$selection" ] || exit 0
 repos=()
@@ -60,81 +45,16 @@ done <<< "$selection"
 [ "${#repos[@]}" -gt 0 ] || die "no repo selected"
 for repo in "${repos[@]}"; do
   [ -d "$repo" ] || die "selected path is not a directory: $repo"
-  # herdr-projects parses a repo path containing @ as PATH@MACHINE (a remote
-  # machine), silently truncating the path; refuse it here.
-  case "$repo" in
-    *@*) die "repo path cannot contain @ (herdr-projects would parse it as PATH@MACHINE): $repo" ;;
-  esac
 done
+
 first_repo="${repos[0]}"
-default_name="$(basename "$first_repo")"
-
-# The project name is free text ("Erdos", "my project"); `herdr-projects new`
-# derives the slug itself (lower-case, runs of other chars become one hyphen,
-# at most 40 chars) and keeps the typed spelling as the display name.
-printf 'Project name (displayed as typed; default: %s): ' "$default_name"
-read -r name || exit 0
-name="${name:-$default_name}"
-
-hp_root="${HERDR_PROJECTS_ROOT:-$HOME/.herdr-projects}"
-repo_args=()
 for repo in "${repos[@]}"; do
-  repo_args+=(--repo "$repo")
+  hp_register_repo "$hp_bin" "$repo" || die "failed to register $repo"
 done
+first_name="$(hp_known_repo_for_path "$first_repo")"
+[ -n "$first_name" ] || die "the selected repo did not end up registered: $first_repo"
 
-# `new` owns slug derivation: read the slug back from its "created `<slug>` …"
-# output, or from its "`<slug>` already exists …" error when the folder is
-# there already. Anything else is a real failure. `--` right before the name
-# keeps a name starting with "-" from being parsed as an option (the --repo
-# options must come before it, or clap treats them as positionals).
-created="$("$hp_bin" --root "$hp_root" new "${repo_args[@]}" -- "$name" 2>&1)" && created_ok=1 || created_ok=0
-if [ "$created_ok" = 1 ]; then
-  # Restrict the slug capture to slug characters: a repo path containing a
-  # backtick followed by " at " would otherwise satisfy a greedy `.*`.
-  slug="$(printf '%s' "$created" | sed -n 's/^created `\([a-z0-9-]*\)` at .*$/\1/p')"
-  [ -n "$slug" ] || die "project was created from '$name', but its slug could not be parsed; open it with prefix+ctrl+p"
-elif slug="$(printf '%s' "$created" | sed -n 's/^.*`\([a-z0-9-]*\)` already exists .*$/\1/p')" && [ -n "$slug" ]; then
-  echo "project '$slug' already exists; attaching any missing repos and opening it"
-  for repo in "${repos[@]}"; do
-    # Idempotent: a repo already attached is not an error, anything else is.
-    msg="$("$hp_bin" --root "$hp_root" set "$slug" repos.add "$repo" 2>&1)" || {
-      printf '%s' "$msg" | grep -q 'already listed' || {
-        printf '%s\n' "$msg" >&2
-        die "'set repos.add $repo' failed"
-      }
-    }
-  done
-else
-  printf '%s\n' "$created" >&2
-  die "'new' failed for '$name'"
-fi
-
-# Open the project in its own workspace tab: from a popup pane plain `open`
-# would start the coordinator in the transient pane, which closes the moment
-# this script exits. Outside Herdr --tab behaves like plain open.
-#
-# After a herdr restart the recorded socket is stale and `open` fails with a
-# human-readable "... socket no longer exists ... pass --rebind ..." error.
-# The plugin has no stable error code, so we match that text and retry once
-# with --rebind; anything else is a real failure.
-open_project() {
-  local open_slug="$1" open_msg
-  if open_msg="$("$hp_bin" --root "$hp_root" open "$open_slug" --tab 2>&1)"; then
-    [ -n "$open_msg" ] && printf '%s\n' "$open_msg"
-    return 0
-  fi
-  case "$open_msg" in
-    *"no longer exists"*)
-      printf '%s\n' "$open_msg" >&2
-      echo "retrying with --rebind ..."
-      if open_msg="$("$hp_bin" --root "$hp_root" open "$open_slug" --tab --rebind 2>&1)"; then
-        [ -n "$open_msg" ] && printf '%s\n' "$open_msg"
-        return 0
-      fi
-      ;;
-  esac
-  printf '%s\n' "$open_msg" >&2
-  die "'open' failed for '$open_slug'"
-}
-
-open_project "$slug"
+# Open the first repo's coordinator: jumps to its pane when it already runs,
+# restarts the same conversation after a crash, or starts a fresh one. The CLI
+# queues and lets its own detached pump open the tab, so the popup can close.
+hp_open_repo_coordinator "$hp_bin" "$first_name" || die "could not open the $first_name coordinator (is herdr running?)"

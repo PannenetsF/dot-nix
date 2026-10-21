@@ -114,43 +114,56 @@ type = "plugin_action"
 command = "roadboard.open"
 description = "roadboard: roadmap tree (toggle popup)"
 
-# herdr-projects: new/open project (the prefix+a overview popup itself is
-# added by `herdr-projects configure` during activation). Mirrors the nvim
-# <leader>a agent/project namespace: shift+C create, C-p project switch.
-# New opens the fzf repo picker installed as ~/.local/bin/herdr-new-project;
-# override the scan roots with HP_PROJECT_ROOTS=~/a:~/b.
+# herdr-projects 1.2.x work board (installed by install-herdr-plugins.sh).
+# prefix+a opens the board itself via the plugin's own action. Mirrors the
+# nvim <leader>a namespace: a = board/agent overview, shift+C register a new
+# repo, C-p switch repo, C-n new coordinator, C-f focus coordinator, shift+a
+# register more repos. The repo picker scripts live in ~/.local/bin/herdr-*;
+# override their scan roots with HP_PROJECT_ROOTS=~/a:~/b.
+#
+# The plugin also offers sidebar rows for task state, but they claim the same
+# [ui.sidebar.agents] table as herdr-radar's glyphs, so they are intentionally
+# NOT shipped: radar owns the sidebar, and the plugin treats radar's rows as a
+# hand-written table and keeps them (the board itself shows the full rows).
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "herdr-projects.open"
+description = "Projects: work board"
+
+# Register one or more local git checkouts (fzf multi) and open the first
+# repo's project coordinator.
 [[keys.command]]
 key = "prefix+shift+c"
 type = "popup"
 command = "sh -c 'exec \"$HOME/.local/bin/herdr-new-project\"'"
-description = "Projects: new project from repo"
+description = "Projects: register repo and open coordinator"
 width = "70%"
 height = "70%"
 
+# Pick a registered repo: focus its live coordinator pane, reopen the same
+# conversation when the pane is gone, or start a fresh one on first use.
 [[keys.command]]
 key = "prefix+ctrl+p"
 type = "popup"
 command = "sh -c 'exec \"$HOME/.local/bin/herdr-pick-project\"'"
-description = "Projects: pick and open project"
+description = "Projects: pick repo and open coordinator"
 width = "60%"
 height = "60%"
 
-# Open another coordinator for the current project. The script resolves the
-# project from cwd / the underlying pane (HERDR_ACTIVE_PANE_ID), else fzf.
-# C-n = new coordinator, alongside the other <leader>a project keys. On an
-# unregistered agent sitting in the project home it registers that pane in
-# place (`coordinator adopt`) instead of opening a duplicate.
+# Start a FRESH project coordinator conversation for the current repo (cwd /
+# underlying pane, else fzf). The plugin's pump opens the tab; unlike C-p this
+# never re-enters an existing conversation. C-n = new coordinator.
 [[keys.command]]
 key = "prefix+ctrl+n"
 type = "popup"
 command = "sh -c 'exec \"$HOME/.local/bin/herdr-new-coordinator\"'"
-description = "Projects: another coordinator"
+description = "Projects: new coordinator"
 width = "60%"
 height = "60%"
 
-# Focus the project's registered coordinator (coordinator.json pane, then any
-# live hpc-<slug> family member); adopt the unregistered root pane underneath
-# the popup when it is not registered yet.
+# Focus-only jump to a repo's coordinator (state.json pane, then a live
+# sw-coordinator-<repo> family member); never starts one.
 [[keys.command]]
 key = "prefix+ctrl+f"
 type = "popup"
@@ -159,21 +172,21 @@ description = "Projects: focus coordinator"
 width = "60%"
 height = "60%"
 
-# Attach more repos to an existing project (fzf project pick, then fzf
-# multi-pick repos; already attached ones are hidden).
+# Register more local git checkouts in the repo registry without opening
+# anything (fzf multi; already-registered checkouts are hidden).
 [[keys.command]]
 key = "prefix+shift+a"
 type = "popup"
 command = "sh -c 'exec \"$HOME/.local/bin/herdr-add-repo\"'"
-description = "Projects: attach repo to project"
+description = "Projects: register local repos"
 width = "70%"
 height = "70%"
 
 # herdr-radar sidebar (plugin installed by nix-darwin/herdr.nix). Upstream
-# suggests prefix+a for the view flip, but that is Projects' popup here, and
-# plain prefix+r is herdr's resize mode, so the flip rides prefix+ctrl+r with
-# the other plugin actions; settings popup on prefix+comma as upstream suggests.
-# Both are no-ops until the plugin lands.
+# suggests prefix+a for the view flip, but that is Projects' work board here,
+# and plain prefix+r is herdr's resize mode, so the flip rides prefix+ctrl+r
+# with the other plugin actions; settings popup on prefix+comma as upstream
+# suggests. Both are no-ops until the plugin lands.
 [[keys.command]]
 key = "prefix+ctrl+r"
 type = "plugin_action"
@@ -189,8 +202,8 @@ description = "Radar: settings popup"
 # herdr-portal (plugin installed by install-herdr-plugins.sh): global board
 # over every workspace/tab/pane. The TUI is the read-only fleet view (Enter
 # only jumps focus to the pane and closes the overlay); the web big screen can
-# also reply to an agent. Upstream suggests prefix+a, which is Projects' popup
-# here, so both ride the unused o namespace.
+# also reply to an agent. Upstream suggests prefix+a, which is Projects' work
+# board here, so both ride the unused o namespace.
 [[keys.command]]
 key = "prefix+shift+o"
 type = "plugin_action"
