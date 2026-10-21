@@ -230,6 +230,11 @@ in {
       "fswatch"
       "gromgit/fuse/sshfs-mac"
       "herdr"
+      # Native backend for Doom's :input chinese +rime (liberime links
+      # -lrime and finds headers via pkg-config; dot-doom compiles the
+      # liberime emacs module on demand, see ~/.config/doom/config.el).
+      "librime"
+      "pkgconf"
     ];
 
     global = {
