@@ -207,6 +207,7 @@ in {
       "skim"
       "snipaste"
       "tencent-lemon"
+      "telegram"
       "visual-studio-code"
       "wechat"
       "dot-nix/local/whatpulse-chmodbpf"
