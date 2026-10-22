@@ -11,7 +11,10 @@
   home.activation.herdrPlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     # The official herdr install and the Rust plugin binaries live under
     # ~/.local/bin, which a non-login activation shell does not always have.
-    export PATH="${config.home.profileDirectory}/bin:$HOME/.local/bin:$PATH"
+    # ~/.cargo/bin is needed because the pinned herdr-projects fork ships no
+    # release assets: `plugin install` builds it with the per-user rustup
+    # toolchain (no cargo in the nix host package set by design).
+    export PATH="${config.home.profileDirectory}/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
     HERDR_TEMPLATE=${../config/herdr/config.toml} \
       bash ${../install-herdr-plugins.sh}
   '';

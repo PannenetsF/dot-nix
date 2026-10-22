@@ -9,12 +9,15 @@ let
   # of the Home Manager / nix-darwin profile directories, so the bare `node`
   # herdr spawns for Node plugin build hooks and actions fails to start (the
   # Rust plugins are self-contained binaries and never hit this). Re-prepend
-  # the profile and Homebrew bin directories via env(1).
+  # the profile and Homebrew bin directories via env(1). ~/.cargo/bin is
+  # needed because the pinned herdr-projects fork ships no release assets:
+  # `plugin install` builds it with the user's per-user rustup toolchain.
   pluginPath = lib.concatStringsSep ":" [
     "/etc/profiles/per-user/${username}/bin"
     "${homeDir}/.nix-profile/bin"
     "/run/current-system/sw/bin"
     "${config.homebrew.brewPrefix}"
+    "${homeDir}/.cargo/bin"
     "/usr/local/bin"
     "/usr/bin"
     "/bin"
@@ -31,6 +34,7 @@ in {
     echo >&2 "herdr config..."
     launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
       env PATH="${pluginPath}" \
+      CC=/usr/bin/cc \
       HERDR_TEMPLATE="${herdrConfig}" \
       HERDR_CLI="${herdrCli}" \
       HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375" \

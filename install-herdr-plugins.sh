@@ -14,6 +14,7 @@
 #   HERDR_CLI            herdr binary. Defaults to PATH lookup, then common
 #                        install locations. Plugin work is skipped when absent.
 #   HERDR_CONFIG_DIR     Default: $HOME/.config/herdr.
+#   HERDR_PROJECTS_BIN   Default: $HOME/.local/bin/herdr-projects.
 #   HERDR_ROADBOARD_SRC  Default: $HOME/Documents/workspace/roadboard.
 #   HERDR_PUSH_RELAY_URL When set (http(s) URL of a herdr-remote relay), the
 #                        dcolinmorgan/herdr-push plugin is pinned-installed and
@@ -28,6 +29,7 @@ set -euo pipefail
 : "${HERDR_TEMPLATE:?install-herdr-plugins.sh needs HERDR_TEMPLATE}"
 
 config_dir="${HERDR_CONFIG_DIR:-$HOME/.config/herdr}"
+hp_bin="${HERDR_PROJECTS_BIN:-$HOME/.local/bin/herdr-projects}"
 roadboard_src="${HERDR_ROADBOARD_SRC:-$HOME/Documents/workspace/roadboard}"
 
 if [ -n "${HERDR_CLI:-}" ] && [ -x "$HERDR_CLI" ]; then
@@ -93,9 +95,22 @@ if ! "$herdr_cli" plugin list 2>/dev/null | grep -q "furkankly.zoetrope.*@2d226f
     furkankly/zoetrope/herdr-plugin || true
 fi
 
+# herdr-unread-jump: herdr hard-codes the in-app toast display time
+# (8s needs-attention / 5s finished; there is no sticky/persistent option),
+# so after a toast auto-dismisses this action focuses the next pane that
+# still needs handling: blocked first, then done, wrapping within the group.
+# Pure bash+jq (jq is in the host package set), min herdr 0.7.5 — like
+# zoetrope it installs OUTSIDE the >= 0.9.0 server-version gate below.
+# Upstream ships no tags, so pin the commit SHA.
+if ! "$herdr_cli" plugin list 2>/dev/null | grep -q "to4iki.unread-jump.*@be4cd1f"; then
+  "$herdr_cli" plugin install -y \
+    --ref be4cd1fecf9bf0684a0fe0f2dd1c2316bf819389 \
+    to4iki/herdr-unread-jump || true
+fi
+
 # Version gates: plugin install talks to the running server and fails hard
 # against one too old to know the plugin's manifest features. herdr-radar
-# needs >= 0.9.0, herdr-projects >= 0.9.3.
+# needs >= 0.9.0, herdr-projects >= 0.9.1.
 status_json="$("$herdr_cli" status --json 2>/dev/null || true)"
 # One status call feeds both gates. Python exits 0 = >= 0.9.0, 1 = older,
 # 2 = version unobtainable (server down / bad payload). Suffixes like
@@ -132,8 +147,10 @@ except Exception:
   # or N panes' independent async metadata writes skew the key between retries
   # and headers land mid-group. Older pf patches (header order, fingerprint
   # hardening, projects-view coexistence) are all gone: #49 was fixed
-  # upstream via view reassert/keeper, and herdr-projects 1.2.x no longer
-  # installs a global agents view.
+  # upstream via view reassert/keeper, and herdr-projects 0.2.x owns the
+  # global sidebar grouping rows together with radar (projects configure
+  # merges its entries into radar's marker-fenced blocks, so the two must
+  # be called in this order: radar first, projects second).
   if ! "$herdr_cli" plugin list 2>/dev/null \
       | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.9-pf.1"; then
     # Never let one plugin's install failure abort the activation: the
@@ -150,39 +167,70 @@ except Exception:
   "$herdr_cli" plugin action invoke state-start \
     --plugin hhdebb.herdr-radar >/dev/null 2>&1 || true
 
-  # herdr-projects 1.2.x: the task board + per-repo project coordinators.
-  # Requires server >= 0.9.3; plugin install talks to the running server and
+  # herdr-projects: project + thread model with a persistent ticker daemon.
+  # Requires server >= 0.9.1; plugin install talks to the running server and
   # fails hard against a stale one, so skip until the server is restarted.
-  # Pinned to UPSTREAM eliasstravik/herdr-projects (the old 0.2.x pf fork is
-  # fully retired — its registered-coordinator identity, adoption, context
-  # gate and sticky-nudge patches all solve problems the 1.2 board model no
-  # longer has; the one behavior upstream still lacks, focusing a repo
-  # coordinator's pane across sessions, lives in the shell launchers,
-  # config/herdr/focus-coordinator.sh).
+  # Pinned to fork v0.2.34-pf.2 (PannenetsF/herdr-projects): registered
+  # coordinator identity (`hpc-<slug>` family names), adoption of
+  # hand-started sessions, context registration gate, session-sticky nudges
+  # and the untracked-pane claim for a second harness in a tracked project
+  # folder. The 0.2 model uses project slugs with per-project home
+  # directories (`~/.herdr-projects/<slug>/`); the ticker is its ONLY bell
+  # source — herdr notification show --sound request/done when threads enter
+  # waiting-on-you / ready-for-review. The upstream 1.2.x task-board model
+  # is incompatible (no thread states, no ticker bells, repo registry format
+  # differs), so this pin is permanent — DO NOT upgrade to 1.2.x.
   #
-  # Unlike the old fork there is no `configure` step:
-  #   - the prefix+a board key ships in this repo's config.toml template, so
-  #     the plugin never offers to write one (and template reinstalls could
-  #     not wipe it anyway);
-  #   - its proposed [ui.sidebar.agents] rows are deliberately not shipped —
-  #     they collide with radar's glyph table; the plugin detects radar's
-  #     rows as a hand-written table and leaves them alone, and the board
-  #     itself shows all three rows;
-  #   - hooks/skills are maintained by the plugin's own startup hook.
-  # First run archives a legacy ~/.herdr-projects from the 0.2.x model to
-  # ~/.herdr-projects-legacy; the release binary is downloaded by the
-  # plugin's bin/run.sh at install, no toolchain needed.
+  # Sidebar rows, the prefix+a overview popup and tab-bar entries are NOT in
+  # the repo template: configure adds them to the writable live config after
+  # the template lands. It also merges into radar's existing marker-fenced
+  # blocks, which is why radar configure must run first. Configure is
+  # idempotent and repairs hooks/config lost to other tools rewriting the
+  # agents' settings files.
   if python3 -c 'import sys
 v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
 t = tuple(int(x) for x in v.split(".") if x != "")
-sys.exit(0 if t >= (0, 9, 3) else 1)' "$server_version" 2>/dev/null; then
-    if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "eliasstravik/herdr-projects@v1.2.13"; then
-      "$herdr_cli" plugin install -y --ref v1.2.13 \
-        eliasstravik/herdr-projects || true
+sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
+    # Fork pin v0.2.34-pf.2 (see block comment above).
+    installed_projects="$("$herdr_cli" plugin list 2>/dev/null || true)"
+    if ! printf '%s' "$installed_projects" \
+        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.2"; then
+      # One-time rolloff window from the incompatible upstream 1.2.x
+      # task-board plugin: the plugin id must be free before the 0.2 fork can
+      # register, and 1.2 leaves four orphan daemons running forever
+      # (keeper / keeper-work / voice helper / serve). Their argv is
+      # `herdr-projects-<os>-<arch> <role>`; the regex matches exactly those
+      # four roles — the 0.2 ticker's argv is `herdr-projects --root … ticker
+      # run` (binary has no -<os>-<arch> suffix) and project-local watchers
+      # (e.g. status_watch.py) never match. pgrep/pkill are platform-neutral
+      # userland on both macOS and Linux; this never touches the ticker.
+      if printf '%s' "$installed_projects" \
+          | grep -q "eliasstravik/herdr-projects@"; then
+        echo >&2 "herdr-projects: removing incompatible upstream 1.2.x plugin"
+        "$herdr_cli" plugin uninstall herdr-projects >/dev/null 2>&1 || true
+        pkill -TERM -f \
+          'herdr-projects-[a-z0-9._-]+ (keeper|keeper-work|voice helper|serve)' \
+          2>/dev/null || true
+      fi
+      # No release assets on the fork: the server builds from source with the
+      # user's cargo (darwin wrapper and modules/herdr.nix both prepend
+      # ~/.cargo/bin). A build failure must not abort activation.
+      "$herdr_cli" plugin install -y --ref v0.2.34-pf.2 \
+        PannenetsF/herdr-projects || true
+    fi
+    # configure merges the sidebar/tab-bar blocks into radar's marker blocks
+    # (radar configure ran above). On a fresh install the $hp_bin link can be
+    # dangling (older link-command.sh hard-codes the legacy plugins/github
+    # layout; >= 0.9.5 installs under github-installations), so fall back to
+    # invoking configure through the plugin action API.
+    if [ -x "$hp_bin" ] && "$hp_bin" configure >/dev/null 2>&1; then
+      :
+    else
+      "$herdr_cli" plugin action invoke configure \
+        --plugin herdr-projects >/dev/null 2>&1 || true
     fi
   else
-    echo >&2 "herdr server is older than 0.9.3; restart herdr to install herdr-projects"
+    echo >&2 "herdr server is older than 0.9.1; restart herdr to install herdr-projects"
   fi
 
   # herdr-web-ui: browser/PWA client over the herdr socket API (workspaces,
@@ -212,12 +260,20 @@ sys.exit(0 if t >= (0, 9, 3) else 1)' "$server_version" 2>/dev/null; then
   # only blocked/working/settled/window, and both the TUI and web board read
   # just those, so several agents freshly started in one tab all vanish from
   # the main board; idle reclaim also treated them as candidates. Our fork
-  # tag v1.3.0-pf.1 (on top of the 1.3.0 release commit ba47b65 — upstream
-  # never pushed a v1.3.0 tag) routes unknown cards into the working column
-  # while keeping the 未知 label/count, and protects them from reclaim.
+  # (on top of the 1.3.0 release commit ba47b65 — upstream never pushed a
+  # v1.3.0 tag) carries two patches: pf.1 routes unknown cards into the
+  # working column while keeping the 未知 label/count and protects them from
+  # reclaim; pf.2 adds the "attention" (待处理) leftmost column fed by the
+  # pinned herdr-projects 0.2 fork's thread states (waiting-on-you /
+  # ready-for-review via `herdr-projects thread list <slug> --json`, root
+  # auto-discovered from ~/.herdr-projects with ~/.herdr-projects-legacy
+  # fallback), so the session the ticker rang for is always visible —
+  # live pane rows are marked and moved there, dead threads get virtual
+  # cards whose Enter runs `thread restart`. The portal probes for a 0.2.x
+  # binary only; a 1.2.x binary is explicitly ignored (incompatible model).
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.1"; then
-    "$herdr_cli" plugin install -y --ref v1.3.0-pf.1 \
+      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.2"; then
+    "$herdr_cli" plugin install -y --ref v1.3.0-pf.2 \
       PannenetsF/herdr-portal || true
   fi
 
