@@ -288,7 +288,7 @@ in {
       for pf_app in "Emacs.app" "Emacs Client.app"; do
         app_src="${brewRoot}/opt/emacs-plus/$pf_app"
         app_dst="/Applications/$pf_app"
-        if [ -d "$app_src" ] && [ ! -e "$app_dst" -o -L "$app_dst" ]; then
+        if [ -d "$app_src" ] && { [ ! -e "$app_dst" ] || [ -L "$app_dst" ]; }; then
           if [ "$(readlink "$app_dst" 2>/dev/null)" != "$app_src" ]; then
             ln -sfn "$app_src" "$app_dst"
             launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
