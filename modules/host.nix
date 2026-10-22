@@ -15,6 +15,7 @@ in {
     cmake
     docker
     dockerfile-language-server-nodejs
+    fastfetch
     gcc
     git-filter-repo
     gnuplot
@@ -32,7 +33,6 @@ in {
     luarocks
     lua-language-server
     mermaid-cli
-    neofetch
     ninja
     nodejs_22
     pandoc
