@@ -242,12 +242,17 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   一格；`Mono SC` 变种把这些符号画成全角，终端 UI 会错位，不要用。旧
   Iosevka NF 是 600 Latin，与 LXGW fallback 的 1000 全角不成整数比、中英
   混排错位，cask 已移除）；LXGW WenKai Mono 仅作 Doom 的**追加** CJK
-  fallback。**踩坑固化**：dot-doom 的 fontset 钩子 charset 列表只能是
-  `kana/han/cjk-misc/bopomofo`，**绝不能含 `symbol`**——charset 专属
-  fontset spec 优先于默认 face，LXGW 把 `…`(U+2026)/`⋯`(U+22EF)/箭头等
-  UAX 符号画成全角而 Emacs 按 1 格计数，which-key 每条截断项都错位；
-  正确做法是先把 Sarasa 显式写到这四个 charset、再 `APPEND=t` 追加 LXGW
-  （仅 `APPEND=t` 不够：单 spec 列表里 LXGW 仍会赢过默认 face）。
+  fallback。**踩坑固化（macOS GUI Emacs）**：dot-doom 的 fontset 钩子必须
+  把 `symbol` charset **显式映射到 Sarasa Term SC**（再 `APPEND=t` 追加
+  Apple Symbols 兜底缺字），绝不能留空——Emacs 内置 fontset 对 symbol
+  charset（覆盖 `…`U+2026、`™`、`μ`、弯引号、`⋯`）有专门映射，macOS 上
+  落到**比例字体 Apple Symbols**，且优先于默认 face；Emacs 按 1 格计数而
+  该 face 画 1.5–2 格，which-key 每条含省略号的截断项都把后面的列顶歪。
+  映射后这些字符都是 Sarasa 8px（1 格），PUA nerd 图标仍走 Symbols NF
+  Mono 不受影响。CJK 四个 charset（`kana/han/cjk-misc/bopomofo`）则先写
+  Sarasa 再追加 LXGW。审计方法：弹层开时遍历 buffer 行比较
+  `string-pixel-width` 与 `string-width × frame-char-width`，错位行数应
+  为 0。
   **Symbols Nerd Font Mono 不可省**——nerd-icons/doom-modeline
   把图标家族写死成它，在 `use-default-font-for-symbols=nil` 下不回退
   Sarasa，缺了 modeline 所有图标都显示成十六进制 tofu 方框（kitty 也会拿
@@ -517,8 +522,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Sarasa Term SC`
   16.0，dot-doom `config.el` 的 `doom-font` 同样是 CoreText 名
   `Sarasa Term SC` 16（同一家族，改字体两边一起改）；它自带严格 2:1 的
-  CJK（500/1000），`LXGW WenKai Mono` 只以 `APPEND=t` 追加为缺字
-  fallback。字体必须以 Homebrew cask 安装（见 §4 homebrew.nix）。
+  CJK（500/1000）。钩子逻辑：CJK 四 charset（`kana/han/cjk-misc/bopomofo`）
+  先显式写 Sarasa 再 `APPEND=t` 追加 LXGW；`symbol` charset **必须显式映射
+  到 Sarasa**（留空时 macOS 内置 fontset 会落到比例字体 Apple Symbols，
+  `…/™/μ` 按 1 格计数却画 1.5–2 格，顶歪 which-key，细节见 §4），再
+  `APPEND=t` 追加 Apple Symbols 作缺字兜底。字体必须以 Homebrew
+  cask 安装（见 §4 homebrew.nix）。
 - `-nw` 终端下 Doom 跟随终端调色板（与 herdr `name = "terminal"` 同一思路，
   逻辑在 dot-doom `config.el`，nix-hm 无配置项）：通过 kitty remote control
   （`kitty @ get-colors`，socket 探测顺序镜像 `config/kitty/kitty-theme.sh`：
