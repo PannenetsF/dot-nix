@@ -174,13 +174,16 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
   输入：先标题、再任务；Esc 取消）。CLI：
   `roadboard add-chain "主题" --task "第一件事"`
 - 长行（含中文双宽字符）在 popup 内按视觉列自动换行，光标移动时滚动跟随
-- `C`（**回归中，当前不可用**）：原设计把选中节点交给 herdr-projects 的
-  project coordinator（不开 road-rN agent）。该桥接一度按上游 1.2 的
-  `herdr-projects coordinator tell --project <repo>` 实现；2026-10 整体
-  回退到 0.2 fork（见下节）后，1.2 CLI 已不存在，`C` 派发必然失败，需在
-  roadboard 独立仓库（`~/Documents/workspace/roadboard`）改回 0.2 的
-  `coordinator prompt <slug>` 语义后才恢复。在修好之前不要依赖它；
-  detail note frontmatter 的 `project: <repo>` 绑定语义保留。
+- `C`：把选中节点**交给 herdr-projects 0.2 fork 的 project coordinator**（不开
+  road-rN agent）：`j/k` 选已注册项目（`herdr-projects list` 的 slug）→
+  复核消息 → `y` 发送（底层
+  `herdr-projects --root <root> coordinator prompt <slug> --text-file -`，
+  句子走 stdin；只投递**已在跑的注册 coordinator** `hpc-<slug>`，没起时
+  fail-closed，需先用 `P S-c`/`P C-p`/`P C-n` 起并 adopt，不会自动拉起）；
+  目标项目可在 detail note frontmatter 写 `project: <slug>`（沿祖先继承，
+  gate 里选中即写入绑定）。投递成功后节点标 `[/]`，后续 `?`/`x` 仍由人翻；
+  coordinator 不调 `roadboard done`（无 run）；未注册/不存在的项目直接报错
+  且节点不动（fail-closed，且校验发生在任何 roadmap 写入之前）。
   CLI：`roadboard projects` / `bind-project` / `handoff` / `preview --coordinator`
 - 派活默认在目标 workspace 新开一个**后台独立 tab**（标签 `road-rN`，
   `--no-focus` 不抢焦点）；同一节点重派复用其 tab/pane
