@@ -63,14 +63,38 @@ assert_contains "install-doom.sh" 'doom" env --allow-all "$DOOM_DIR/doomenv"' \
 assert_contains "install-doom.sh" 'doom" sync --aot' \
 	"expected the first-time bootstrap to run 'doom sync --aot'"
 
+# GUI Emacs.app launched via LaunchServices does not inherit the Home
+# Manager profile; its ispell-compatible backend must come from Homebrew.
+assert_contains "nix-darwin/homebrew.nix" '"aspell"' \
+  "expected aspell for Doom flyspell in graphical Emacs"
+
+# Homebrew's stable tdlib is frozen at the 2022 v1.8.0 tag; telega master
+# tracks tdlib master and requires >= 1.8.66, so the formula must come
+# from HEAD, and a pre-existing stable install must be migrated (brew
+# bundle treats any installed tdlib as satisfied and never switches
+# specs).
+assert_contains "nix-darwin/homebrew.nix" 'name = "tdlib";' \
+  "expected tdlib to be declared as an attrset"
+assert_contains "nix-darwin/homebrew.nix" 'args = [ "HEAD" ];' \
+  "expected tdlib installed from HEAD (stable is stuck at 1.8.0)"
+assert_contains "nix-darwin/homebrew.nix" 'list --versions tdlib' \
+  "expected a one-time migration that removes a stable tdlib install"
+# telega's QR-code login dialog shells out to the qrencode binary; without
+# it first launch falls back to the phone-number prompt in GUI Emacs.
+assert_contains "nix-darwin/homebrew.nix" '"qrencode"' \
+  "expected qrencode so telega can render QR-code login by default"
+
 # macOS GUI apps (kitty, Emacs) resolve fonts through CoreText; nix
 # nerd-fonts packages stay invisible in the nix store, so the shared
 # font families must be installed as casks.
-assert_contains "nix-darwin/homebrew.nix" '"font-iosevka-nerd-font"' \
-	"expected the Iosevka Nerd Font cask (kitty font_family and doom-font)"
+assert_contains "nix-darwin/homebrew.nix" '"font-sarasa-gothic"' \
+	"expected the Sarasa Gothic cask (kitty font_family and doom-font use Sarasa Term SC)"
 assert_contains "nix-darwin/homebrew.nix" '"font-lxgw-wenkai"' \
-	"expected the LXGW WenKai cask (Doom CJK fallback face)"
+	"expected the LXGW WenKai cask (Doom's appended CJK fallback face)"
 assert_contains "nix-darwin/homebrew.nix" '"font-symbols-only-nerd-font"' \
 	"expected the Symbols Nerd Font cask (nerd-icons/doom-modeline hardcode that family)"
+# Sarasa Term SC is the shared kitty/Doom face on Linux hosts too.
+assert_contains "modules/host.nix" "sarasa-gothic" \
+	"expected Linux hosts to ship Sarasa Gothic for kitty/Doom"
 assert_contains "modules/host.nix" "nerd-fonts.symbols-only" \
 	"expected Linux hosts to ship Symbols Nerd Font for doom-modeline"

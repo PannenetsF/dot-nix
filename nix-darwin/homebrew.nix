@@ -135,6 +135,18 @@ in {
           brew_as_user untap nikitabobko/tap || true
           brew_as_user untap felixkratz/formulae || true
           brew_as_user untap whatpulse/whatpulse || true
+
+          # One-time tdlib spec migration: Homebrew's stable tdlib is
+          # frozen at the 2022 v1.8.0 tag while telega master requires
+          # >= 1.8.66, so the Brewfile below installs it from HEAD.
+          # `brew bundle` treats any already-installed tdlib as satisfied
+          # and never switches a stable install to --HEAD, so remove a
+          # stable install (version output "tdlib 1.8.0") here; a HEAD
+          # install reports "tdlib HEAD-<rev>" and is left untouched.
+          if brew_as_user list --versions tdlib 2>/dev/null \
+              | grep -qE '^tdlib [0-9]'; then
+            brew_as_user uninstall --ignore-dependencies tdlib || true
+          fi
         fi
   '';
 
@@ -166,10 +178,14 @@ in {
       "firefox"
       # Fonts must come from casks: nix nerd-fonts packages land in the
       # nix store and are never registered with CoreText, so neither
-      # kitty nor Emacs can see them. Iosevka NF is kitty's font_family
-      # (config/kitty/kitty.conf) and Doom's doom-font (dot-doom
-      # config.el); LXGW WenKai Mono is Doom's CJK fallback face.
-      "font-iosevka-nerd-font"
+      # kitty nor Emacs can see them. Sarasa Term SC is kitty's
+      # font_family (config/kitty/kitty.conf) and Doom's doom-font
+      # (dot-doom config.el): it pairs Iosevka-Term-shaped Latin with
+      # Source Han Sans CJK on a strict 500/1000 grid, so mixed CN/EN
+      # text is truly 2:1 aligned and ambiguous-width symbols stay one
+      # cell. LXGW WenKai Mono stays as Doom's appended CJK fallback for
+      # glyphs Sarasa lacks.
+      "font-sarasa-gothic"
       "font-lxgw-wenkai"
       # nerd-icons/doom-modeline render icons with the family hardcoded
       # to "Symbols Nerd Font Mono" (no fallback to the default face when
@@ -228,6 +244,10 @@ in {
       # formula only exists in the d12frosted/emacs-plus tap (declared
       # above), so it must stay fully-qualified here.
       "d12frosted/emacs-plus/emacs-plus"
+      # Doom's (:checkers spell +flyspell) needs an ispell-compatible
+      # backend. LaunchServices-started Emacs.app does not see the Home
+      # Manager profile, while /opt/homebrew/bin is on its GUI PATH.
+      "aspell"
       "furkankly/tap/zoetrope"
       # vulpea (Doom org-roam) prefers fswatch for file change events and
       # otherwise falls back to polling with a startup message.
@@ -243,7 +263,21 @@ in {
       # Makefile links -ltdjson from LIBS_PREFIX; dot-doom builds the
       # helper on first telega launch (self-heal hook in
       # ~/.config/doom/config.el). make/cc come from Xcode CLT.
-      "tdlib"
+      # Homebrew's stable tdlib is frozen at the 2022 v1.8.0 tag (tdlib
+      # never cut newer release tags), but telega master tracks tdlib
+      # master and requires >= 1.8.66, so install the formula from HEAD.
+      # One-time migration from a stable install: `brew uninstall tdlib`
+      # first, since `brew bundle` treats any installed tdlib as
+      # satisfied and won't switch specs; HEAD updates need
+      # `brew upgrade --fetch-HEAD tdlib`.
+      {
+        name = "tdlib";
+        args = [ "HEAD" ];
+      }
+      # telega renders the QR-code login dialog by shelling out to
+      # qrencode; without it first launch falls back to the phone-number
+      # prompt even though QR login is the default in GUI Emacs.
+      "qrencode"
     ];
 
     global = {
