@@ -1,6 +1,9 @@
 { config, homeDir, lib, username, ... }:
 let
   brewBin = "${config.homebrew.brewPrefix}/brew";
+  # nix-darwin's brewPrefix points at the bin directory (/opt/homebrew/bin);
+  # casks/formula trees live one level up (/opt/homebrew).
+  brewRoot = dirOf config.homebrew.brewPrefix;
   localTapPath = "${homeDir}/.cache/dot-nix/homebrew-local-tap";
   herdiCask = ../config/homebrew/Casks/herdi.rb;
 in {
@@ -274,6 +277,28 @@ in {
           env PATH="${config.homebrew.brewPrefix}:/usr/bin:/bin" \
           bash "${../.}/install-doom.sh" || true
       fi
+
+      # emacs-plus is a formula, so it only ships Emacs.app inside the
+      # Cellar/opt prefix (only casks deploy to /Applications). Symlink
+      # both bundles from the stable opt path: the links follow formula
+      # upgrades, whereas a copied bundle would have to be replaced on
+      # every upgrade. A pre-existing real bundle is left untouched.
+      # Spotlight ignores plain symlinks, so re-register each link with
+      # LaunchServices as the GUI user.
+      for pf_app in "Emacs.app" "Emacs Client.app"; do
+        app_src="${brewRoot}/opt/emacs-plus/$pf_app"
+        app_dst="/Applications/$pf_app"
+        if [ -d "$app_src" ] && [ ! -e "$app_dst" -o -L "$app_dst" ]; then
+          if [ "$(readlink "$app_dst" 2>/dev/null)" != "$app_src" ]; then
+            ln -sfn "$app_src" "$app_dst"
+            launchctl asuser "$(id -u ${username})" sudo --user=${username} --set-home \
+              /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+              -f "$app_dst" || true
+          fi
+        elif [ -e "$app_dst" ]; then
+          echo "postActivation: $app_dst is not a symlink, leaving it alone" >&2
+        fi
+      done
     fi
   '';
 }

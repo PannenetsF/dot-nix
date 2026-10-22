@@ -65,6 +65,18 @@ if grep -Eq '^[[:space:]]*"emacs-plus"[[:space:]]*$' "$homebrew_module"; then
   echo "did not expect a bare emacs-plus formula with no tap" >&2
   exit 1
 fi
+# emacs-plus is a formula and ships Emacs.app only in its prefix; the
+# postActivation hook must symlink both bundles into /Applications from
+# the stable opt path (a Cellar path breaks on every formula upgrade),
+# re-register them with LaunchServices (Spotlight ignores symlinks), and
+# never clobber a pre-existing real bundle.
+assert_contains "$homebrew_module" 'opt/emacs-plus' "expected Emacs.app symlinked from the stable opt path, not the versioned Cellar"
+assert_not_contains "$homebrew_module" "Cellar/emacs-plus" "did not expect a versioned Cellar path for the Emacs.app link"
+assert_contains "$homebrew_module" '"Emacs.app"' "expected Emacs.app to be linked into /Applications"
+assert_contains "$homebrew_module" '"Emacs Client.app"' "expected Emacs Client.app to be linked into /Applications"
+assert_contains "$homebrew_module" "ln -sfn" "expected Emacs.app to be deployed as a self-healing symlink"
+assert_contains "$homebrew_module" "lsregister" "expected LaunchServices re-registration so Spotlight indexes the symlinked apps"
+assert_contains "$homebrew_module" "is not a symlink, leaving it alone" "expected a guard that preserves a pre-existing real Emacs.app"
 assert_contains "$homebrew_module" "untap whatpulse/whatpulse" "expected stale upstream WhatPulse tap to be removed before Homebrew bundle"
 assert_contains "$homebrew_module" "whatpulse-mac-arm-latest.dmg" "expected WhatPulse cask to use the working latest DMG URL"
 assert_contains "$homebrew_module" "whatpulse-mac-latest.dmg" "expected the WhatPulse cask to provide the Intel latest DMG URL"
