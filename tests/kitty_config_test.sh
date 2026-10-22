@@ -48,8 +48,8 @@ assert_contains "modules/darwin.nix" '".config/kitty/light-theme.auto.conf"' \
 	"expected Home Manager to ship light-theme.auto.conf for OS light mode auto switching"
 assert_contains "modules/darwin.nix" "../config/kitty/kitty.conf" \
 	"expected Home Manager to source kitty config from this repo"
-assert_contains "config/kitty/kitty.conf" "font_family      Iosevka NF" \
-	"expected Kitty to use the Iosevka Nerd Font family"
+assert_contains "config/kitty/kitty.conf" "font_family      Sarasa Term SC" \
+	"expected Kitty to use the Sarasa Term SC family (strict 2:1 CN/EN grid, half-width ambiguous glyphs)"
 
 assert_file_exists "config/kitty/kitty-theme.sh"
 assert_contains "modules/darwin.nix" '".local/bin/kitty-theme"' \

@@ -63,10 +63,11 @@ in {
       imagemagick
       emacs-pgtk
       fswatch
-      # Parity with the macOS Homebrew casks: kitty/Doom main face,
-      # doom-modeline's hardcoded "Symbols Nerd Font Mono" family, and
-      # Doom's CJK fallback.
-      nerd-fonts.iosevka
+      # Parity with the macOS Homebrew casks: kitty/Doom main face
+      # (Sarasa Term SC, strict 2:1 CN/EN grid), doom-modeline's
+      # hardcoded "Symbols Nerd Font Mono" family, and Doom's appended
+      # CJK fallback.
+      sarasa-gothic
       nerd-fonts.symbols-only
       lxgw-wenkai
     ]));
