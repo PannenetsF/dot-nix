@@ -215,3 +215,15 @@ key = "prefix+ctrl+o"
 type = "plugin_action"
 command = "herdr-portal.open-web"
 description = "Portal: global agent board (web big screen)"
+
+[experimental]
+# macOS only (silently ignored on Linux): while prefix mode is active herdr
+# switches to the ASCII input source so prefix keychains are never swallowed by
+# a CJK IME, and restores the previous source when prefix mode ends. herdr's
+# built-in default is false, so this must live in the shipped template — the
+# activation overwrites config.toml and would wipe a settings-UI toggle.
+switch_ascii_input_source_in_prefix = true
+# Allow nesting a herdr session inside a herdr pane (e.g. ssh into a host that
+# also runs herdr); kept alongside the IME toggle, both were previously only
+# set through the settings UI and got wiped by a template activation.
+allow_nested = true

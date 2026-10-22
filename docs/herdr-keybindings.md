@@ -14,6 +14,10 @@ ctrl+alt，不是 tmux 的 ctrl+a）。
 AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用，ctrl+alt
 是各终端均不占用的安全层，且 kitty 未开 `macos_option_as_alt` 也能传输。
 
+> 进入 prefix 模式时 herdr 会自动切到 ASCII 输入法、退出时恢复
+> （`[experimental] switch_ascii_input_source_in_prefix = true`，仅 macOS；
+> 该 herdr 默认关闭，必须写在模板里，只在设置界面里开会被下次激活覆盖）。
+
 ## 肌肉记忆层（最常用）
 
 | 操作 | 直连 | prefix 版 | nvim 对应 |
