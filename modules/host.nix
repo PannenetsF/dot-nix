@@ -12,10 +12,6 @@ in {
     aerc
     automake
     bash-language-server
-    # Bun runtime for the herdr-web-ui plugin's build/startup hooks (needs
-    # >= 1.4; its scripts also probe ~/.bun and Homebrew, but the Nix profile
-    # keeps activation self-contained on both macOS and Linux hosts).
-    bun
     cmake
     docker
     dockerfile-language-server-nodejs
@@ -47,7 +43,18 @@ in {
     stylua
     vscode-langservers-extracted
     yaml-language-server
-  ]) ++ (with pkgsUnstable; [ gh go tokei tree-sitter ty ])
+  ]) ++ (with pkgsUnstable; [
+    # Bun runtime for the herdr-web-ui plugin's build/startup hooks (needs
+    # >= 1.4; nixos-25.05 only has 1.2.x, unstable has 1.4.x). The plugin
+    # also probes ~/.bun and Homebrew, but the Nix profile keeps activation
+    # self-contained on both macOS and Linux hosts.
+    bun
+    gh
+    go
+    tokei
+    tree-sitter
+    ty
+  ])
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin
     ((with pkgs; [ colima rar sketchybar terminal-notifier yabai ])
       ++ (with pkgsUnstable; [ macism ]))
