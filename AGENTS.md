@@ -232,17 +232,27 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   Herdi/WhatPulse 系列在这里维护。停用的 AeroSpace cask 只留在
   `deprecated/00-aerospace-indicator/`，不进 tap staging 和 Brewfile；
   preActivation 会 `untap` 掉 `nikitabobko/tap` 与 `felixkratz/formulae`。
-- 字体 cask（`font-iosevka-nerd-font`、`font-lxgw-wenkai`、
+- 字体 cask（`font-sarasa-gothic`、`font-lxgw-wenkai`、
   `font-symbols-only-nerd-font`、`font-ubuntu-mono-nerd-font`、
   `font-sf-pro`）也在这里声明：GUI app（kitty、Emacs）只走 CoreText
   字体注册表，而 `gui-apps.nix` 里的 nix `nerd-fonts.*` 包装在 nix store、
-  不注册给 CoreText，没有 cask 两边都看不到。Iosevka NF 是 kitty 与 Doom
-  的共用字体，LXGW WenKai Mono 是 Doom 的 CJK fallback；**Symbols Nerd
-  Font Mono 不可省**——nerd-icons/doom-modeline 把图标家族写死成它，在
-  `use-default-font-for-symbols=nil` 下不回退 Iosevka，缺了 modeline
-  所有图标都显示成十六进制 tofu 方框（kitty 也会拿它当 PUA symbol_map
-  回退）。Linux host 对等字体在 `modules/host.nix`
-  （`nerd-fonts.iosevka`/`nerd-fonts.symbols-only`/`lxgw-wenkai`，经
+  不注册给 CoreText，没有 cask 两边都看不到。**Sarasa Term SC** 是 kitty
+  与 Doom 的共用字体（Iosevka Term 字形的 Latin + 思源黑体 CJK，严格
+  500/1000 即天生 2:1 网格，且 UAX ambiguous 符号——箭头/制表符——保持半角
+  一格；`Mono SC` 变种把这些符号画成全角，终端 UI 会错位，不要用。旧
+  Iosevka NF 是 600 Latin，与 LXGW fallback 的 1000 全角不成整数比、中英
+  混排错位，cask 已移除）；LXGW WenKai Mono 仅作 Doom 的**追加** CJK
+  fallback。**踩坑固化**：dot-doom 的 fontset 钩子 charset 列表只能是
+  `kana/han/cjk-misc/bopomofo`，**绝不能含 `symbol`**——charset 专属
+  fontset spec 优先于默认 face，LXGW 把 `…`(U+2026)/`⋯`(U+22EF)/箭头等
+  UAX 符号画成全角而 Emacs 按 1 格计数，which-key 每条截断项都错位；
+  正确做法是先把 Sarasa 显式写到这四个 charset、再 `APPEND=t` 追加 LXGW
+  （仅 `APPEND=t` 不够：单 spec 列表里 LXGW 仍会赢过默认 face）。
+  **Symbols Nerd Font Mono 不可省**——nerd-icons/doom-modeline
+  把图标家族写死成它，在 `use-default-font-for-symbols=nil` 下不回退
+  Sarasa，缺了 modeline 所有图标都显示成十六进制 tofu 方框（kitty 也会拿
+  它当 PUA symbol_map 回退）。Linux host 对等字体在 `modules/host.nix`
+  （`sarasa-gothic`/`nerd-fonts.symbols-only`/`lxgw-wenkai`，经
   fontconfig 生效）。
 - **quarantine 解封**：Homebrew 7 已彻底移除 `--no-quarantine`（flag、
   `HOMEBREW_CASK_OPTS` 转义口和 Cask::Config 全部删除，commit
@@ -418,6 +428,14 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `http://127.0.0.1:8375`（relay 是 macOS launchd 服务），Linux 封装不传即整块
   跳过。relay URL seed 一次到插件 config 目录的 `.env`（0600），已有文件绝不覆盖
   （换隧道 URL 是用户本地编辑）。
+- herdr-unread-jump（pinned commit `be4cd1f`，to4iki/herdr-unread-jump，上游无
+  release tag）是纯 bash+jq 动作插件（jq 在 `modules/host.nix` 的 host 集合）：
+  herdr 应用内 toast 的显示时长硬编码（needs-attention 8s / finished 5s），
+  0.9.5 与上游 master 都没有 sticky/persistent 配置项（`delay_seconds` 只是发出前
+  防抖，不是驻留时长；上游诉求见 discussion #1379/#2565，未实现）。toast 飘走后
+  用 `P u`（`to4iki.unread-jump.next`）循环跳到下一个仍需处理的 pane——blocked
+  优先、done 次之，组内循环。插件 min herdr 0.7.5，与 zoetrope 一样在共享脚本的
+  服务器版本门之外无条件安装。
 
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 三件套）
 
@@ -496,15 +514,44 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   手动 `doom sync --aot`（锁文件存在，activation 不会重跑首次引导）。
 - dot-doom 的 `config.el` 直接 `(doom-load-envvars-file …/doomenv)`，缺文件会
   file-error 中断启动（v2 该函数有 `noerror` 第二参，dot-doom 已传 `t`）。
-- 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Iosevka NF` 16.0，
-  dot-doom `config.el` 的 `doom-font` 用 CoreText 名 `Iosevka Nerd Font` 16
-  （同一 ttf 的 family alias，改字体两边一起改），CJK fallback 是
-  `LXGW WenKai Mono`。字体必须以 Homebrew cask 安装（见 §4 homebrew.nix）。
+- 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Sarasa Term SC`
+  16.0，dot-doom `config.el` 的 `doom-font` 同样是 CoreText 名
+  `Sarasa Term SC` 16（同一家族，改字体两边一起改）；它自带严格 2:1 的
+  CJK（500/1000），`LXGW WenKai Mono` 只以 `APPEND=t` 追加为缺字
+  fallback。字体必须以 Homebrew cask 安装（见 §4 homebrew.nix）。
+- `-nw` 终端下 Doom 跟随终端调色板（与 herdr `name = "terminal"` 同一思路，
+  逻辑在 dot-doom `config.el`，nix-hm 无配置项）：通过 kitty remote control
+  （`kitty @ get-colors`，socket 探测顺序镜像 `config/kitty/kitty-theme.sh`：
+  `KITTY_LISTEN_ON` 先、`/tmp/kitty-<pid>` 按 mtime 新→旧）读实时背景色，按
+  相对亮度选 `doom-ayu-dark`/`doom-ayu-light`；兜底 `COLORFGBG`、再兜底 macOS
+  `AppleInterfaceStyle`。启动时选定，`focus-in-hook`（kitty 支持 tty focus
+  事件）带 2s 节流在重新聚焦时切换；手动 `M-x +terminal-sync-theme`。
+  GUI frame 不走这套，固定 `doom-ayu-dark`。
 - dot-doom 是独立 git 仓库，机器本地内容（`doomenv`）走该仓库自己的
   `.gitignore`；升级 Doom 大版本后留意被移除的 module flag（如
   `+pomodoro`/`+hugo` 在 25.04 删除，包要在 dot-doom `packages.el` 显式声明）。
 - vulpea 文件监听依赖 `fswatch`（homebrew.nix brews 声明），缺了它每次启动
   提示 “fswatch not found, using polling”。
+- Doom `(:checkers spell +flyspell)` 在 macOS 用 Homebrew `aspell`：从
+  LaunchServices 启动的 Emacs.app 不继承 Home Manager profile，只稳定看到
+  `/opt/homebrew/bin`。
+- telega 已无 Doom 内置 module，dot-doom 用普通 `package! telega` 管理；
+  Homebrew 提供 `tdlib`（**必须从 HEAD 安装**：homebrew-core stable 冻结在
+  2022 的 1.8.0 tag，tdlib 此后再没发过 release tag，而 telega master 跟踪
+  tdlib master、要求 ≥1.8.66；升级走 `brew upgrade --fetch-HEAD tdlib`）。
+  preActivation 一次性卸载版本号形如 `tdlib 1.8.0` 的 stable 安装，否则
+  `brew bundle` 会把任何已装 tdlib 视为满足、永不切换 spec。dot-doom 在
+  `telega` 命令的 before advice 里按需构建 `telega-server`：二进制缺失
+  **或无法启动**（健康检查 `telega-server -h`，典型于 tdlib 升级后 dylib
+  换版本）都触发重编；判断必须用 `(eq 0 (call-process …))`——进程被信号
+  杀死时 `call-process` 返回字符串 `"Abort trap: 6"` 而非数字，`zerop` 会
+  抛 `wrong-type-argument` 反而中断启动。注意构建产物装到
+  INSTALL_PREFIX=`telega-directory`（`~/.telega`），那才是 Emacs 运行的
+  二进制；straight build 目录里只是构建用副本。二维码登录依赖 Homebrew
+  `qrencode`（telega 用它渲染登录二维码；缺了它 GUI 首登会退回手机号提示）。
+  advice 会收到 `telega` 的
+  可选 prefix 参数，函数必须声明 `&optional _arg`（或 `&rest _`），否则
+  启动即 `wrong-number-of-arguments`。
 
 注意：这些脚本在 Home Manager activation 中经模块以 `${../.}/script.sh`
 目录引用进入只读 Nix store（保证与 `install-common.sh` 同目录）后执行。
