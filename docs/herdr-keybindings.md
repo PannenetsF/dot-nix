@@ -172,15 +172,15 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
   输入：先标题、再任务；Esc 取消）。CLI：
   `roadboard add-chain "主题" --task "第一件事"`
 - 长行（含中文双宽字符）在 popup 内按视觉列自动换行，光标移动时滚动跟随
-- `C`：把选中节点**交给已有 herdr-projects coordinator**（不开新 agent）：
-  `j/k` 选项目 → 复核消息 → `y` 发送；目标项目可在 detail note frontmatter
-  写 `project: <slug>`（沿祖先继承，gate 里选中即写入绑定）。投递成功后节点
-  标 `[/]`，后续 `?`/`x` 仍由人翻；coordinator 不调 `roadboard done`（无 run）。
+- `C`：把选中节点**交给 herdr-projects 1.2 的 project coordinator**（不开
+  road-rN agent）：`j/k` 选已注册仓库 → 复核消息 → `y` 发送（底层
+  `herdr-projects coordinator tell --project <repo>`，coordinator 没起时
+  pump 会拉起 `sw-coordinator-<repo>`）；目标仓库可在 detail note frontmatter
+  写 `project: <repo>`（沿祖先继承，gate 里选中即写入绑定），仓库需先用
+  `P S-c`/`P S-a` 注册进 `data/repos.json`。投递成功后节点标 `[/]`，后续
+  `?`/`x` 仍由人翻；coordinator 不调 `roadboard done`（无 run）；未注册仓库
+  直接报错且节点不动（fail-closed）。
   CLI：`roadboard projects` / `bind-project` / `handoff` / `preview --coordinator`
-  > **已知缺口（2026-10）**：这条桥接写的是 herdr-projects 0.2 的 API
-  > （`--root … list`、`coordinator prompt <slug>`）；nix-hm 已升到 1.2.13
-  > （仓库注册表 + `coordinator --project <repo> tell`），roadboard 侧尚未
-  > 适配，`C` 派活在改 roadboard 之前会失败；看板本身（状态翻转/树）不受影响。
 - 派活默认在目标 workspace 新开一个**后台独立 tab**（标签 `road-rN`，
   `--no-focus` 不抢焦点）；同一节点重派复用其 tab/pane
 - 占掉了 herdr 默认的 `P S-r`（重载配置）：需要时跑
