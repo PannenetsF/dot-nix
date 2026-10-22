@@ -236,6 +236,11 @@ in {
       # liberime emacs module on demand, see ~/.config/doom/config.el).
       "librime"
       "pkgconf"
+      # TDLib backend for telega (Doom Telegram client). telega-server's
+      # Makefile links -ltdjson from LIBS_PREFIX; dot-doom builds the
+      # helper on first telega launch (self-heal hook in
+      # ~/.config/doom/config.el). make/cc come from Xcode CLT.
+      "tdlib"
     ];
 
     global = {
