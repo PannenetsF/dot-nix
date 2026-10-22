@@ -167,7 +167,11 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 
 - `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
   `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）
-- 看板内：`j/k` 移动、状态键翻转、Enter 派活（先复核 prompt 再确认）、`q` 关
+- 看板内：`j/k` 移动、`h/l` 折叠、状态键翻转、Enter 派活（先复核 prompt 再确认）、`q` 关
+- `T`：在 roadmap 末尾新增一个 `## 主题` chain 并带上第一个任务（两步行内
+  输入：先标题、再任务；Esc 取消）。CLI：
+  `roadboard add-chain "主题" --task "第一件事"`
+- 长行（含中文双宽字符）在 popup 内按视觉列自动换行，光标移动时滚动跟随
 - `C`：把选中节点**交给已有 herdr-projects coordinator**（不开新 agent）：
   `j/k` 选项目 → 复核消息 → `y` 发送；目标项目可在 detail note frontmatter
   写 `project: <slug>`（沿祖先继承，gate 里选中即写入绑定）。投递成功后节点
