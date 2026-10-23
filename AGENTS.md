@@ -308,7 +308,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
   pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.1
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
-  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.2`**
+  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.3`**
   （project + threads 模型），**不要升级到上游 `eliasstravik/herdr-projects`
   1.2.x**：1.2 是另一套不兼容模型（单位是任务 `repo/123`、`data/repos.json`、
   keeper/voice 守护、`sw-coordinator-<repo>`），没有 0.2 的 thread 状态机，
@@ -323,6 +323,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     `herdr notification show --sound request/done`。ticker 按 root flock
     防双开；数据根可用 `--root` 指定（2026-10 回退迁移期数据在
     `~/.herdr-projects-legacy`，迁移后换回 `~/.herdr-projects`）。
+    **failed launch 也算 waiting-on-you**（pf.3）：launch 放弃（超时 /
+    3 次失败 / profile 被拒）时 ticker 立即落 `last_group=waiting-on-you`
+    并发恰好一次 transition 响铃；否则 failed thread 离开扫描后角标永远停在
+    旧分组（曾出现角标 14、实际 15 need you 的错位）。
   - 注册身份是 `hpc-<slug>` / `hpc-<slug>-N` coordinator agent；fork 特性：
     `coordinator adopt` 接管手开 session、context 注册门、thread-sticky
     nudge、tracked project 目录里第二个 harness 的 untracked-pane claim。
@@ -658,7 +662,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
-  herdr-projects fork pin v0.2.34-pf.2 + 0.9.1 版本门（configure 在 radar
+  herdr-projects fork pin v0.2.34-pf.3 + 0.9.1 版本门（configure 在 radar
   configure 之后）、检测到 1.2.x 已装时先 uninstall 再 pkill 四类孤儿
   守护（keeper/keeper-work/voice helper/serve，正则不命中 ticker）的回退
   case、configure action 回退、

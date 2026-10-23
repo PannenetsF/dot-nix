@@ -197,9 +197,11 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 六分组（waiting-on-you / ready-for-review / working / landing / idle /
 resolved），sidebar 按「待你处理 / 待评审 / …」分组，tab 栏显示需要注意的
 数量。**常驻 ticker 是唯一响铃源**：thread 进入 waiting-on-you /
-ready-for-review 时它调 `herdr notification show --sound request/done`。
+ready-for-review 时它调 `herdr notification show --sound request/done`；
+launch 放弃（启动超时 / profile 被拒，pf.3 起）同样按 waiting-on-you
+响铃一次，角标与看板按同一分组计数。
 
-> **永久 pin fork `v0.2.34-pf.2`，不要升级上游 1.2.x。** 上游
+> **永久 pin fork `v0.2.34-pf.3`，不要升级上游 1.2.x。** 上游
 > `eliasstravik/herdr-projects` 1.2 是不兼容的任务看板模型（任务
 > `repo/123`、`data/repos.json`、keeper/voice 守护），删掉了 thread 状态机
 > 和 ticker——2026-10 曾切到 1.2.13，响铃全部消失、需要交互的 session 无从
@@ -207,12 +209,12 @@ ready-for-review 时它调 `herdr notification show --sound request/done`。
 > 孤儿守护。数据根是 `~/.herdr-projects/<slug>/`（0.2 布局）。
 
 - 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
-  `v0.2.34-pf.2`，PannenetsF/herdr-projects；macOS 经
+  `v0.2.34-pf.3`，PannenetsF/herdr-projects；macOS 经
   `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
   两个薄封装调用；要求 herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示
   重启 herdr）。fork 无 release 资产，安装走本机 cargo 构建（两个薄封装的
   PATH 都前置 `~/.cargo/bin`）
-- 版本被激活 pin 在 fork `v0.2.34-pf.2`：不要用插件自更新（`herdr-projects
+- 版本被激活 pin 在 fork `v0.2.34-pf.3`：不要用插件自更新（`herdr-projects
   update` 等），下次激活会被装回 pin 版本
 - **coordinator 身份是注册的 agent 名**（pf.2 起）：只有带 `hpc-<slug>` /
   `hpc-<slug>-N` 名字、且 cwd 在项目家目录的 agent 才算 coordinator。
