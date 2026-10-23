@@ -117,7 +117,7 @@ assert_contains "$body" "--plugin devswha.herdr-web-ui"
 # projects fork's thread states. On-demand only — activation must not open the
 # board itself — with both keybindings in the template on the o namespace.
 assert_contains "$body" "PannenetsF/herdr-portal"
-assert_contains "$body" "v1.3.0-pf.2"
+assert_contains "$body" "v1.3.0-pf.3"
 assert_contains "config/herdr/config.toml" 'key = "prefix+shift+o"'
 assert_contains "config/herdr/config.toml" 'command = "herdr-portal.open-board"'
 assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+o"'

@@ -401,7 +401,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `tailscale serve`，仓库不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`
   （需 ≥1.4，node 22 已由 radar 引入）；激活安装后显式 invoke 一次
   `start` action，不必重启 herdr 即拉起 bridge。
-- herdr-portal（pinned fork tag `v1.3.0-pf.2`，PannenetsF/herdr-portal，
+- herdr-portal（pinned fork tag `v1.3.0-pf.3`，PannenetsF/herdr-portal，
   基于上游 loofare/herdr-portal 未打 tag 的 1.3.0 release commit `ba47b65`）
   是纯 Python stdlib（curses）看板插件，把全部 workspace/tab/pane 的 agent
   按 blocked/working/idle/done/unknown 聚合成一个 board，数据经 herdr 自身
@@ -410,7 +410,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   里多个 agent 刚启动时常见）有了状态标签、计数和 Spaces 视图，但
   collect() 的 columns 只建 blocked/working/settled/window 四个桶、TUI/web
   主看板只读这四个桶，这类卡仍会从主看板消失，空闲回收也把它们当候选。
-  fork 两个补丁：pf.1 把 unknown 卡并入「执行中」列（保留「未知」标签和
+  fork 三个补丁：pf.1 把 unknown 卡并入「执行中」列（保留「未知」标签和
   unknown 计数），并在回收判定里保护 unknown；**pf.2 新增最左「待处理」
   （attention）列**，数据直接来自 herdr-projects 0.2 fork 的 thread 状态——
   portal 调 0.2 二进制
@@ -422,6 +422,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   回车触发 `thread restart` 再跳新 pane（web 走 `/api/legacy-restart`）。
   这一列让 ticker 响铃后要处理的 session 在看板第一眼可见，是回退 1.2 的
   直接原因，不要删；虚拟卡在 cleanup 回收里受保护。
+  **pf.3 修死卡回车「跳转失败」**：`thread restart` 返回新 pane id 时
+  pane 已建但 agent 尚未注册，立刻 `agent focus` 必报
+  `agent target <id> not found`；`focus_target` 的 legacy 分支改走
+  `_agent_focus_when_ready()`，10s 内每 0.4s 重试、只对 not-found 重试。
   `P S-o` 打开 TUI overlay（活卡回车跳 pane、legacy 卡回车 restart），
   `P C-o` 起 stdlib HTTP daemon（`127.0.0.1:8787`）开 web 大屏
   （web 端可回活 agent 消息，legacy 卡只 restart）；1.3.0 的 daemon 仍是纯
@@ -668,7 +672,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   case、configure action 回退、
   五个 popup launcher 的单一来源模块、`P a`（configure 合并，不在模板）、
   `P C-f` coordinator.json 聚焦/hpc- 名字族 adopt 回退、
-  web-ui v0.4.11、herdr-portal fork tag pin v1.3.0-pf.2（unknown 卡并入执行中列 + attention 列读 0.2 thread 状态，只安装、不自动 invoke）、
+  web-ui v0.4.11、herdr-portal fork tag pin v1.3.0-pf.3（unknown 卡并入执行中列 + attention 列读 0.2 thread 状态 + pf.3 restart 后重试 focus，只安装、不自动 invoke）、
   herdr-push pin + .env seed-once、relay launchd 模块和
   Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件和
   cask 验收在 `macos_acceptance.sh`（静态断言在

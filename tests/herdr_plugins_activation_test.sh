@@ -117,7 +117,7 @@ echo "$log1" | grep -q "action invoke start --plugin devswha.herdr-web-ui" \
 # visible (upstream gives them no column bucket); pf.2 adds the attention
 # column fed by the 0.2 projects fork's thread states. Installed on every
 # platform; it opens on demand, so no action is invoked by activation.
-echo "$log1" | grep -q "plugin install -y --ref v1.3.0-pf.2 PannenetsF/herdr-portal" \
+echo "$log1" | grep -q "plugin install -y --ref v1.3.0-pf.3 PannenetsF/herdr-portal" \
   || fail "herdr-portal not installed at the pinned fork ref"
 echo "$log1" | grep -q "herdr-portal.open" \
   && fail "portal opens on user request only; activation must not invoke it" || true

@@ -263,10 +263,10 @@ launch 放弃（启动超时 / profile 被拒，pf.3 起）同样按 waiting-on-
 
 ## 可选：herdr-portal 全局 agent 看板
 
-`herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.3.0-pf.2`，fork 自
+`herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.3.0-pf.3`，fork 自
 上游 loofare/herdr-portal 未打 tag 的 1.3.0 release commit `ba47b65`，纯
 Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚合成
-一个看板。fork 两个补丁：
+一个看板。fork 三个补丁：
 
 1. **unknown 卡可见（pf.1）**：上游 1.3.0 的 columns 只有
    blocked/working/settled/window 四个桶，状态尚未上报的 `unknown`（未知）
@@ -279,6 +279,9 @@ Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚�
    还活着就标注并挪进该列（waiting-on-you 排最前），pane 已死则显示虚拟
    卡。这样 ticker 响铃后要处理的 session 在看板第一眼就能找到，不用再手动
    翻 pane——这是回退 1.2 后新增的列，勿删。
+3. **死卡回车不再「跳转失败」（pf.3）**：`thread restart` 返回新 pane id
+   时 agent 尚未注册，立即 focus 会报 target not found；pf.3 起回车后 10s
+   内重试 `agent focus`（仅对 not-found 重试），通常 3–5s 内跳进新 pane。
 
 - `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、
   数字键 `1..5` 跳列；`Enter` 在普通卡上跳到该 agent 的 pane 并关闭看板，

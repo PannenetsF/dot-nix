@@ -265,7 +265,7 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
   # just those, so several agents freshly started in one tab all vanish from
   # the main board; idle reclaim also treated them as candidates. Our fork
   # (on top of the 1.3.0 release commit ba47b65 — upstream never pushed a
-  # v1.3.0 tag) carries two patches: pf.1 routes unknown cards into the
+  # v1.3.0 tag) carries three patches: pf.1 routes unknown cards into the
   # working column while keeping the 未知 label/count and protects them from
   # reclaim; pf.2 adds the "attention" (待处理) leftmost column fed by the
   # pinned herdr-projects 0.2 fork's thread states (waiting-on-you /
@@ -273,11 +273,14 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
   # auto-discovered from ~/.herdr-projects with ~/.herdr-projects-legacy
   # fallback), so the session the ticker rang for is always visible —
   # live pane rows are marked and moved there, dead threads get virtual
-  # cards whose Enter runs `thread restart`. The portal probes for a 0.2.x
-  # binary only; a 1.2.x binary is explicitly ignored (incompatible model).
+  # cards whose Enter runs `thread restart`. pf.3 retries `agent focus`
+  # for 10s after a restart: the new pane exists before its agent
+  # registers, so the first focus otherwise fails "target not found" and
+  # the card shows 跳转失败. The portal probes for a 0.2.x binary only; a
+  # 1.2.x binary is explicitly ignored (incompatible model).
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.2"; then
-    "$herdr_cli" plugin install -y --ref v1.3.0-pf.2 \
+      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.3"; then
+    "$herdr_cli" plugin install -y --ref v1.3.0-pf.3 \
       PannenetsF/herdr-portal || true
   fi
 
