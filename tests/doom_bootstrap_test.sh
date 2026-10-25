@@ -47,14 +47,16 @@ assert_contains "nix-darwin/homebrew.nix" 'bash "${../.}/install-doom.sh"' \
 assert_contains "modules/linux.nix" 'bash ${../.}/install-doom.sh' \
 	"expected Linux HM activation to reference install-doom.sh in directory form"
 
-# Doom CLI v2 removed `doom env -o FILE'; the output file is positional,
-# and a `--` separator makes the parser drop it. The old invocation
-# failed with "unknown option -o" and left no doomenv, aborting Emacs
-# startup on `(doom-load-envvars-file ...)'.
-assert_not_contains "install-doom.sh" 'doom" env -o' \
-	"doom env -o was removed in Doom CLI v2; pass the output file positionally"
-assert_contains "install-doom.sh" 'doom" env --allow-all "$DOOM_DIR/doomenv"' \
-	"expected install-doom.sh to refresh the doomenv via positional output file"
+# No `doom env`: Doom v2's doom-load-envvars-file is a compat stub that
+# appends the marker form (a non-string list) to process-environment;
+# call-process stops scanning at it and subprocesses lose the session
+# PATH (jka-compr then fails with "zstd: command not found"). GUI PATH
+# is provided by emacs-plus' EMACS_PLUS_PATH instead, and any stale
+# doomenv left by older activations must be removed.
+assert_not_contains "install-doom.sh" 'doom" env' \
+	"doom env generation is broken in Doom v2 and must not run"
+assert_contains "install-doom.sh" 'rm -f "$DOOM_DIR/doomenv"' \
+	"expected install-doom.sh to remove stale doomenv files"
 
 # Plain `doom sync' only byte-compiles; without --aot the first run on a
 # new machine leaves ~2000 packages on .elc with only lazy JIT

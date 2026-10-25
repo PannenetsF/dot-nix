@@ -521,17 +521,26 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   nixpkgs emacs-pgtk）。
 - 安全同步两个仓库：`dot-doom`（`PannenetsF/dot-doom`）到
   `$HOME/.config/doom`，上游 `doomemacs/doomemacs` 到 `$HOME/.config/emacs`。
-- 每次激活都刷新 doomenv：Doom CLI v2 里 `doom env -o FILE` 已删除，输出文件
-  是位置参数且**不能**加 `--` 分隔（加了会被 parser 丢掉，报
-  “Output file location required”）。正确形式：
-  `doom env --allow-all "$DOOM_DIR/doomenv"`。
+- **不**生成 doomenv（2026-10-25 起删除该步骤）：Doom v2 的
+  `doom-load-envvars-file' 是 `modules/doom/compat/init.el` 里的桩函数，
+  只 `read` 文件第一个 form——`doom env` 产物的首行恰好是 marker
+  `(put 'process-environment 'doom t)`——然后把这个 list 本身当环境变量
+  append 进 `process-environment`，真正的 `(setq ...)` 永不执行。
+  `call-process` 扫到非字符串条目即停止，所有子进程退回 launchd 裸
+  PATH（jka-compr 的 `zstd`/`gzip` 走 `/bin/sh -c`，报
+  “command not found”，尽管会话 PATH 正确）。脚本改为
+  `rm -f "$DOOM_DIR/doomenv"` 清理旧文件。GUI PATH 由 emacs-plus 的
+  `EMACS_PLUS_PATH`（装瓶时烤进 Emacs.app Info.plist，site-start.el
+  应用）覆盖，`-nw` 直接继承 shell PATH。
 - 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync --aot`；锁文件
   `$HOME/pf-init-doom`。`--aot` 不可省：普通 `doom sync` 只字节编译，
   ~2000 个包全靠 JIT 懒编译，首次用到时卡顿 + 后台 gcc 拖很多天；
   `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器补做一次
   手动 `doom sync --aot`（锁文件存在，activation 不会重跑首次引导）。
-- dot-doom 的 `config.el` 直接 `(doom-load-envvars-file …/doomenv)`，缺文件会
-  file-error 中断启动（v2 该函数有 `noerror` 第二参，dot-doom 已传 `t`）。
+- dot-doom 的 `config.el` 不再加载 doomenv（v2 的 loader 是坏桩，见上条）。
+  子进程 PATH 依赖 emacs-plus 装瓶时烤进 Info.plist 的快照；快照含
+  `/opt/homebrew/bin` 整个目录，新增 Homebrew CLI 工具无需重装 emacs-plus，
+  只有新增前缀路径才需 `brew reinstall emacs-plus` 刷新快照。
 - 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Sarasa Term SC`
   16.0，dot-doom `config.el` 的 `doom-font` 同样是 CoreText 名
   `Sarasa Term SC` 16（同一家族，改字体两边一起改）；它自带严格 2:1 的
@@ -549,9 +558,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `AppleInterfaceStyle`。启动时选定，`focus-in-hook`（kitty 支持 tty focus
   事件）带 2s 节流在重新聚焦时切换；手动 `M-x +terminal-sync-theme`。
   GUI frame 不走这套，固定 `doom-ayu-dark`。
-- dot-doom 是独立 git 仓库，机器本地内容（`doomenv`）走该仓库自己的
-  `.gitignore`；升级 Doom 大版本后留意被移除的 module flag（如
-  `+pomodoro`/`+hugo` 在 25.04 删除，包要在 dot-doom `packages.el` 显式声明）。
+- dot-doom 是独立 git 仓库（`~/.config/doom`）；升级 Doom 大版本后留意被移除的
+  module flag（如 `+pomodoro`/`+hugo` 在 25.04 删除，包要在 dot-doom
+  `packages.el` 显式声明），且不要再引入 doomenv（v2 loader 坏桩，见上）。
 - vulpea 文件监听依赖 `fswatch`（homebrew.nix brews 声明），缺了它每次启动
   提示 “fswatch not found, using polling”。
 - Doom `(:checkers spell +flyspell)` 在 macOS 用 Homebrew `aspell`：从
@@ -608,9 +617,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   cask（`spctl --assess` 报 Unnotarized Developer ID），还要把 cask token
   加进 `brew/unquarantine-casks.sh` 的 `CASKS` 白名单。
 - 新增 macOS 系统 defaults：改 `nix-darwin/macos-defaults.nix`。
-- 修改 Doom Emacs 引导：改 `install-doom.sh`（Doom CLI v2 的 `doom env`
-  输出文件走位置参数，勿用 `-o` 或 `--`）。个人 Doom 配置不在本仓库，在
-  独立的 `PannenetsF/dot-doom`（`~/.config/doom`）；换编辑器字体要三处一起
+- 修改 Doom Emacs 引导：改 `install-doom.sh`（不要生成 doomenv，v2 的
+  loader 是坏桩会污染 `process-environment`，详见 §4 Doom 小节）。个人
+  Doom 配置不在本仓库，在独立的 `PannenetsF/dot-doom`（`~/.config/doom`）；换编辑器字体要三处一起
   改：`config/kitty/kitty.conf`、dot-doom `config.el` 的 `doom-font`、
   homebrew.nix 的字体 cask（细节见 §5）。
 - 新增 macOS app defaults 或默认打开方式：改 `nix-darwin/app-defaults.nix`。
@@ -707,7 +716,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/darwin_activation_nvim_path_test.sh`
 - app config sync：`bash tests/darwin_app_config_sync_test.sh`
 - Neovide agent 打开脚本：`bash tests/neovide_agent_open_test.sh`
-- Doom Emacs 引导（`doom env` v2 位置参数语法、kitty/Doom 共用字体 cask）：
+- Doom Emacs 引导（禁止 `doom env` 污染 process-environment、kitty/Doom 共用字体 cask）：
   `bash tests/doom_bootstrap_test.sh`
 - Kitty：`bash tests/kitty_config_test.sh`
 - Python 工具 profile / pip 兼容：`bash tests/install_python_tools_profile_test.sh`、

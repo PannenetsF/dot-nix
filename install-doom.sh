@@ -31,16 +31,18 @@ if ! command -v emacs >/dev/null 2>&1; then
   exit 0
 fi
 
-# Refresh the Doom env file every activation — Nix profile or Homebrew
-# prefix changes can shift binary paths and a stale env file breaks
-# vterm, lsp servers, and other subprocess-spawning packages. Doom CLI
-# v2 takes the output file as a positional argument (the old `-o` flag
-# was removed and fails with "unknown option -o"); a `--` separator
-# makes the parser drop the positional, so it must not be used. A
-# missing doomenv otherwise aborts startup on
-# `doom-load-envvars-file' in config.el.
-echo "[install-doom.sh] refreshing doom env..."
-"$EMACS_DIR/bin/doom" env --allow-all "$DOOM_DIR/doomenv" || true
+# No `doom env` generation: in Doom v2 `doom-load-envvars-file' is a
+# compat stub that reads only the file's first form - the marker
+# `(put 'process-environment 'doom t)' - and appends that list itself
+# to `process-environment'. Emacs' call-process stops scanning the
+# environment at the first non-string entry, so every subprocess
+# silently inherits launchd's bare PATH (broke jka-compr's zstd/gzip
+# shell path: "zstd: command not found" despite a correct session PATH).
+# GUI PATH is covered by emacs-plus' EMACS_PLUS_PATH (baked into
+# Emacs.app's Info.plist at pour time, applied from site-start.el),
+# and -nw sessions inherit the shell's PATH. Remove any stale file
+# left from the old `doom env` step so config.el can never load it.
+rm -f "$DOOM_DIR/doomenv"
 
 if [ -f "$DOOM_LOCK" ]; then
   echo "[install-doom.sh] lock file present, skipping first-time bootstrap: $DOOM_LOCK"
