@@ -59,6 +59,17 @@ let
       set -u
     fi
     unset _nix_hm_had_nounset
+
+    # Claude Code trust shim: ~/.local/bin/claude-shim/claude pre-accepts the
+    # per-folder "Do you trust the files in this folder?" dialog (no official
+    # switch exists; acceptance is a flag in ~/.claude.json), so agent sessions
+    # started by herdr-projects in brand-new folders never stall on an
+    # interactive prompt. Must sit ahead of /opt/homebrew/bin (prepended above)
+    # and of $HOME/.local/bin (hm-session-vars).
+    case ":$PATH:" in
+      *":$HOME/.local/bin/claude-shim:"*) ;;
+      *) export PATH="$HOME/.local/bin/claude-shim:$PATH" ;;
+    esac
   '';
 in {
   home = {
@@ -79,6 +90,15 @@ in {
       pkgs.vim-language-server
       pkgs.universal-ctags
     ];
+
+    # Claude Code trust shim, prepended to PATH at the end of shellProfileInit
+    # above. Bash-only and portable, so it ships on every host layer; on hosts
+    # without claude the wrapper is simply never invoked.
+    file.".local/bin/claude-shim/claude" = {
+      source = ../config/claude/claude-shim.sh;
+      executable = true;
+      force = true;
+    };
   };
 
   programs.zsh = {

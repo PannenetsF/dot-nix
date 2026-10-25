@@ -689,6 +689,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   环境变量前缀的调用会 127）+ stub coordinator，全程跑在 mktemp 里）：
   `bash tests/herdr_pickers_e2e_test.sh`
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
+- Claude Code 信任框 shim（stub claude/jq、pty 下跑真 shim；覆盖普通目录/git
+  仓库/linked worktree（macOS `/var`→`/private/var` 物理路径）、幂等保数据、
+  坏 JSON 不阻启动、非 tty 跳过、python3 fallback、真二进制缺失 127）：
+  `bash tests/claude_shim_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`
 - OmniWM（受管窗口管理器）：`bash tests/omniwm_eval_test.sh`（darwin 配置求值，
