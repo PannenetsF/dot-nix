@@ -154,6 +154,19 @@ assert_contains "nix-darwin/herdr-remote.nix" "kickstart"
 assert_contains "nix-darwin/herdr-remote.nix" ".config/herdr-remote/config.env"
 assert_contains "nix-darwin/herdr-remote.nix" "Library/Logs/herdr-remote"
 
+# herdr-remote Telegram bot: second launchd user agent running relay/herdr_telegram.py
+# as a WebSocket client of the loopback relay. Credentials come from machine-local
+# secrets.env (never the repo); without HERDR_TG_TOKEN the wrapper exits 0 (dormant),
+# so KeepAlive must not retry-loop. It needs only outbound HTTPS (long polling).
+assert_contains "nix-darwin/herdr-remote.nix" "launchd.user.agents.herdrTelegram"
+assert_contains "nix-darwin/herdr-remote.nix" "org.nix-community.home.herdr-telegram"
+assert_contains "nix-darwin/herdr-remote.nix" "herdr_telegram.py"
+assert_contains "nix-darwin/herdr-remote.nix" "secrets.env"
+assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_TOKEN"
+assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_CHAT_ID"
+assert_contains "nix-darwin/herdr-remote.nix" "ws://127.0.0.1:8375"
+assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
+
 # Herdi.app rides the local tap as a tracked cask (upstream has no brew cask).
 assert_file_exists "config/homebrew/Casks/herdi.rb"
 assert_contains "config/homebrew/Casks/herdi.rb" 'cask "herdi"'

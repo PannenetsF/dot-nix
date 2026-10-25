@@ -481,7 +481,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   优先、done 次之，组内循环。插件 min herdr 0.7.5，与 zoetrope 一样在共享脚本的
   服务器版本门之外无条件安装。
 
-`nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 三件套）
+`nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
   dcolinmorgan/herdr-remote `v0.8.1`，以 `uv run --script`（PEP 723 内联依赖，
@@ -492,7 +492,24 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `~/.config/herdr-remote/config.env`（不进 git，activation 只 `install -d`
   保目录）：`HERDR_RELAY_HOST` 绑非环回时上游强制要求 `HERDR_RELAY_TOKEN`。
   wrapper 的 PATH 用 `config.homebrew.brewPrefix`（该值已含 `/bin`，不要再拼
-  `/bin`），让 relay 能轮询本机 brew 版 `herdr`。
+  `/bin`），让 relay 能轮询本机 brew 版 `herdr`。两个 wrapper source
+  config/secrets 都必须 `set -a`：plain `.` 只建 shell 变量，uv/python 子进程
+  看到空环境（telegram 曾因此一直报 `Set HERDR_TG_TOKEN`）。
+- **Telegram bot 守护**：同一 fetchFromGitHub source 的
+  `relay/herdr_telegram.py`，第二个 `launchd.user.agents.herdrTelegram`
+  （label `org.nix-community.home.herdr-telegram`，日志
+  `telegram.{out,err}.log`，同样 postActivation kickstart）。它是 loopback
+  relay 的纯 WebSocket **客户端**：long-poll `api.telegram.org` 收命令、推送
+  blocked/done 通知，所以只需要出站 HTTPS，**无公网 IP、无端口转发、无
+  cloudflared 也能工作**；国内网络若直连不到 Telegram，在 config.env 加
+  `HTTPS_PROXY`（launchd 不继承 shell 代理环境）。凭据放机器本地
+  `~/.config/herdr-remote/secrets.env`（0600，绝不进 git）：
+  `HERDR_TG_TOKEN`（BotFather）与 `HERDR_TG_CHAT_ID`（白名单 chat，bot 忽略
+  其他所有人；chat id 用 `getUpdates` 发现，私聊正数、群为负数）。**wrapper
+  在 token 缺失时 `exit 0` 休眠**，配合 `KeepAlive.SuccessfulExit=false` 不会
+  重启空转——未配置的机器上该 agent 是无害占位。bot 支持
+  `/start /agents /read /reply /send /trust /interrupt /digest`，审批按钮
+  发的是真实数字按键（`send_keys`）而非粘贴文本。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
