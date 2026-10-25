@@ -259,6 +259,12 @@ in {
       # liberime emacs module on demand, see ~/.config/doom/config.el).
       "librime"
       "pkgconf"
+      # Language server for Doom's (:lang python +lsp +pyright). lsp-mode
+      # only registers the pyright client when pyright-langserver is on
+      # PATH at buffer-attach time; without it ruff (lint-only, priority
+      # -2) is the sole Python workspace and os./imports give no semantic
+      # completion. Same GUI-PATH rationale as aspell above.
+      "pyright"
       # TDLib backend for telega (Doom Telegram client). telega-server's
       # Makefile links -ltdjson from LIBS_PREFIX; dot-doom builds the
       # helper on first telega launch (self-heal hook in
