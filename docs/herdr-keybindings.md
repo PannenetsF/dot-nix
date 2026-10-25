@@ -301,8 +301,8 @@ Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚�
    `~/.local/state/herdr-portal/seen.json`（键为 focus 时的
    state_change_seq），看过的卡离开 attention、下次状态变化才再进；
    coordinator 的内部确认点（`hp_audience=internal`）永不进 attention，
-   stalled（`hp_audience=stalled`）仍进。保存的 SSH 机器（ec2-fyq、
-   boe-fyq 等）聚合成带 `[machine]` 标签的卡，离线时保留快照、uid 为
+   stalled（`hp_audience=stalled`）仍进。保存的 SSH 机器（boe-fyq
+   等）聚合成带 `[machine]` 标签的卡，离线时保留快照、uid 为
    `(machine,pane)` 不与本机串位。
 
 - `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、

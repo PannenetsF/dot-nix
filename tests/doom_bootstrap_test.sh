@@ -65,8 +65,10 @@ assert_contains "install-doom.sh" 'rm -f "$DOOM_DIR/doomenv"' \
 # LSP_USE_PLISTS=1 is required on the command: native-comp workers do
 # not inherit straight's package :env, and without it lsp-mode's
 # accessors bake in hash-table form while runtime runs plist mode.
-assert_contains "install-doom.sh" 'LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot' \
-	"expected the first-time bootstrap to run 'doom sync --aot' with LSP_USE_PLISTS=1"
+# Doom v2 --aot is incremental (this-sync packages only), so --rebuild
+# is required to force a full AOT compile on bootstrap and cache reuse.
+assert_contains "install-doom.sh" 'LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot --rebuild' \
+	"expected bootstrap to run 'doom sync --aot --rebuild' with LSP_USE_PLISTS=1"
 
 # GUI Emacs.app launched via LaunchServices does not inherit the Home
 # Manager profile; its ispell-compatible backend must come from Homebrew.

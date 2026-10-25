@@ -456,7 +456,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `hp_audience=internal` 的 coordinator 内部确认点永不进 attention，
   stalled（blocked >10min，`hp_audience=stalled`）仍进；保存的 SSH 机器
   聚合成带 `[machine]` 标签的卡，离线快照 + `(machine,pane)` 复合 uid，
-  ec2-fyq/boe-fyq 等远端 pane 不再与本机串位。
+  boe-fyq 等远端 pane 不再与本机串位。
   `P S-o` 打开 TUI overlay（活卡回车跳 pane、legacy 卡回车 restart），
   `P C-o` 起 stdlib HTTP daemon（`127.0.0.1:8787`）开 web 大屏
   （web 端可回活 agent 消息，legacy 卡只 restart）；1.3.0 的 daemon 仍是纯
@@ -563,6 +563,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   ~2000 个包全靠 JIT 懒编译，首次用到时卡顿 + 后台 gcc 拖很多天；
   `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器补做一次
   手动 `doom sync --aot`（锁文件存在，activation 不会重跑首次引导）。
+  **Doom v2 的 `--aot` 是增量的**：只编译本次 sync 新装/更新的包，所以对
+  已装好的系统跑它 16 秒无事可做；要全量复刻旧版 AOT（如清空 eln 缓存、
+  升 Emacs 大版本后）必须 `doom sync --aot --rebuild`（`-b` = 无条件重建
+  全部包）。
   注意必须 `LSP_USE_PLISTS=1 doom sync --aot`：lsp-mode 的 JSON 访问器在
   **编译期**按该变量选 plist/gethash 分支，Doom 的 package `:env` 只覆盖
   straight 字节编译，不覆盖 native-comp worker；dot-doom config.el 另设

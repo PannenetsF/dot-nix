@@ -54,15 +54,20 @@ echo "[install-doom.sh] first-time Doom Emacs bootstrap..."
 # `doom sync' alone only byte-compiles packages; without --aot every
 # package keeps running as .elc until JIT lazy native-compilation catches
 # up on first use, which shows up as repeated stutters and background
-# gcc churn long after startup. --aot natively compiles every package
-# once at bootstrap (a slow one-off, several minutes) and is a no-op
-# ("if available") on Emacs builds without NATIVE_COMP.
+# gcc churn long after startup. Doom v2's `--aot` is incremental
+# (only packages changed by THIS sync), so pair it with `--rebuild` to
+# unconditionally rebuild and AOT-compile every package. On a fresh
+# bootstrap everything is new anyway, and this stays correct when
+# straight's repo cache survives a failed run.
+#
+# Post-install full rebuild (emptied eln cache, Emacs major upgrade):
+#   LSP_USE_PLISTS=1 ~/.config/emacs/bin/doom sync --aot --rebuild
 # LSP_USE_PLISTS=1: the AOT compile workers must see it, or lsp-mode's
 # accessors get baked in hash-table form while runtime runs plist mode
 # (flycheck errors on every diagnostic). The persistent fix for
 # post-bootstrap JIT workers is native-comp-async-env-modifier-form in
 # dot-doom config.el.
-LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot
+LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot --rebuild
 
 touch "$DOOM_LOCK"
 echo "[install-doom.sh] Doom Emacs bootstrap done"
