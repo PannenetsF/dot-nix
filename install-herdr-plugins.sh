@@ -142,21 +142,25 @@ except Exception:
   # plugin's exact font codepoint-map block — otherwise the build hook
   # hard-fails writing through the read-only Nix-store symlink (its setup.js
   # is not EACCES-safe).
-  # Fork pin v1.4.9-pf.1: the only patch left on top of upstream 1.4.9 is the
-  # static ws_key — per-pane group keys must not carry a recency component,
-  # or N panes' independent async metadata writes skew the key between retries
-  # and headers land mid-group. Older pf patches (header order, fingerprint
-  # hardening, projects-view coexistence) are all gone: #49 was fixed
-  # upstream via view reassert/keeper, and herdr-projects 0.2.x owns the
-  # global sidebar grouping rows together with radar (projects configure
-  # merges its entries into radar's marker-fenced blocks, so the two must
-  # be called in this order: radar first, projects second).
+  # Fork pin v1.4.9-pf.2 on top of upstream 1.4.9: (1) the static ws_key —
+  # per-pane group keys must not carry a recency component, or N panes'
+  # independent async metadata writes skew the key between retries and
+  # headers land mid-group; (2) herdr-projects coexistence — Herdr holds ONE
+  # global agent view and this daemon re-asserts its own every 15s, so while
+  # that plugin is enabled radar installs its exact spec (hp_role guest/other
+  # hiding filter + hp_group/hp_rank order) and pins one header per PROJECT
+  # (slug parsed from hp_group; each thread lives in its own worktree
+  # workspace, so workspace/repo headers misplace them). The projects probe
+  # is fail-sticky: a failed `plugin list` spawn keeps the last answer, never
+  # flashes the unfiltered view in. projects configure merges its entries
+  # into radar's marker-fenced blocks, so the two must be called in this
+  # order: radar first, projects second.
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.9-pf.1"; then
+      | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.9-pf.2"; then
     # Never let one plugin's install failure abort the activation: the
     # configure/state-start and projects steps below are independently guarded
     # and harmless on a partial install.
-    "$herdr_cli" plugin install -y --ref v1.4.9-pf.1 \
+    "$herdr_cli" plugin install -y --ref v1.4.9-pf.2 \
       PannenetsF/herdr-radar || true
   fi
   "$herdr_cli" plugin action invoke configure \
@@ -170,7 +174,7 @@ except Exception:
   # herdr-projects: project + thread model with a persistent ticker daemon.
   # Requires server >= 0.9.1; plugin install talks to the running server and
   # fails hard against a stale one, so skip until the server is restarted.
-  # Pinned to fork v0.2.34-pf.3 (PannenetsF/herdr-projects): registered
+  # Pinned to fork v0.2.34-pf.4 (PannenetsF/herdr-projects): registered
   # coordinator identity (`hpc-<slug>` family names), adoption of
   # hand-started sessions, context registration gate, session-sticky nudges
   # and the untracked-pane claim for a second harness in a tracked project
@@ -178,7 +182,14 @@ except Exception:
   # left the ticker scan before persisting a group, so the needs-you badge
   # (which reads last_group) lagged the live rows/portal by one and the
   # failure never rang — failed launches are now recorded waiting-on-you and
-  # announce exactly once. The 0.2 model uses project slugs with per-project
+  # announce exactly once. pf.4 adds the sidebar audience contract: every
+  # pane is stamped hp_role (coordinator/thread/guest/other) + hp_audience
+  # (human/internal/stalled), the default agents view hides guest/other via a
+  # not-in filter radar mirrors, a blocked thread upgrades to stalled after
+  # HERDR_PROJECTS_STALL_UPGRADE_SECS, and the ticker no longer evicts a
+  # project's layout part when one thread's pass errors (header flicker) or
+  # rewrites no-project keys every tick (~!<pane_id> is stable now).
+  # The 0.2 model uses project slugs with per-project
   # home directories (`~/.herdr-projects/<slug>/`); the ticker is its ONLY
   # bell source — herdr notification show --sound request/done when threads
   # enter waiting-on-you / ready-for-review. The upstream 1.2.x task-board
@@ -195,10 +206,10 @@ except Exception:
 v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
 t = tuple(int(x) for x in v.split(".") if x != "")
 sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
-    # Fork pin v0.2.34-pf.3 (see block comment above).
+    # Fork pin v0.2.34-pf.4 (see block comment above).
     installed_projects="$("$herdr_cli" plugin list 2>/dev/null || true)"
     if ! printf '%s' "$installed_projects" \
-        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.3"; then
+        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.4"; then
       # One-time rolloff window from the incompatible upstream 1.2.x
       # task-board plugin: the plugin id must be free before the 0.2 fork can
       # register, and 1.2 leaves four orphan daemons running forever
@@ -219,7 +230,7 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
       # No release assets on the fork: the server builds from source with the
       # user's cargo (darwin wrapper and modules/herdr.nix both prepend
       # ~/.cargo/bin). A build failure must not abort activation.
-      "$herdr_cli" plugin install -y --ref v0.2.34-pf.3 \
+      "$herdr_cli" plugin install -y --ref v0.2.34-pf.4 \
         PannenetsF/herdr-projects || true
     fi
     # configure merges the sidebar/tab-bar blocks into radar's marker blocks
@@ -276,11 +287,19 @@ sys.exit(0 if t >= (0, 9, 1) else 1)' "$server_version" 2>/dev/null; then
   # cards whose Enter runs `thread restart`. pf.3 retries `agent focus`
   # for 10s after a restart: the new pane exists before its agent
   # registers, so the first focus otherwise fails "target not found" and
-  # the card shows 跳转失败. The portal probes for a 0.2.x binary only; a
+  # the card shows 跳转失败. pf.4 makes the board a true notification
+  # center: attention is gated on a per-pane seen store
+  # (~/.local/state/herdr-portal/seen.json, keyed to state_change_seq at
+  # focus time) so a card leaves attention once viewed and re-enters only on
+  # the next state change; coordinator-only internal confirmation points
+  # (hp_audience=internal) never enter attention; stalled (>10min blocked,
+  # hp_audience=stalled) still does; and saved SSH machines are aggregated
+  # with [machine] labels, offline snapshots and (machine,pane) card uids.
+  # The portal probes for a 0.2.x binary only; a
   # 1.2.x binary is explicitly ignored (incompatible model).
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.3"; then
-    "$herdr_cli" plugin install -y --ref v1.3.0-pf.3 \
+      | grep -q "herdr-portal.*PannenetsF/herdr-portal@v1.3.0-pf.4"; then
+    "$herdr_cli" plugin install -y --ref v1.3.0-pf.4 \
       PannenetsF/herdr-portal || true
   fi
 

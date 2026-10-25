@@ -117,7 +117,7 @@ assert_contains "$body" "--plugin devswha.herdr-web-ui"
 # projects fork's thread states. On-demand only — activation must not open the
 # board itself — with both keybindings in the template on the o namespace.
 assert_contains "$body" "PannenetsF/herdr-portal"
-assert_contains "$body" "v1.3.0-pf.3"
+assert_contains "$body" "v1.3.0-pf.4"
 assert_contains "config/herdr/config.toml" 'key = "prefix+shift+o"'
 assert_contains "config/herdr/config.toml" 'command = "herdr-portal.open-board"'
 assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+o"'
@@ -228,8 +228,8 @@ assert_contains "config/herdr/herdr-popup-lib.sh" "coordinator adopt"
 assert_contains "config/herdr/new-coordinator.sh" "hp_adopt_detached"
 assert_contains "config/herdr/focus-coordinator.sh" "herdr agent focus"
 assert_contains "config/herdr/focus-coordinator.sh" ".state/coordinator.json"
-# The fork pin for the plugin is pf.2 in the shared activation body.
-assert_contains "$body" "v0.2.34-pf.3"
+# The fork pin for the plugin is pf.4 in the shared activation body.
+assert_contains "$body" "v0.2.34-pf.4"
 
 # Repo paths containing @ are rejected before reaching the plugin (they break
 # TOML/shell handling); both scripts that accept repo paths must guard them.
@@ -267,7 +267,7 @@ assert_contains "$body" "diff -u"
 # The fork pin is permanent (project+threads/ticker model vs 1.2 task board);
 # activation must unregister a present 1.2 plugin, signal only its four orphan
 # helper daemons by argv (never the 0.2 ticker), then install the 0.2 fork.
-assert_contains "$body" "v0.2.34-pf.3"
+assert_contains "$body" "v0.2.34-pf.4"
 assert_contains "$body" "eliasstravik/herdr-projects@"
 assert_contains "$body" "plugin uninstall herdr-projects"
 assert_contains "$body" "(keeper|keeper-work|voice helper|serve)"
