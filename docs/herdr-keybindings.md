@@ -45,6 +45,7 @@ AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用
 | 交换 pane 位置 | `C-A-S-h/j/k/l` | `P S-h/j/k/l` |
 | 调整 pane 大小 | `C-A-←/↓/↑/→` | 或 `P r` 进 resize 模式后用 hjkl |
 | pane 正反向轮换 | — | `P Tab` / `P S-Tab` |
+| 前/后移动当前 tab（重排 tab 顺序） | `C-A-S-[` / `C-A-S-]` | —（upstream 默认不绑；tmux `{`/`}` 记忆，`{` 即 S-[） |
 | 重命名 tab / pane | `C-A-t`（仅 tab） | `P S-t` / `P S-p` |
 
 ## 多项目 / workspace
