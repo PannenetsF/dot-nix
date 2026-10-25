@@ -57,6 +57,9 @@ next_tab = ["prefix+n", "ctrl+alt+]"]
 # default, so collapsing the sidebar needs the action rebound to another key.
 previous_tab = ["prefix+b", "prefix+p", "ctrl+alt+["]
 new_tab = ["prefix+c", "ctrl+alt+c"]
+# rename tab: t for title, direct chord added; prefix+shift+t stays as the
+# built-in prefix form (tmux's own prefix+comma rename is Radar settings here).
+rename_tab = ["prefix+shift+t", "ctrl+alt+t"]
 
 # close pane/tab: x keeps the default prefix+[shift+]x mnemonic, direct chord added
 close_pane = ["prefix+x", "ctrl+alt+x"]
