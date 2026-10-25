@@ -16,14 +16,28 @@ let
       . "$HOME/.nix-profile/etc/profile.d/nix.sh"
     fi
 
-    # Make Homebrew CLI tools available on macOS, but as a fallback
-    # *behind* the Nix profiles (this block runs before the Nix prepends
-    # below, so Nix wins collisions): this machine is Nix-managed and
-    # host.nix deliberately ships python3/ruff/cmake/node/git etc.
-    # Letting Homebrew sit in front split `python` (Nix 3.12) from
-    # `python3` (Homebrew 3.14, which ships no `python` shim). GUI apps
-    # are unaffected - LaunchServices sessions use emacs-plus' frozen
-    # EMACS_PLUS_PATH snapshot, not this shell ordering.
+    # Move a directory to the front of PATH, dropping any existing
+    # occurrence first. Plain "prepend if absent" cannot fix ordering:
+    # nix-darwin's set-environment (/etc/zshenv) seeds every shell with
+    # all three Nix profile dirs already in PATH, so a presence check
+    # would skip reordering entirely and let Homebrew (added below) win.
+    _nix_hm_path_to_front() {
+      case ":$PATH:" in
+        *":$1:"*)
+          PATH=":$PATH:"
+          PATH=''${PATH//:"$1":/:}
+          PATH=''${PATH#:}; PATH=''${PATH%:} ;;
+      esac
+      PATH="$1:$PATH"
+    }
+
+    # Make Homebrew CLI tools available on macOS, but never ahead of the
+    # Nix profiles (added-if-missing here, then pushed back by the reorder
+    # below): this machine is Nix-managed and host.nix deliberately ships
+    # python3/ruff/cmake/node/git etc. Letting Homebrew sit in front
+    # split `python` (Nix 3.12) from `python3` (Homebrew 3.14, which
+    # ships no `python` shim). GUI apps are unaffected - LaunchServices
+    # sessions use emacs-plus' frozen EMACS_PLUS_PATH snapshot.
     ${lib.optionalString isDarwin ''
       for _nix_hm_brew_path in /usr/local/sbin /usr/local/bin /opt/homebrew/sbin /opt/homebrew/bin; do
         if [ -d "$_nix_hm_brew_path" ]; then
@@ -36,25 +50,13 @@ let
       unset _nix_hm_brew_path
     ''}
 
-    # Make nix-darwin and Home Manager profile packages win in shells.
-    # Prepended after Homebrew, so Nix profile binaries (HM
-    # python3-withPackages, git, ripgrep, ...) take precedence while
-    # Homebrew-only tools (aspell, emacs, pyright-langserver, ...)
-    # remain reachable further down PATH.
-    case ":$PATH:" in
-      *":/run/current-system/sw/bin:"*) ;;
-      *) export PATH="/run/current-system/sw/bin:$PATH" ;;
-    esac
-    if [ -n "''${USER:-}" ]; then
-      case ":$PATH:" in
-        *":/etc/profiles/per-user/$USER/bin:"*) ;;
-        *) export PATH="/etc/profiles/per-user/$USER/bin:$PATH" ;;
-      esac
-    fi
-    case ":$PATH:" in
-      *":$HOME/.nix-profile/bin:"*) ;;
-      *) export PATH="$HOME/.nix-profile/bin:$PATH" ;;
-    esac
+    # Force the Nix profile dirs to the front even when they were seeded
+    # further down PATH by nix-darwin's set-environment.
+    for _nix_hm_nix_path in /run/current-system/sw/bin "/etc/profiles/per-user/''${USER:-}/bin" "$HOME/.nix-profile/bin"; do
+      [ -d "$_nix_hm_nix_path" ] && _nix_hm_path_to_front "$_nix_hm_nix_path"
+    done
+    unset _nix_hm_nix_path
+    export PATH
 
     # Source Home Manager session variables after profile PATH is available.
     _nix_hm_had_nounset=
