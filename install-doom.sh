@@ -57,7 +57,12 @@ echo "[install-doom.sh] first-time Doom Emacs bootstrap..."
 # gcc churn long after startup. --aot natively compiles every package
 # once at bootstrap (a slow one-off, several minutes) and is a no-op
 # ("if available") on Emacs builds without NATIVE_COMP.
-"$EMACS_DIR/bin/doom" sync --aot
+# LSP_USE_PLISTS=1: the AOT compile workers must see it, or lsp-mode's
+# accessors get baked in hash-table form while runtime runs plist mode
+# (flycheck errors on every diagnostic). The persistent fix for
+# post-bootstrap JIT workers is native-comp-async-env-modifier-form in
+# dot-doom config.el.
+LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot
 
 touch "$DOOM_LOCK"
 echo "[install-doom.sh] Doom Emacs bootstrap done"

@@ -537,6 +537,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   ~2000 个包全靠 JIT 懒编译，首次用到时卡顿 + 后台 gcc 拖很多天；
   `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器补做一次
   手动 `doom sync --aot`（锁文件存在，activation 不会重跑首次引导）。
+  注意必须 `LSP_USE_PLISTS=1 doom sync --aot`：lsp-mode 的 JSON 访问器在
+  **编译期**按该变量选 plist/gethash 分支，Doom 的 package `:env` 只覆盖
+  straight 字节编译，不覆盖 native-comp worker；dot-doom config.el 另设
+  `(setenv ...)` + `native-comp-async-env-modifier-form` 兜 JIT。缺了会
+  出现 `.elc` 是 plist 而 `.eln` 是 hash 版的错配，flycheck 对每条诊断报
+  `(wrong-type-argument hash-table-p ...)`；本机修复需停 Emacs、清空
+  `~/.config/emacs/.local/cache/eln` 后重跑。
 - dot-doom 的 `config.el` 不再加载 doomenv（v2 的 loader 是坏桩，见上条）。
   子进程 PATH 依赖 emacs-plus 装瓶时烤进 Info.plist 的快照；快照含
   `/opt/homebrew/bin` 整个目录，新增 Homebrew CLI 工具无需重装 emacs-plus，
