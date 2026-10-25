@@ -214,7 +214,7 @@ project 的 coordinator + threads（radar pf.2 镜像同一 filter），同目�
 workspace 聚合。单个 thread 巡检报错不再把整个 project 顶闪，无 project
 pane 的分组键也改为稳定的 pane id（列表重排不闪）。
 
-> **永久 pin fork `v0.2.34-pf.4`，不要升级上游 1.2.x。** 上游
+> **永久 pin fork `v0.2.34-pf.5`，不要升级上游 1.2.x。** 上游
 > `eliasstravik/herdr-projects` 1.2 是不兼容的任务看板模型（任务
 > `repo/123`、`data/repos.json`、keeper/voice 守护），删掉了 thread 状态机
 > 和 ticker——2026-10 曾切到 1.2.13，响铃全部消失、需要交互的 session 无从
@@ -222,12 +222,12 @@ pane 的分组键也改为稳定的 pane id（列表重排不闪）。
 > 孤儿守护。数据根是 `~/.herdr-projects/<slug>/`（0.2 布局）。
 
 - 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
-  `v0.2.34-pf.4`，PannenetsF/herdr-projects；macOS 经
+  `v0.2.34-pf.5`，PannenetsF/herdr-projects；macOS 经
   `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
-  两个薄封装调用；要求 herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示
+  两个薄封装调用；要求 herdr server ≥ 0.9.5；server 过旧时激活会跳过并提示
   重启 herdr）。fork 无 release 资产，安装走本机 cargo 构建（两个薄封装的
   PATH 都前置 `~/.cargo/bin`）
-- 版本被激活 pin 在 fork `v0.2.34-pf.4`：不要用插件自更新（`herdr-projects
+- 版本被激活 pin 在 fork `v0.2.34-pf.5`：不要用插件自更新（`herdr-projects
   update` 等），下次激活会被装回 pin 版本
 - **coordinator 身份是注册的 agent 名**（pf.2 起）：只有带 `hpc-<slug>` /
   `hpc-<slug>-N` 名字、且 cwd 在项目家目录的 agent 才算 coordinator。
@@ -240,6 +240,15 @@ pane 的分组键也改为稳定的 pane id（列表重排不闪）。
   首次登记成为 primary；记录里的 pane 在同会话里连 shell pane 都不存在
   时视为过期，adopt 直接顶替；nudge 一旦选定某个 coordinator 会话就粘住，
   它消失后才重选
+- **pf.5 起身份不靠环境标记**：`HERDR_ENV`/`HERDR_PANE_ID` 和环境变量里的
+  socket/binary 都是 pane 内 agent 自己能改写的东西，不再作为信任依据。
+  插件改为用 `/bin/ps` 的进程族谱+进程组事实，对照固定绝对路径找到的
+  **真 herdr 二进制**（scrub DYLD_*/LD_*/BASH_ENV，不走 PATH）只问询 real
+  home registry 中运行的会话来证明调用所在 pane。任何被证明在 herdr
+  pane 里、却没有注册 agent 行的命令一律拒绝（agent `pane run` 一条
+  `env -u HERDR_ENV` 命令也不能冒充人）；真人在 herdr 之外的真终端不受
+  影响。残留：同 uid 另起 rogue herdr 会话、完全 double-fork 的孤儿，
+  client 侧无法区分
 - sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
   写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块
   加进可写的 `~/.config/herdr/config.toml`（幂等；hm-update 会先用模板

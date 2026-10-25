@@ -311,9 +311,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   CowboyVang/herdr-which-key`），不走 nix 管理；配置里的命令做了 launcher
   缺失兜底。
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
-  pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.1
+  pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.5
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
-  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.4`**
+  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.5`**
   （project + threads 模型），**不要升级到上游 `eliasstravik/herdr-projects`
   1.2.x**：1.2 是另一套不兼容模型（单位是任务 `repo/123`、`data/repos.json`、
   keeper/voice 守护、`sw-coordinator-<repo>`），没有 0.2 的 thread 状态机，
@@ -345,8 +345,18 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   - 注册身份是 `hpc-<slug>` / `hpc-<slug>-N` coordinator agent；fork 特性：
     `coordinator adopt` 接管手开 session、context 注册门、thread-sticky
     nudge、tracked project 目录里第二个 harness 的 untracked-pane claim。
+  - pf.5 caller 身份不再信任 agent 自己可改写的 HERDR_ENV 标记/环境变量
+    socket：用进程族谱+进程组 ps 事实对照**可信 herdr 二进制**（固定绝对
+    路径 canonicalize + 版本探测，绝不走 PATH/HERDR_BIN_PATH，并 scrub
+    DYLD_*/LD_*/BASH_ENV 等）只问询 real-home registry 里在跑的会话；
+    任何进程事实上在 herdr pane 内、却无注册 agent 行的调用一律 fail-closed
+    为 Unverified（agent 用 `pane run`/`send-text` 在 shell tab 里剥掉
+    HERDR_ENV 也无法冒充人；连 proven pane 上无名/自定义名的 agent 行也
+    一律 fail-closed，coordinator 用 `agent prompt` 驱动这种 tab 同样
+    拿不到人的权限）。残留边界：同 uid 起真 herdr rogue session、用服务端
+    `agent rename` 自封 hpc 名、完全 double-fork 的孤儿，client 无法判别。
   - 安装顺序固定为 radar install → radar `configure` → `state-start` →
-    projects（门 ≥0.9.1）→ web-ui → portal → push。projects 的 `configure`
+    projects（门 ≥0.9.5）→ web-ui → portal → push。projects 的 `configure`
     把全局 agents 分组行、tab-bar 项和 **`P a` overview popup** 合并进 radar
     拥有的 marker-fenced 可写配置，所以必须 radar 先 configure、projects 后
     configure；模板里**不发** `P a` 键位（configure 下发）。
@@ -748,7 +758,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
-  herdr-projects fork pin v0.2.34-pf.4 + 0.9.1 版本门（configure 在 radar
+  herdr-projects fork pin v0.2.34-pf.5 + 0.9.5 版本门（configure 在 radar
   configure 之后）、检测到 1.2.x 已装时先 uninstall 再 pkill 四类孤儿
   守护（keeper/keeper-work/voice helper/serve，正则不命中 ticker）的回退
   case、configure action 回退、

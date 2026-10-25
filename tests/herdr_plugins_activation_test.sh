@@ -78,9 +78,9 @@ run_case() {
   )
 }
 
-# --- Case 1: fresh machine, server 0.9.4 -> template + every pinned plugin --
+# --- Case 1: fresh machine, server 0.9.5 -> template + every pinned plugin --
 stub1="$tmp/stub1"; make_stub "$stub1"; home1="$tmp/home1"
-STUB_MODE=ok STUB_VERSION=0.9.4 \
+STUB_MODE=ok STUB_VERSION=0.9.5 \
   HERDR_PUSH_RELAY_URL=http://127.0.0.1:8375 \
   run_case "$home1" env PATH="$stub1/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
@@ -100,7 +100,7 @@ echo "$log1" | grep -q "server reload-config" || fail "server config not reloade
 
 # radar configure must precede projects install (marker-block ownership order).
 radar_cfg=$(echo "$log1" | grep -n "action invoke configure" | head -1 | cut -d: -f1)
-proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.4" | head -1 | cut -d: -f1)
+proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.5" | head -1 | cut -d: -f1)
 [ -n "$radar_cfg" ] && [ -n "$proj_inst" ] && [ "$radar_cfg" -lt "$proj_inst" ] \
   || fail "radar configure ($radar_cfg) must run before projects install ($proj_inst)"
 
@@ -162,7 +162,7 @@ log3="$(cat "$home3/calls.log")"
 echo "$log3" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope installs before the version gate"
 echo "$log3" | grep -q "to4iki/herdr-unread-jump" || fail "unread-jump installs before the version gate (min herdr 0.7.5)"
 echo "$log3" | grep -q "PannenetsF/herdr-radar" && fail "radar needs a reachable >=0.9.0 server" || true
-echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.1 server" || true
+echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.5 server" || true
 echo "$log3" | grep -q "devswha/herdr-web-ui" && fail "web-ui needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-portal" && fail "portal installs inside the version gate" || true
 echo "$log3" | grep -q "dcolinmorgan/herdr-push" && fail "push must wait for a reachable server" || true
@@ -177,7 +177,7 @@ STUB_MODE=ok STUB_VERSION=0.9.0 \
   bash "$repo_root/install-herdr-plugins.sh"
 log4="$(cat "$home4/calls.log")"
 echo "$log4" | grep -q "PannenetsF/herdr-radar" || fail "radar allowed on 0.9.0"
-echo "$log4" | grep -q "PannenetsF/herdr-projects" && fail "projects needs >= 0.9.1" || true
+echo "$log4" | grep -q "PannenetsF/herdr-projects" && fail "projects needs >= 0.9.5" || true
 echo "$log4" | grep -q "devswha/herdr-web-ui" || fail "web-ui allowed on 0.9.0 (min_herdr_version)"
 # No HERDR_PUSH_RELAY_URL in this run (Linux wrapper style): push never installs.
 echo "$log4" | grep -q "dcolinmorgan/herdr-push" && fail "push must be skipped without a relay URL" || true
@@ -197,7 +197,7 @@ echo 'user-edited = true' >"$home5/.config/herdr/config.toml"
   export HERDR_CONFIG_DIR="$home5/.config/herdr"
   export HERDR_PROJECTS_BIN="$home5/nonexistent-herdr-projects"
   export HERDR_ROADBOARD_SRC="$home5/no-roadboard"
-  export STUB_MODE=ok STUB_VERSION=0.9.4
+  export STUB_MODE=ok STUB_VERSION=0.9.5
   env PATH="$stub5/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
 )
 ls "$home5/.config/herdr"/config.toml.bak-* >/dev/null 2>&1 \
@@ -216,7 +216,7 @@ echo 'HERDR_RELAY=https://tunnel.example.invalid' >"$push_env6/.env"
   export HERDR_PROJECTS_BIN="$home6/nonexistent-herdr-projects"
   export HERDR_ROADBOARD_SRC="$home6/no-roadboard"
   export HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375"
-  export STUB_MODE=ok STUB_VERSION=0.9.4
+  export STUB_MODE=ok STUB_VERSION=0.9.5
   env PATH="$stub6/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
 )
 grep -Fxq "HERDR_RELAY=https://tunnel.example.invalid" "$push_env6/.env" \
@@ -231,14 +231,14 @@ grep -Fq "127.0.0.1" "$push_env6/.env" \
 # uninstall. Activation must uninstall first, signal exactly those argv
 # patterns (stubbed pkill here), and only then install the 0.2 fork.
 stub7="$tmp/stub7"; make_stub "$stub7"; home7="$tmp/home7"
-STUB_MODE=ok STUB_VERSION=0.9.4 \
+STUB_MODE=ok STUB_VERSION=0.9.5 \
   STUB_PROJECTS_PIN="eliasstravik/herdr-projects@v1.2.13" \
   run_case "$home7" env PATH="$stub7/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log7="$(cat "$home7/calls.log")"
 uninst=$(echo "$log7" | grep -n "plugin uninstall herdr-projects" | head -1 | cut -d: -f1)
 kill_line=$(echo "$log7" | grep -n "pkill" | head -1 | cut -d: -f1)
-proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.4" | head -1 | cut -d: -f1)
+proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.5" | head -1 | cut -d: -f1)
 [ -n "$uninst" ] || fail "upstream 1.2 plugin must be uninstalled before the fork installs"
 [ -n "$kill_line" ] || fail "orphan 1.2 daemons must be signalled after uninstall"
 [ -n "$proj_inst7" ] || fail "0.2 fork must be installed in the same activation"
@@ -259,8 +259,8 @@ echo "$pkill_log" | grep -q 'ticker' \
 
 # --- Case 8: 0.2 fork already pinned -> no uninstall, no pkill, no reinstall -
 stub8="$tmp/stub8"; make_stub "$stub8"; home8="$tmp/home8"
-STUB_MODE=ok STUB_VERSION=0.9.4 \
-  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.4" \
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.5" \
   run_case "$home8" env PATH="$stub8/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log8="$(cat "$home8/calls.log")"
@@ -268,7 +268,7 @@ echo "$log8" | grep -q "plugin uninstall" \
   && fail "must not uninstall when the pinned fork is already registered" || true
 echo "$log8" | grep -q "pkill" \
   && fail "must not signal daemons when the pinned fork is already registered" || true
-echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.4" \
+echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.5" \
   && fail "fork must not be reinstalled when already at the pinned ref" || true
 echo "$log8" | grep -q "action invoke configure --plugin herdr-projects" \
   || fail "configure must still run (idempotent repair) when the fork is present"
