@@ -575,15 +575,29 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `rm -f "$DOOM_DIR/doomenv"` 清理旧文件。GUI PATH 由 emacs-plus 的
   `EMACS_PLUS_PATH`（装瓶时烤进 Emacs.app Info.plist，site-start.el
   应用）覆盖，`-nw` 直接继承 shell PATH。
-- 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync --aot`；锁文件
-  `$HOME/pf-init-doom`。`--aot` 不可省：普通 `doom sync` 只字节编译，
+- 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync --aot --rebuild`；
+  锁文件 `$HOME/pf-init-doom`。`--aot` 不可省：普通 `doom sync` 只字节编译，
   ~2000 个包全靠 JIT 懒编译，首次用到时卡顿 + 后台 gcc 拖很多天；
   `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器补做一次
-  手动 `doom sync --aot`（锁文件存在，activation 不会重跑首次引导）。
+  手动全量（锁文件存在，activation 不会重跑首次引导，见下条命令）。
   **Doom v2 的 `--aot` 是增量的**：只编译本次 sync 新装/更新的包，所以对
   已装好的系统跑它 16 秒无事可做；要全量复刻旧版 AOT（如清空 eln 缓存、
   升 Emacs 大版本后）必须 `doom sync --aot --rebuild`（`-b` = 无条件重建
   全部包）。
+- **`--aot --rebuild` 仍留两大运行时门类不编译**：native-comp 只编译「已加载」
+  的文件，而 ① 每个 major mode（及其 `after!`/tree-sitter remap 钩子）只有
+  真打开该类文件才加载，② lsp-mode 的 ~150 个 server client 只在首个真实
+  LSP buffer 出现时成 bundle require。install-doom.sh 在 sync 之后用独立
+  `emacs --batch -l aot-warm-modes.el`（与脚本同目录，~90s，失败不阻断）
+  穷举预热这两类。**必须 `--batch`**：某些 ts-mode（如 elixir-ts-mode）缺
+  语法时弹模态「install grammar?」，在 GUI 里永久阻塞（曾卡死交互 session，
+  只能键盘 ESC）。脚本**零硬编码**：mode 来自 `set-auto-mode` 的同一组 alist
+  （auto-mode/interpreter/magic + `major-mode-remap-defaults`）并扫到不动点，
+  LSP client 来自 `lsp-client-packages`；加新 `:lang` 模块自动覆盖。batch 下
+  Doom 生成的 profile init 用 `static-unless noninteractive` 跳过交互
+  loaddefs，脚本逐个加载 straight build 目录里的 `*-autoloads.el`（auctex
+  tex-site 在 batch 坏，单包容错）。典型结果：136 modes + 150 LSP clients +
+  476 个 straight 文件，0 编译失败（唯一报错 image-mode 无显示，无害）。
   注意必须 `LSP_USE_PLISTS=1 doom sync --aot`：lsp-mode 的 JSON 访问器在
   **编译期**按该变量选 plist/gethash 分支，Doom 的 package `:env` 只覆盖
   straight 字节编译，不覆盖 native-comp worker；dot-doom config.el 另设

@@ -10,7 +10,7 @@ assert_contains() {
 	local file="$1"
 	local pattern="$2"
 	local message="$3"
-	if ! grep -Fq "$pattern" "${repo_root}/${file}"; then
+	if ! grep -Fq -- "$pattern" "${repo_root}/${file}"; then
 		echo "$message" >&2
 		exit 1
 	fi
@@ -20,7 +20,7 @@ assert_not_contains() {
 	local file="$1"
 	local pattern="$2"
 	local message="$3"
-	if grep -Fq "$pattern" "${repo_root}/${file}"; then
+	if grep -Fq -- "$pattern" "${repo_root}/${file}"; then
 		echo "$message" >&2
 		exit 1
 	fi
@@ -69,6 +69,27 @@ assert_contains "install-doom.sh" 'rm -f "$DOOM_DIR/doomenv"' \
 # is required to force a full AOT compile on bootstrap and cache reuse.
 assert_contains "install-doom.sh" 'LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot --rebuild' \
 	"expected bootstrap to run 'doom sync --aot --rebuild' with LSP_USE_PLISTS=1"
+
+# `--aot --rebuild' only compiles package files; major-mode bodies and the
+# ~150 lsp-mode server clients stay deferred until first use. The bootstrap
+# must run the generic batch warm-up that force-loads both. It has to be a
+# separate --batch process: in an interactive/GUI Emacs some tree-sitter modes
+# pop a modal "install grammar?" prompt that blocks forever.
+assert_file_exists "aot-warm-modes.el"
+assert_contains "install-doom.sh" '--batch --init-directory "$EMACS_DIR"' \
+	"expected the AOT warm-up to run under a throwaway --batch Emacs"
+assert_contains "install-doom.sh" '-l "$script_dir/aot-warm-modes.el"' \
+	"expected install-doom.sh to invoke the co-located aot-warm-modes.el"
+# The warm-up must stay generic (no hardcoded language/mode list): modes come
+# from the alists set-auto-mode consults, LSP clients from lsp's own list.
+assert_contains "aot-warm-modes.el" 'auto-mode-alist' \
+	"aot warm-up must discover modes from auto-mode-alist, not a hardcoded list"
+assert_contains "aot-warm-modes.el" 'major-mode-remap-defaults' \
+	"aot warm-up must include Doom's tree-sitter remap targets"
+assert_contains "aot-warm-modes.el" 'lsp-client-packages' \
+	"aot warm-up must pull LSP clients from lsp-client-packages, not a fixed list"
+assert_contains "aot-warm-modes.el" 'noninteractive' \
+	"aot warm-up must rely on --batch/noninteractive to suppress modal prompts"
 
 # GUI Emacs.app launched via LaunchServices does not inherit the Home
 # Manager profile; its ispell-compatible backend must come from Homebrew.
