@@ -25,6 +25,20 @@ hyperKeyModifiers = "Control+Option+Shift+Command"
 systemHyperTrigger = "Left Option"
 updateChecksEnabled = true
 
+[focus]
+followsMouse = false
+moveMouseToFocusedWindow = false
+
+[workspaceBar]
+height = 24.0
+hideEmptyWorkspaces = false
+notchActiveZoneWidth = 180.0
+notchMode = "moveBelowMenuBar"
+showItemBackgrounds = true
+transparentBackground = false
+# inactiveIconOpacity intentionally omitted: a nil default OmniWM leaves out
+# of the file; the seed must append it rather than silently skip it.
+
 [gestures]
 scrollEnabled = true
 
@@ -97,6 +111,10 @@ binding = "Control+Option+Shift+Page Down"
 id = "moveColumnToWorkspaceDown"
 
 [[hotkeys]]
+binding = "Control+Option+F"
+id = "expandContainerToAvailablePrimarySpan"
+
+[[hotkeys]]
 binding = "Option+Tab"
 id = "focusPrevious"
 
@@ -136,6 +154,16 @@ from collections import Counter
 with open(os.environ["SETTINGS_PATH"], "rb") as f:
     cfg = tomllib.load(f)
 assert cfg["general"]["systemHyperTrigger"] == "None", cfg["general"]["systemHyperTrigger"]
+# Curated GUI-preference scalars (REV 3), across several tables.
+assert cfg["focus"]["moveMouseToFocusedWindow"] is True
+wb = cfg["workspaceBar"]
+assert wb["height"] == 26.0
+assert wb["hideEmptyWorkspaces"] is True
+assert abs(wb["inactiveIconOpacity"] - 0.85) < 1e-9
+assert wb["notchActiveZoneWidth"] == 100.0
+assert wb["notchMode"] == "splitActiveLeft"
+assert wb["showItemBackgrounds"] is False
+assert wb["transparentBackground"] is True
 # Unrelated [general] scalars and root tables must survive untouched.
 assert cfg["general"]["hotkeysEnabled"] is True
 assert cfg["general"]["hyperKeyModifiers"] == "Control+Option+Shift+Command"
@@ -160,6 +188,8 @@ expected = {
     "moveWindowToWorkspaceDown": "Option+Shift+Period",
     "moveColumnToWorkspaceUp": "Control+Option+Shift+Comma",
     "moveColumnToWorkspaceDown": "Control+Option+Shift+Period",
+    # ctrl+alt layer belongs to herdr (goto picker).
+    "expandContainerToAvailablePrimarySpan": "Unassigned",
 }
 got = {h["id"]: h["binding"] for h in cfg["hotkeys"]}
 for action, binding in expected.items():
@@ -184,7 +214,7 @@ PY
 
 OMNIWM_CONFIG_DIR="$config_dir" bash "$script" >"$tmp/out" 2>&1
 cat "$tmp/out"
-[[ "$(cat "$stamp")" == "1" ]]
+[[ "$(cat "$stamp")" == "3" ]]
 check_expected
 ls "$settings".bak-* >/dev/null
 
@@ -240,6 +270,7 @@ if ! OMNIWM_CONFIG_DIR="$drift_dir" bash "$script" >"$tmp/drift-out" 2>&1; then
   echo "missing action id must not fail the run" >&2; exit 1
 fi
 grep -q "action id not found" "$tmp/drift-out"
+grep -q "table scalar not found: focus.moveMouseToFocusedWindow" "$tmp/drift-out"
 grep -B1 'id = "focus.left"' "$drift_dir/settings.toml" | grep -q 'Option+H'
 grep -q 'systemHyperTrigger = "None"' "$drift_dir/settings.toml"
 

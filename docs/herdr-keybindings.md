@@ -13,6 +13,8 @@ ctrl+alt，不是 tmux 的 ctrl+a）。
 设计原则：高频操作给 ctrl+alt 直连和弦，低频操作只走 prefix。裸 alt 全局被
 AeroSpace 占用（`alt+hjkl`、`alt+数字`），裸 ctrl 被 shell/nvim 占用，ctrl+alt
 是各终端均不占用的安全层，且 kitty 未开 `macos_option_as_alt` 也能传输。
+OmniWM 默认会全局劫持 `⌃⌥F`（Niri 列扩展高级动作），已由
+`apply-hotkey-overrides.sh` REV 2 解绑，否则 `C-A-f` 到不了 herdr。
 
 > 进入 prefix 模式时 herdr 会自动切到 ASCII 输入法、退出时恢复
 > （`[experimental] switch_ascii_input_source_in_prefix = true`，仅 macOS；

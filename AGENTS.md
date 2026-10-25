@@ -189,8 +189,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - 机器无关的固化键位由 `config/omniwm/apply-hotkey-overrides.sh` 在
   postActivation 以用户身份改写进 OmniWM 自有的 settings.toml：只改固定
   action id 的 `binding`（hjkl 焦点/移动、逗号句号卷轴、`⌥R` 尺寸循环、
-  `⌥⇧/` 布局切换）和 `[general].systemHyperTrigger = "None"`，不碰显示器
-  路由 / workspace UUID 等机器本地段。脚本平台中立（禁止特权/包管理关键词，
+  `⌥⇧/` 布局切换、REV 2 起把 OmniWM 默认的 `⌃⌥F` 列扩展动作解绑——
+  `ctrl+alt` 字母层归 herdr，`⌃⌥F` 是全局 goto）和固定表标量
+  （`SCALAR_SPECS`，REV 3 起：`[general].systemHyperTrigger=None`、
+  `[focus].moveMouseToFocusedWindow=true`、一组 `[workspaceBar]` 外观偏好；
+  支持 string/bool/float，缺键在对应表段末尾补写），不碰显示器
+  路由 / workspace UUID 等机器本地段。新增机器无关 GUI 偏好时加进
+  `SCALAR_SPECS` 并 bump REV，不要整文件覆盖 settings.toml。脚本平台中立（禁止特权/包管理关键词，
   有测试断言），nix 模块只负责越权运行。每个 REV seed-once 并写
   `.hotkey-overrides.rev`，之后 GUI 改键不被覆盖；改固化键位要 bump REV，
   `OMNIWM_HOTKEY_FORCE=1` 强制重跑。settings.toml 尚未生成时脚本跳过。
@@ -579,7 +584,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 
 - 这是 macOS app/user 配置的源码目录：
   - `config/omniwm/stop-aerospace.sh`（激活前卸载旧 AeroSpace 栈）、
-    `config/omniwm/apply-hotkey-overrides.sh`（seed-once 的 niri 风格键位）
+    `config/omniwm/apply-hotkey-overrides.sh`（seed-once 的 niri 风格键位 + 机器无关 GUI 偏好标量）
   - `config/skhd/skhdrc`、`config/skhd/toggle_kitty_dropdown.sh`
   - `config/karabiner/karabiner.json`
   - `config/homebrew/Casks/herdi.rb`
@@ -641,7 +646,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
    kitty 配置仓库。
 8. OmniWM 是唯一受管 WM。改 `nix-darwin/window-manager.nix` 与
    `config/omniwm/` 时保留这些不变量：`~/.config/omniwm/settings.toml` 是机器本地
-   可写文件（不进 git、不做软链），固化键位只能经
+   可写文件（不进 git、不做软链），固化键位与机器无关 GUI 偏好只能经
    `apply-hotkey-overrides.sh` 按 rev stamp「seed 一次」下发，脚本必须平台无关、
    幂等、检出绑定冲突时回滚；旧 AeroSpace 栈的卸载在 preActivation 完成
    （`stop-aerospace.sh`）。归档在 `deprecated/00-aerospace-indicator/` 的文件只作

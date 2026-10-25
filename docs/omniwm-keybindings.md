@@ -51,8 +51,8 @@ OmniWM 自己生成完整可写配置 `~/.config/omniwm/settings.toml`。改键�
 
 仓库的 `config/omniwm/apply-hotkey-overrides.sh` 在 nix-darwin postActivation
 以用户身份运行，把下面这套**机器无关**的键位改写进 OmniWM 自有的
-settings.toml（只动固定 action id 的 `binding` 和 `systemHyperTrigger`，不碰
-显示器路由 / workspace 身份等机器本地段）。每个 revision 只 seed 一次并写
+settings.toml（只动固定 action id 的 `binding` 和固定表标量，不碰显示器路由 /
+workspace 身份等机器本地段）。每个 revision 只 seed 一次并写
 `~/.config/omniwm/.hotkey-overrides.rev`，之后 GUI 改键不会被激活覆盖；
 `OMNIWM_HOTKEY_FORCE=1` 可强制重跑，脚本也可单独手动执行。首次激活时 OmniWM
 可能还没生成 settings.toml（首次启动是手动步骤），脚本会跳过；首次启动后重跑
@@ -66,8 +66,28 @@ settings.toml（只动固定 action id 的 `binding` 和 `systemHyperTrigger`，
 | 带窗口去上/下个工作区 | `⌃⌥⇧↑/↓` | `⌥⇧,` / `⌥⇧.` |
 | 带列去上/下个工作区（Niri） | `⌃⌥⇧PgUp/PgDn` | `⌃⌥⇧,` / `⌃⌥⇧.` |
 | 列宽尺寸循环（占用了 `⌥.`，让键） | `⌥.` / `⌥,` | `⌥R`（反向循环解绑） |
+| 列扩展到全部可用宽度（Niri 高级动作） | `⌃⌥F` | **解绑**（REV 2；`⌃⌥` 字母层归 herdr，`⌃⌥F` 是全局 goto） |
 | Niri ↔ Dwindle 切换（给 `⌥⇧L` 让路） | `⌥⇧L` | `⌥⇧/` |
 | System Hyper Trigger | 首次启动曾误得 Left Option | `None`（Hyper 归 Karabiner） |
+
+### 固化的 GUI 偏好（REV 3 起）
+
+同脚本也 seed 一组机器无关的界面偏好（带类型的表标量；schema 里缺键的 nil
+默认值会在对应表段末尾补写）。这些原本是在 Settings 里手调的，入库存档防丢：
+
+| 段.键 | 默认 | 固化值 |
+| --- | --- | --- |
+| `[focus] moveMouseToFocusedWindow` | `false` | `true`（聚焦时把指针带进窗口） |
+| `[workspaceBar] height` | `24` | `26` |
+| `[workspaceBar] hideEmptyWorkspaces` | `false` | `true` |
+| `[workspaceBar] inactiveIconOpacity` | 缺键（nil） | `0.85` |
+| `[workspaceBar] notchActiveZoneWidth` | `180` | `100` |
+| `[workspaceBar] notchMode` | `moveBelowMenuBar` | `splitActiveLeft` |
+| `[workspaceBar] showItemBackgrounds` | `true` | `false` |
+| `[workspaceBar] transparentBackground` | `false` | `true` |
+
+显示器路由（`[routing]`，含 G27M7Pro/内建屏 UUID）、workspace 身份
+（`[[workspaces]]` UUID 与具体显示器指派）是机器本地段，永远不入库，脚本不碰。
 
 语义差异：niri 是横向无限卷轴、滚过尽头自动开空工作区；OmniWM 工作区轴是
 **纵向**（Up/Down、触摸板默认上下滑），`,`/`.` 是顺序遍历的键位映射，默认
@@ -99,7 +119,7 @@ Resize Increment / `[niri].resizeStepPercent` 调整。
 | 窗口高度收缩 / 放大（次轴跨度） | `⌥⇧-` / `⌥⇧=` | Niri |
 | 窗口次轴跨度复位 | `⌃⌥R` | Niri |
 | 当前列全宽开关 | `⌥⇧F` | Niri |
-| 当前列扩展到全部可用宽度（高级动作） | `⌃⌥F` | Niri |
+| 当前列扩展到全部可用宽度（高级动作） | 已解绑（原 `⌃⌥F`，REV 2 让给 herdr goto） | Niri |
 | 所有列/窗口均分 | `⌥⇧B` | Shared |
 | 整列左移 / 右移（Dwindle 下为整个 tile/group） | `⌃⌥⇧←` / `⌃⌥⇧→` | Shared |
 | 列移到最前 / 最后 | `⌃⌥Home` / `⌃⌥End` | Niri |
