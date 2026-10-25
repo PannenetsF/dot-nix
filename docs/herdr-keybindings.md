@@ -135,9 +135,13 @@ herdr server reload-config
 
 `hhdebb.herdr-radar` 把 herdr 自带的 Agents 列表改造成可读的状态视图：工作中
 braille spinner、完成绿勾保留到你看过为止、提问红色脉动、空闲按时间分三级
-变淡；按项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由共享激活
-脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.9-pf.1`，
-PannenetsF/herdr-radar，基于上游 v1.4.9，fork 仅剩静态 ws_key 一个竞态修复；macOS 经 `nix-darwin/herdr.nix` postActivation、
+变淡；herdr-projects 启用时按 PROJECT 分组（跨 worktree workspace 聚合同
+项目的 coordinator 与全部 threads，guest/无关 pane 隐藏），未启用时按
+项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由共享激活
+脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.9-pf.2`，
+PannenetsF/herdr-radar，基于上游 v1.4.9，fork 含静态 ws_key 竞态修复与
+herdr-projects 单 view 共存：projects 启用时镜像其 hp_role 隐藏 filter 与
+hp_group 排序、按 PROJECT.md 显示名钉每项目一个 header；macOS 经 `nix-darwin/herdr.nix` postActivation、
 Linux host 经 `modules/herdr.nix` 两个薄封装调用；要求 herdr ≥ 0.9.0，是
 Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
 
@@ -203,8 +207,14 @@ resolved），sidebar 按「待你处理 / 待评审 / …」分组，tab 栏显
 ready-for-review 时它调 `herdr notification show --sound request/done`；
 launch 放弃（启动超时 / profile 被拒，pf.3 起）同样按 waiting-on-you
 响铃一次，角标与看板按同一分组计数。
+pf.4 起每个 pane 带 `hp_role`（coordinator/thread/guest/other）与
+`hp_audience`（human/internal/stalled）：原生 agents sidebar 只显示某
+project 的 coordinator + threads（radar pf.2 镜像同一 filter），同目录里
+的野会话/其他项目 pane 不占行；header 每 project 一个、跨 worktree
+workspace 聚合。单个 thread 巡检报错不再把整个 project 顶闪，无 project
+pane 的分组键也改为稳定的 pane id（列表重排不闪）。
 
-> **永久 pin fork `v0.2.34-pf.3`，不要升级上游 1.2.x。** 上游
+> **永久 pin fork `v0.2.34-pf.4`，不要升级上游 1.2.x。** 上游
 > `eliasstravik/herdr-projects` 1.2 是不兼容的任务看板模型（任务
 > `repo/123`、`data/repos.json`、keeper/voice 守护），删掉了 thread 状态机
 > 和 ticker——2026-10 曾切到 1.2.13，响铃全部消失、需要交互的 session 无从
@@ -212,18 +222,20 @@ launch 放弃（启动超时 / profile 被拒，pf.3 起）同样按 waiting-on-
 > 孤儿守护。数据根是 `~/.herdr-projects/<slug>/`（0.2 布局）。
 
 - 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
-  `v0.2.34-pf.3`，PannenetsF/herdr-projects；macOS 经
+  `v0.2.34-pf.4`，PannenetsF/herdr-projects；macOS 经
   `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
   两个薄封装调用；要求 herdr server ≥ 0.9.1；server 过旧时激活会跳过并提示
   重启 herdr）。fork 无 release 资产，安装走本机 cargo 构建（两个薄封装的
   PATH 都前置 `~/.cargo/bin`）
-- 版本被激活 pin 在 fork `v0.2.34-pf.3`：不要用插件自更新（`herdr-projects
+- 版本被激活 pin 在 fork `v0.2.34-pf.4`：不要用插件自更新（`herdr-projects
   update` 等），下次激活会被装回 pin 版本
 - **coordinator 身份是注册的 agent 名**（pf.2 起）：只有带 `hpc-<slug>` /
   `hpc-<slug>-N` 名字、且 cwd 在项目家目录的 agent 才算 coordinator。
   在项目根目录手动开的会话（split pane、`claude --resume`）默认是「野
   会话」：ticker 不给它投递 inbox、`context` 会拒绝它（避免全局标 seen
-  把 inbox 从真 coordinator 眼前藏掉）、sidebar 落到 `~` 尾段。用
+  把 inbox 从真 coordinator 眼前藏掉）、pf.4 起 sidebar 直接隐藏
+  （guest/other 角色被 agents view filter 藏掉；未打 token 的新 pane 有
+  一个 tick 的宽限可见期）。用
   `coordinator adopt <slug> --pane <id>`（或在该 pane 内按 `P C-n`）登记，
   首次登记成为 primary；记录里的 pane 在同会话里连 shell pane 都不存在
   时视为过期，adopt 直接顶替；nudge 一旦选定某个 coordinator 会话就粘住，
@@ -266,10 +278,10 @@ launch 放弃（启动超时 / profile 被拒，pf.3 起）同样按 waiting-on-
 
 ## 可选：herdr-portal 全局 agent 看板
 
-`herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.3.0-pf.3`，fork 自
+`herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.3.0-pf.4`，fork 自
 上游 loofare/herdr-portal 未打 tag 的 1.3.0 release commit `ba47b65`，纯
 Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚合成
-一个看板。fork 三个补丁：
+一个看板。fork 四个补丁：
 
 1. **unknown 卡可见（pf.1）**：上游 1.3.0 的 columns 只有
    blocked/working/settled/window 四个桶，状态尚未上报的 `unknown`（未知）
@@ -285,6 +297,13 @@ Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚�
 3. **死卡回车不再「跳转失败」（pf.3）**：`thread restart` 返回新 pane id
    时 agent 尚未注册，立即 focus 会报 target not found；pf.3 起回车后 10s
    内重试 `agent focus`（仅对 not-found 重试），通常 3–5s 内跳进新 pane。
+4. **attention seen-gate + 远端机器聚合（pf.4）**：attention 列读
+   `~/.local/state/herdr-portal/seen.json`（键为 focus 时的
+   state_change_seq），看过的卡离开 attention、下次状态变化才再进；
+   coordinator 的内部确认点（`hp_audience=internal`）永不进 attention，
+   stalled（`hp_audience=stalled`）仍进。保存的 SSH 机器（ec2-fyq、
+   boe-fyq 等）聚合成带 `[machine]` 标签的卡，离线时保留快照、uid 为
+   `(machine,pane)` 不与本机串位。
 
 - `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、
   数字键 `1..5` 跳列；`Enter` 在普通卡上跳到该 agent 的 pane 并关闭看板，

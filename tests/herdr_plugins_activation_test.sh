@@ -93,13 +93,14 @@ log1="$(cat "$home1/calls.log")"
 echo "$log1" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope not installed"
 echo "$log1" | grep -q "plugin install -y --ref be4cd1fecf9bf0684a0fe0f2dd1c2316bf819389 to4iki/herdr-unread-jump" \
   || fail "herdr-unread-jump not installed at the pinned ref"
-echo "$log1" | grep -q "PannenetsF/herdr-radar" || fail "radar not installed"
+echo "$log1" | grep -q "plugin install -y --ref v1.4.9-pf.2 PannenetsF/herdr-radar" \
+  || fail "radar not installed at the pinned fork ref"
 echo "$log1" | grep -q "PannenetsF/herdr-projects" || fail "projects not installed"
 echo "$log1" | grep -q "server reload-config" || fail "server config not reloaded"
 
 # radar configure must precede projects install (marker-block ownership order).
 radar_cfg=$(echo "$log1" | grep -n "action invoke configure" | head -1 | cut -d: -f1)
-proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.3" | head -1 | cut -d: -f1)
+proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.4" | head -1 | cut -d: -f1)
 [ -n "$radar_cfg" ] && [ -n "$proj_inst" ] && [ "$radar_cfg" -lt "$proj_inst" ] \
   || fail "radar configure ($radar_cfg) must run before projects install ($proj_inst)"
 
@@ -117,7 +118,7 @@ echo "$log1" | grep -q "action invoke start --plugin devswha.herdr-web-ui" \
 # visible (upstream gives them no column bucket); pf.2 adds the attention
 # column fed by the 0.2 projects fork's thread states. Installed on every
 # platform; it opens on demand, so no action is invoked by activation.
-echo "$log1" | grep -q "plugin install -y --ref v1.3.0-pf.3 PannenetsF/herdr-portal" \
+echo "$log1" | grep -q "plugin install -y --ref v1.3.0-pf.4 PannenetsF/herdr-portal" \
   || fail "herdr-portal not installed at the pinned fork ref"
 echo "$log1" | grep -q "herdr-portal.open" \
   && fail "portal opens on user request only; activation must not invoke it" || true
@@ -237,7 +238,7 @@ STUB_MODE=ok STUB_VERSION=0.9.4 \
 log7="$(cat "$home7/calls.log")"
 uninst=$(echo "$log7" | grep -n "plugin uninstall herdr-projects" | head -1 | cut -d: -f1)
 kill_line=$(echo "$log7" | grep -n "pkill" | head -1 | cut -d: -f1)
-proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.3" | head -1 | cut -d: -f1)
+proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.4" | head -1 | cut -d: -f1)
 [ -n "$uninst" ] || fail "upstream 1.2 plugin must be uninstalled before the fork installs"
 [ -n "$kill_line" ] || fail "orphan 1.2 daemons must be signalled after uninstall"
 [ -n "$proj_inst7" ] || fail "0.2 fork must be installed in the same activation"
@@ -259,7 +260,7 @@ echo "$pkill_log" | grep -q 'ticker' \
 # --- Case 8: 0.2 fork already pinned -> no uninstall, no pkill, no reinstall -
 stub8="$tmp/stub8"; make_stub "$stub8"; home8="$tmp/home8"
 STUB_MODE=ok STUB_VERSION=0.9.4 \
-  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.3" \
+  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.4" \
   run_case "$home8" env PATH="$stub8/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log8="$(cat "$home8/calls.log")"
@@ -267,7 +268,7 @@ echo "$log8" | grep -q "plugin uninstall" \
   && fail "must not uninstall when the pinned fork is already registered" || true
 echo "$log8" | grep -q "pkill" \
   && fail "must not signal daemons when the pinned fork is already registered" || true
-echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.3" \
+echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.4" \
   && fail "fork must not be reinstalled when already at the pinned ref" || true
 echo "$log8" | grep -q "action invoke configure --plugin herdr-projects" \
   || fail "configure must still run (idempotent repair) when the fork is present"
