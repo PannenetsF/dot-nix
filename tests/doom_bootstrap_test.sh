@@ -70,26 +70,14 @@ assert_contains "install-doom.sh" 'rm -f "$DOOM_DIR/doomenv"' \
 assert_contains "install-doom.sh" 'LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot --rebuild' \
 	"expected bootstrap to run 'doom sync --aot --rebuild' with LSP_USE_PLISTS=1"
 
-# `--aot --rebuild' only compiles package files; major-mode bodies and the
-# ~150 lsp-mode server clients stay deferred until first use. The bootstrap
-# must run the generic batch warm-up that force-loads both. It has to be a
-# separate --batch process: in an interactive/GUI Emacs some tree-sitter modes
-# pop a modal "install grammar?" prompt that blocks forever.
-assert_file_exists "aot-warm-modes.el"
-assert_contains "install-doom.sh" '--batch --init-directory "$EMACS_DIR"' \
-	"expected the AOT warm-up to run under a throwaway --batch Emacs"
-assert_contains "install-doom.sh" '-l "$script_dir/aot-warm-modes.el"' \
-	"expected install-doom.sh to invoke the co-located aot-warm-modes.el"
-# The warm-up must stay generic (no hardcoded language/mode list): modes come
-# from the alists set-auto-mode consults, LSP clients from lsp's own list.
-assert_contains "aot-warm-modes.el" 'auto-mode-alist' \
-	"aot warm-up must discover modes from auto-mode-alist, not a hardcoded list"
-assert_contains "aot-warm-modes.el" 'major-mode-remap-defaults' \
-	"aot warm-up must include Doom's tree-sitter remap targets"
-assert_contains "aot-warm-modes.el" 'lsp-client-packages' \
-	"aot warm-up must pull LSP clients from lsp-client-packages, not a fixed list"
-assert_contains "aot-warm-modes.el" 'noninteractive' \
-	"aot warm-up must rely on --batch/noninteractive to suppress modal prompts"
+# Doom/straight recursively AOT-compiles built package files without running
+# every major mode. Runtime initialization cannot be warmed in another process.
+assert_not_contains "install-doom.sh" 'aot-warm-modes.el' \
+	"bootstrap must use Doom AOT, not a second all-mode initialization pass"
+if [[ -e "${repo_root}/aot-warm-modes.el" ]]; then
+	echo "obsolete all-mode warm-up script should be removed" >&2
+	exit 1
+fi
 
 # GUI Emacs.app launched via LaunchServices does not inherit the Home
 # Manager profile; its ispell-compatible backend must come from Homebrew.

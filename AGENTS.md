@@ -642,27 +642,21 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   已装好的系统跑它 16 秒无事可做；要全量复刻旧版 AOT（如清空 eln 缓存、
   升 Emacs 大版本后）必须 `doom sync --aot --rebuild`（`-b` = 无条件重建
   全部包）。
-- **`--aot --rebuild` 仍留两大运行时门类不编译**：native-comp 只编译「已加载」
-  的文件，而 ① 每个 major mode（及其 `after!`/tree-sitter remap 钩子）只有
-  真打开该类文件才加载，② lsp-mode 的 ~150 个 server client 只在首个真实
-  LSP buffer 出现时成 bundle require。install-doom.sh 在 sync 之后用独立
-  `emacs --batch -l aot-warm-modes.el`（与脚本同目录，~90s，失败不阻断）
-  穷举预热这两类。**必须 `--batch`**：某些 ts-mode（如 elixir-ts-mode）缺
-  语法时弹模态「install grammar?」，在 GUI 里永久阻塞（曾卡死交互 session，
-  只能键盘 ESC）。脚本**零硬编码**：mode 来自 `set-auto-mode` 的同一组 alist
-  （auto-mode/interpreter/magic + `major-mode-remap-defaults`）并扫到不动点，
-  LSP client 来自 `lsp-client-packages`；加新 `:lang` 模块自动覆盖。batch 下
-  Doom 生成的 profile init 用 `static-unless noninteractive` 跳过交互
-  loaddefs，脚本逐个加载 straight build 目录里的 `*-autoloads.el`（auctex
-  tex-site 在 batch 坏，单包容错）。典型结果：136 modes + 150 LSP clients +
-  476 个 straight 文件，0 编译失败（唯一报错 image-mode 无显示，无害）。
+- **AOT 与运行时初始化要分开**：Doom/straight 对包 build 目录递归执行
+  native compile，不要求先加载 major mode 或 LSP client。不要恢复穷举模式的
+  独立 warm-up：另一个进程里的 require/模式初始化不会保留到真实会话，还会
+  触发不相关的 hook/grammar 提示。先用源文件匹配的 `.eln` 和 mtime 判断
+  漏编，不要把 generic/inline/wrapper 的 bytecode 函数一律算漏编。
+  2026-10 的启动审计中 151 个已加载包源有 150 个有效 `.eln`，剩下是主题；
+  pyim/liberime 和 first-input 初始化仍可卡顿，不能靠重复 AOT 消除。
+  dot-doom 的 first-input 初始化在接受按键前完成；LSP 注册在包及 client
+  bundle 加载后执行，不再为注册 Python client 在 startup 强制 require LSP。
+  可重复 PTY 测试在 dot-doom 的 `tests/startup-latency.py`，覆盖真实 Evil
+  j/k、首次输入 hook、空闲后输入；GUI 重绘与项目 LSP 启动须另测。
   注意必须 `LSP_USE_PLISTS=1 doom sync --aot`：lsp-mode 的 JSON 访问器在
-  **编译期**按该变量选 plist/gethash 分支，Doom 的 package `:env` 只覆盖
-  straight 字节编译，不覆盖 native-comp worker；dot-doom config.el 另设
-  `(setenv ...)` + `native-comp-async-env-modifier-form` 兜 JIT。缺了会
-  出现 `.elc` 是 plist 而 `.eln` 是 hash 版的错配，flycheck 对每条诊断报
-  `(wrong-type-argument hash-table-p ...)`；本机修复需停 Emacs、清空
-  `~/.config/emacs/.local/cache/eln` 后重跑。
+  **编译期**按该变量选 plist/gethash 分支，dot-doom config.el 同时设置
+  runtime 环境与 `native-comp-async-env-modifier-form` 供 JIT worker 继承。
+  不要混用 hash-table 版 `.eln` 与 plist runtime。
 - dot-doom 的 `config.el` 不再加载 doomenv（v2 的 loader 是坏桩，见上条）。
   子进程 PATH 依赖 emacs-plus 装瓶时烤进 Info.plist 的快照；快照含
   `/opt/homebrew/bin` 整个目录，新增 Homebrew CLI 工具无需重装 emacs-plus，
