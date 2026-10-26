@@ -176,6 +176,10 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 #    from a raw pane capture, so TUI chrome ("Update available", spinners, the
 #    input box, permission footer) never reaches Telegram; raw capture is only
 #    a labelled fallback when the transcript is unavailable.
+# 3. transcript markdown is rendered into Telegram HTML before sending (bold/
+#    lists/code/links; tables flatten into per-row labelled metric lines since
+#    Telegram has no markdown tables), and all conversation views use
+#    parse_mode="HTML". MarkdownV2 remains only for the blocked approval prompt.
 # The nix module applies it with patch(1) on a copied, writable source tree;
 # a bump that drifts the upstream file makes the nix build fail loudly.
 assert_file_exists "patches/herdr-remote-telegram-notifications.patch"
@@ -188,6 +192,9 @@ assert_contains "patches/herdr-remote-telegram-notifications.patch" "render_hist
 assert_contains "patches/herdr-remote-telegram-notifications.patch" "read_agent"
 assert_contains "patches/herdr-remote-telegram-notifications.patch" "last_assistant_excerpt"
 assert_contains "patches/herdr-remote-telegram-notifications.patch" "transcript unavailable"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "def md_to_html"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "def _render_table"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" 'parse_mode="HTML"'
 assert_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_contains "nix-darwin/herdr-remote.nix" "herdr-remote-telegram-notifications.patch"
 

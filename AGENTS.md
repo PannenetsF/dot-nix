@@ -535,13 +535,22 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   2. **正文走 transcript，不转终端画面**：`/read`、`/reply` 选 pane 后的预览、
      以及 finished 通知附带的结尾消息，全部经 relay 的 `get_history` WS
      （`relay/transcript.py` 解析 Claude/Codex/Pi/Kimi JSONL，去 sidechain /
-     thinking / ANSI / tool turn）取结构化对话，渲染成 `-- you/agent/note --`
-     分段等宽正文（最近 6 轮、3500 字上限且保尾），finished 摘录取最后一条
-     assistant（上限 1500）。raw pane capture 只在 transcript 不可用
-     （unknown pane / 超时 / 空）时作为兜底，并加
-     `(transcript unavailable: …; showing terminal)` 前缀——这样 TUI 装饰
-     （`Update available!`、spinner、输入框、权限 footer）永远不会被转发到
-     Telegram。
+     thinking / ANSI / tool turn）取结构化对话，再由补丁内的 **Markdown→
+     Telegram HTML 渲染器**（`md_to_html`，stdlib re，无新依赖）排版：bold /
+     italic / 删除线 / inline code / 链接 / 列表 / 标题 / blockquote / 代码块
+     （`<pre><code class="language-…">`）映射到 Telegram HTML 子集，标签始终
+     配平；长度按 UTF-16 code unit 计（每 turn 2600、整条 3700、finished 摘要
+     2600，Telegram 上限 4096），超长按整 block/turn 丢弃保尾，单个畸形巨块
+     降级成 `<pre>` 纯文本尾段。**Telegram 没有 Markdown 表格**，表格由
+     `_render_table` 展平成「每行：首格 + `表头: 值` 度量行（`｜` 分隔）」，
+     CJK 不需要等宽对齐、手机上可读；代码 span 先 stash 再替换其他标记，
+     `**kwargs`、`snake_case`、`__dunder__` 不会被误格式化。最近 6 轮，角色
+     行 `<b>you/agent/note</b>`。raw pane capture 只在 transcript 不可用
+     （unknown pane / 超时 / 空）时作为兜底，套斜体说明前缀 + `<pre>`
+     逃逸——这样 TUI 装饰（`Update available!`、spinner、输入框、权限 footer）
+     永远不会被转发到 Telegram。`/read` 视图、reply 预览、finished 通知三处
+     全部 `parse_mode="HTML"`；blocked 审批提示仍用旧 Markdown（内容是原始
+     prompt 文本，不是对话）。
   **bump `relayVersion` 后必须重新 dry-run 补丁**（apply 失败 nix build
   直接报错），并同步本条目与 `tests/darwin_herdr_config_test.sh`。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
