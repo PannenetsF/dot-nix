@@ -38,7 +38,7 @@ if [ -n "$pane" ]; then
     pane_cwd="$(hp_pane_cwd "$pane")"
     case "$pane_cwd" in
       "$hp_root/$slug"|"$hp_root/$slug"/)
-        hp_adopt_detached "$hp_bin" "$hp_root" "$slug" "$pane"
+        hp_adopt "$hp_bin" "$hp_root" "$slug" "$pane"
         echo "registering this pane as hpc-$(hp_slug_head "$slug" 24); run context there"
         exit 0
         ;;

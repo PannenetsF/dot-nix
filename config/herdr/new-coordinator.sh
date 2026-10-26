@@ -24,16 +24,18 @@ hp_bin="$(herdr_projects_bin)"
 [ -n "$hp_bin" ] || die "herdr-projects binary not found"
 hp_root="${HERDR_PROJECTS_ROOT:-$HOME/.herdr-projects}"
 
-# `open --new --tab`: another coordinator in a new tab. `open` itself polls
-# for the new tab's shell to be ready (up to ~10s, usually a few), which would
-# keep the popup open that whole time. Run it detached so the popup closes now;
-# the coordinator primes itself in its own pane. nohup + redirected fds let it
-# survive the popup's PTY teardown (SIGHUP on close). Output goes to a log for
-# troubleshooting; a failed `open` is rare here (the slug was just resolved).
+# `open --new --tab`: another coordinator in a new tab. `open` polls for the
+# new tab's shell to be ready (up to ~10s, usually a few). It MUST run in the
+# FOREGROUND: a popup command runs as the pty's foreground process group, and
+# Herdr kills that whole group when the popup pane closes, so `nohup … &` does
+# NOT survive the teardown (nohup only ignores SIGHUP) — the coordinator never
+# started and the launcher looked dead. Keeping the popup alive until `open`
+# returns (same pattern as pick-project) lets the socket call finish; the
+# output is mirrored to a log for troubleshooting.
 open_new() {
   local slug="$1" log
   log="${TMPDIR:-/tmp}/herdr-new-coordinator-$slug.log"
-  nohup "$hp_bin" --root "$hp_root" open "$slug" --new --tab >"$log" 2>&1 &
+  "$hp_bin" --root "$hp_root" open "$slug" --new --tab 2>&1 | tee "$log"
 }
 
 slug="$(hp_resolve_project_slug "$hp_bin" "$hp_root")" || exit 0
@@ -53,7 +55,7 @@ if [ -n "$pane" ]; then
     pane_cwd="$(hp_pane_cwd "$pane")"
     case "$pane_cwd" in
       "$hp_root/$slug"|"$hp_root/$slug"/)
-        hp_adopt_detached "$hp_bin" "$hp_root" "$slug" "$pane"
+        hp_adopt "$hp_bin" "$hp_root" "$slug" "$pane"
         exit 0
         ;;
     esac

@@ -167,6 +167,18 @@ assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_CHAT_ID"
 assert_contains "nix-darwin/herdr-remote.nix" "ws://127.0.0.1:8375"
 assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 
+# Local out-of-tree patch on the pinned upstream source: Telegram blocked/done
+# notifications must identify a pane as "project > pane(title+pane id) > session"
+# instead of the stock "<claude> blocked in <basename cwd>". The nix module
+# applies it with patch(1) on a copied, writable source tree; a bump that drifts
+# the upstream file makes the nix build fail loudly.
+assert_file_exists "patches/herdr-remote-telegram-identity.patch"
+assert_contains "patches/herdr-remote-telegram-identity.patch" "agent_identity"
+assert_contains "patches/herdr-remote-telegram-identity.patch" "effective_project"
+assert_contains "patches/herdr-remote-telegram-identity.patch" "pane_descriptor"
+assert_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
+assert_contains "nix-darwin/herdr-remote.nix" "herdr-remote-telegram-identity.patch"
+
 # Herdi.app rides the local tap as a tracked cask (upstream has no brew cask).
 assert_file_exists "config/homebrew/Casks/herdi.rb"
 assert_contains "config/homebrew/Casks/herdi.rb" 'cask "herdi"'
@@ -236,9 +248,9 @@ assert_contains "config/herdr/herdr-popup-lib.sh" "hp_slug_head"
 assert_contains "config/herdr/herdr-popup-lib.sh" "hp_pane_is_coordinator_of"
 assert_contains "config/herdr/herdr-popup-lib.sh" 'hp_slug_head "$slug" 24'
 assert_contains "config/herdr/herdr-popup-lib.sh" 'hp_slug_head "$slug" 22'
-assert_contains "config/herdr/herdr-popup-lib.sh" "hp_adopt_detached"
+assert_contains "config/herdr/herdr-popup-lib.sh" "hp_adopt() {"
 assert_contains "config/herdr/herdr-popup-lib.sh" "coordinator adopt"
-assert_contains "config/herdr/new-coordinator.sh" "hp_adopt_detached"
+assert_contains "config/herdr/new-coordinator.sh" "hp_adopt \"\$hp_bin\""
 assert_contains "config/herdr/focus-coordinator.sh" "herdr agent focus"
 assert_contains "config/herdr/focus-coordinator.sh" ".state/coordinator.json"
 # The fork pin for the plugin is pf.5 in the shared activation body.

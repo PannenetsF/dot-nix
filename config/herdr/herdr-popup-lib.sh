@@ -168,14 +168,16 @@ hp_resolve_project_slug() {
   printf '%s\n' "$slug"
 }
 
-# Run `coordinator adopt --pane` detached, mirroring open_new: the popup PTY
-# tears down on exit, so nohup + redirected fds keep it alive (SIGHUP), and the
-# output lands in a log for troubleshooting. The live herdr socket is passed
-# through explicitly in case the project has no recorded session yet.
+# Run `coordinator adopt --pane` in the FOREGROUND. It must not be detached:
+# the popup command is its pty's foreground process group and Herdr kills that
+# group on popup close, so `nohup ... &` never survives the teardown (nohup
+# only ignores SIGHUP). Mirrors pick-project's foreground `open`. The live
+# herdr socket is passed through explicitly in case the project has no recorded
+# session yet; output is mirrored to a log.
 # Args: <hp_bin> <hp_root> <slug> <pane>
-hp_adopt_detached() {
+hp_adopt() {
   local hp_bin="$1" hp_root="$2" slug="$3" pane="$4" log
   log="${TMPDIR:-/tmp}/herdr-adopt-coordinator-$slug.log"
-  nohup env HERDR_SOCKET_PATH="${HERDR_SOCKET_PATH:-}" \
-    "$hp_bin" --root "$hp_root" coordinator adopt "$slug" --pane "$pane" >"$log" 2>&1 &
+  env HERDR_SOCKET_PATH="${HERDR_SOCKET_PATH:-}" \
+    "$hp_bin" --root "$hp_root" coordinator adopt "$slug" --pane "$pane" 2>&1 | tee "$log"
 }
