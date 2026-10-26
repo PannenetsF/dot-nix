@@ -6,12 +6,27 @@ let
   # fetchFromGitHub and run through `uv run --script` (PEP 723 inline deps);
   # the herdr-push plugin itself is installed by install-herdr-plugins.sh.
   relayVersion = "v0.8.1";
-  relaySource = pkgs.fetchFromGitHub {
+  relaySourceRaw = pkgs.fetchFromGitHub {
     owner = "dcolinmorgan";
     repo = "herdr-remote";
     rev = relayVersion;
     sha256 = "0ysc9lpk74nm62vbzjllkm904za4pvh9b8y79c96pfhi08gflmhg";
   };
+  # Pinned upstream source + one local, out-of-tree patch. The patch makes the
+  # Telegram bot render blocked/finished notifications as
+  # "project > pane(title + pane id) > registered claude session", because the
+  # stock header is just "<claude> blocked in <basename cwd>" and every
+  # herdr-projects pane on one host reports agent=claude with the same/thread
+  # cwd basename. A relayVersion bump that drifts the upstream file makes this
+  # build fail loudly; tests/darwin_herdr_config_test.sh asserts the wiring.
+  # Patch semantics documented in AGENTS.md.
+  relaySource = pkgs.runCommandLocal "herdr-remote-${relayVersion}-source" {
+    nativeBuildInputs = [ pkgs.patch ];
+  } ''
+    cp -r ${relaySourceRaw} $out
+    chmod -R u+w $out
+    patch -d "$out" -p1 < ${../patches/herdr-remote-telegram-identity.patch}
+  '';
   relaySrc = "${relaySource}/relay";
 
   startHerdrRelay = pkgs.writeShellScript "start-herdr-relay" ''

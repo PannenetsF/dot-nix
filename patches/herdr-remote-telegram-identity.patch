@@ -1,0 +1,102 @@
+--- a/relay/herdr_telegram.py
++++ b/relay/herdr_telegram.py
+@@ -5,6 +5,7 @@
+ # ///
+ """herdr-remote Telegram bot — monitor and approve agents from Telegram."""
+ import asyncio, hashlib, json, os, logging, secrets
++import re
+ from collections import Counter, OrderedDict
+ 
+ from telegram import ForceReply, Update, InlineKeyboardButton, InlineKeyboardMarkup
+@@ -245,6 +246,65 @@
+     return matches[0] if len(matches) == 1 else None
+ 
+ 
++# --- Identity header: project > pane > claude session ---
++#
++# Every agent on a herdr-projects host reports agent="claude" and often the same
++# cwd basename (thread panes live in .../<slug>/threads/t-NNNN), so the stock
++# "<agent> blocked in <project>" header cannot name the pane. The pieces below
++# rebuild a three-level identity from the agents snapshot:
++#   project -- registered project slug, never the t-NNNN thread dir name
++#   pane    -- live terminal title plus the stable herdr pane id (wT:p29)
++#   session -- the agent's registered herdr name (hp-...-t-NNNN / hpc-...),
++#              falling back to the harness kind (claude/codex/...)
++_HP_THREAD_CWD_RE = re.compile(r"/([^/]+)/threads/t-\d+/?$")
++_HP_WORKTREE_CWD_RE = re.compile(r"/worktrees/[^/]+/hp-([^/]+?)-t-\d+(?:[-/]|$)")
++_HP_NAME_RE = re.compile(r"^hpc?-(.+?)(?:-t-\d+)?$")
++
++
++def effective_project(rec: dict) -> str:
++    cwd = rec.get("cwd") or ""
++    m = _HP_THREAD_CWD_RE.search(cwd)
++    if m:
++        return m.group(1)
++    m = _HP_WORKTREE_CWD_RE.search(cwd)
++    if m:
++        return m.group(1)
++    project = (rec.get("project") or "").strip()
++    # Relay project is basename(cwd); a bare t-NNNN means we are inside a thread
++    # dir whose project slug the relay does not know -- recover it from the
++    # registered session name instead.
++    if project and not re.fullmatch(r"t-\d+", project):
++        return project
++    m = _HP_NAME_RE.match((rec.get("label") or "").strip())
++    if m:
++        return m.group(1)
++    return project or "unknown"
++
++
++def pane_descriptor(rec: dict) -> str:
++    pane_id = rec.get("pane_id") or "?"
++    title = (rec.get("title") or "").strip()
++    return f"{title} ({pane_id})" if title else str(pane_id)
++
++
++def agent_identity(rec: dict) -> str:
++    session = (rec.get("label") or "").strip() or rec.get("agent") or "agent"
++    return " > ".join((effective_project(rec), pane_descriptor(rec), session))
++
++
++def identity_for_blocked(msg: dict) -> str:
++    rec = find_agent(msg.get("pane_id", ""))
++    if rec is not None:
++        return agent_identity(rec)
++    # A blocked message can beat the first agents snapshot after reconnect; use
++    # whatever the blocked message itself carries.
++    return agent_identity({
++        "pane_id": msg.get("pane_id", "?"),
++        "project": msg.get("project", ""),
++        "agent": msg.get("agent", "agent"),
++    })
++
++
+ def clear_relay_connection_state():
+     global agents, relay_connected
+     relay_connected = False
+@@ -968,8 +1028,15 @@
+         if multi
+         else "Use an approval button, open the output, or reply to this notification."
+     )
++    identity = identity_for_blocked({
++        "pane_id": pane_id, "agent": agent, "project": project,
++    })
++    # Legacy Markdown mode: '*' and '`' are the only metacharacters this header
++    # can contain from terminal titles, strip them rather than risk unbalanced
++    # formatting swallowing the prompt.
++    identity_md = identity.replace("`", "'").replace("*", " ")
+     text = (
+-        f"*{agent}* blocked in `{project}`\n\n```\n{prompt[:400]}\n```\n\n"
++        f"*{identity_md}* BLOCKED\n\n```\n{prompt[:400]}\n```\n\n"
+         f"{instruction}"
+     )
+     generation = secrets.token_hex(4)
+@@ -1049,7 +1116,7 @@
+                 msg = await app.bot.send_message(
+                     chat_id=int(CHAT_ID),
+                     text=(
+-                        f"{agent_data['project']} ({agent_data['agent']}) finished.\n\n"
++                        f"{agent_identity(agent_data)} finished.\n\n"
+                         "Open the output below, or reply to this notification to send a follow-up."
+                     ),
+                     reply_markup=interaction_keyboard(pane_id),
