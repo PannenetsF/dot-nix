@@ -509,7 +509,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  dcolinmorgan/herdr-remote `v0.8.1`，以 `uv run --script`（PEP 723 内联依赖，
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.1`**（= 上游
+  dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 三项定制，分支
+  `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
   注册为 `launchd.user.agents.herdrRemote`（label
   `org.nix-community.home.herdr-remote`，日志 `~/Library/Logs/herdr-remote`，
@@ -535,13 +537,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   重启空转——未配置的机器上该 agent 是无害占位。bot 支持
   `/start /agents /read /reply /send /trust /interrupt /digest`，审批按钮
   发的是真实数字按键（`send_keys`）而非粘贴文本。
-  **本地补丁**（`patches/herdr-remote-telegram-notifications.patch`，
-  `herdr-remote.nix` 用 `runCommandLocal` 复制 source 后 `patch -p1`；nix
-  store 源只读，必须复制成可写树）做两件事：
+  **Telegram 三项定制随 fork tag 发布**（2026-10 起不再是仓库内 build-time
+  patch；代码只在 `PannenetsF/herdr-remote` 的 `pf/v0.8.1` 分支，tag
+  `v0.8.1-pf.N`，`herdr-remote.nix` 直接 `fetchFromGitHub` 该 tag，无
+  `runCommandLocal`/`patch` 步骤，仓库里也没有 patch 文件。发布流程：在
+  `pf/v0.8.1` 上提交 → 打 `v0.8.1-pf.<N+1>` → 改 `relayPfTag` 与
+  sha256 → 同步本条目与 `tests/darwin_herdr_config_test.sh`）：
   1. **通知头身份**：上游 v0.8.1 的 blocked/finished 通知头只有
      `"<harness> blocked in <basename cwd>"`，herdr-projects 主机上几十个
      pane 全是 `agent=claude`、thread pane 的 cwd basename 还都是 `t-NNNN`，
-     完全无法区分。补丁改成
+     完全无法区分。改成
      `project > pane(terminal title + pane_id) > 注册 session 名` 三段：
      project 从 `…/<slug>/threads/t-N` 与 worktree 目录名 `hp-<slug>-t-N-…`
      反推 slug（不能直接用 relay 给的 basename）；session 用
@@ -550,7 +555,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   2. **正文走 transcript，不转终端画面**：`/read`、`/reply` 选 pane 后的预览、
      以及 finished 通知附带的结尾消息，全部经 relay 的 `get_history` WS
      （`relay/transcript.py` 解析 Claude/Codex/Pi/Kimi JSONL，去 sidechain /
-     thinking / ANSI / tool turn）取结构化对话，再由补丁内的 **Markdown→
+     thinking / ANSI / tool turn）取结构化对话，再由 fork 内的 **Markdown→
      Telegram HTML 渲染器**（`md_to_html`，stdlib re，无新依赖）排版：bold /
      italic / 删除线 / inline code / 链接 / 列表 / 标题 / blockquote / 代码块
      （`<pre><code class="language-…">`）映射到 Telegram HTML 子集，标签始终
@@ -566,8 +571,6 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      永远不会被转发到 Telegram。`/read` 视图、reply 预览、finished 通知三处
      全部 `parse_mode="HTML"`；blocked 审批提示仍用旧 Markdown（内容是原始
      prompt 文本，不是对话）。
-  **bump `relayVersion` 后必须重新 dry-run 补丁**（apply 失败 nix build
-  直接报错），并同步本条目与 `tests/darwin_herdr_config_test.sh`。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一

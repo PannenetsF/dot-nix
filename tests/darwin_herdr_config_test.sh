@@ -151,7 +151,7 @@ assert_contains "$body" "chmod 0600"
 # herdr-remote relay: pinned fetchFromGitHub source run via uv as a launchd
 # user agent, loopback by default, machine-local config.env sourced if present.
 assert_contains "nix-darwin/herdr-remote.nix" "fetchFromGitHub"
-assert_contains "nix-darwin/herdr-remote.nix" 'owner = "dcolinmorgan"'
+assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" '"v0.8.1"'
 assert_contains "nix-darwin/herdr-remote.nix" "uv run"
 assert_contains "nix-darwin/herdr-remote.nix" "127.0.0.1"
@@ -174,37 +174,23 @@ assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_CHAT_ID"
 assert_contains "nix-darwin/herdr-remote.nix" "ws://127.0.0.1:8375"
 assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 
-# Local out-of-tree patch on the pinned upstream source:
-# 1. Telegram blocked/done notifications identify a pane as
-#    "project > pane(title+pane id) > session" instead of the stock
-#    "<claude> blocked in <basename cwd>".
-# 2. /read, /reply and the finished excerpt are served from the agent's own
-#    transcript (relay get_history -> parsed Claude/Codex/Pi/Kimi JSONL), never
-#    from a raw pane capture, so TUI chrome ("Update available", spinners, the
-#    input box, permission footer) never reaches Telegram; raw capture is only
-#    a labelled fallback when the transcript is unavailable.
-# 3. The transcript markdown is rendered to Telegram HTML (tables become
-#    per-row labelled metric lines since Telegram has no markdown tables; bold/
-#    lists/code/links supported, length capped in utf-16 units), and all these
-#    views go out parse_mode="HTML"; MarkdownV2 remains only for the blocked
-#    approval prompt.
-# The nix module applies it with patch(1) on a copied, writable source tree;
-# a bump that drifts the upstream file makes the nix build fail loudly.
-assert_file_exists "patches/herdr-remote-telegram-notifications.patch"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "agent_identity"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "effective_project"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "pane_descriptor"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "get_history"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "fetch_history"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "render_history"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "read_agent"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "last_assistant_excerpt"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "transcript unavailable"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "def md_to_html"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" "def _render_table"
-assert_contains "patches/herdr-remote-telegram-notifications.patch" 'parse_mode="HTML"'
-assert_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
-assert_contains "nix-darwin/herdr-remote.nix" "herdr-remote-telegram-notifications.patch"
+# The telegram bot's out-of-tree behavior (1. blocked/done headers identify a
+# pane as "project > pane(title+pane id) > session"; 2. /read, /reply and the
+# finished excerpt come from the agent transcript via get_history instead of a
+# raw pane capture, so TUI chrome never reaches telegram; 3. transcript markdown
+# is rendered to Telegram HTML with tables flattened) ships on the
+# PannenetsF/herdr-remote fork, tagged v0.8.1-pf.N, like the other herdr-*
+# forks. The module fetches that tag directly: no runCommandLocal patch step
+# and no patch file in this repo anymore.
+assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
+assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.1"
+assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
+assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
+[[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
+	|| fail "telegram patch file should live on the fork tag, not in this repo"
+[[ ! -e "${repo_root}/patches/herdr-remote-telegram-identity.patch" ]] \
+	|| fail "stale telegram identity patch file should be gone"
 
 # Herdi.app rides the local tap as a tracked cask (upstream has no brew cask).
 assert_file_exists "config/homebrew/Casks/herdi.rb"

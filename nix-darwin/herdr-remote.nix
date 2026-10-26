@@ -5,30 +5,21 @@ let
   # the Herdi menu-bar app / phone / Telegram clients. Pinned with
   # fetchFromGitHub and run through `uv run --script` (PEP 723 inline deps);
   # the herdr-push plugin itself is installed by install-herdr-plugins.sh.
+  # Upstream dcolinmorgan/herdr-remote v0.8.1 plus the nix-hm telegram patch
+  # set (identity headers, transcript-based reads, markdown -> Telegram HTML
+  # rendering), maintained on the fork branch pf/v0.8.1 and tagged
+  # v0.8.1-pf.N -- same scheme as the other herdr-* forks. To ship a new
+  # change: commit it on pf/v0.8.1, tag v0.8.1-pf.<N+1>, bump relayPfTag and
+  # the hash below; semantics are documented in AGENTS.md and asserted in
+  # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relaySourceRaw = pkgs.fetchFromGitHub {
-    owner = "dcolinmorgan";
+  relayPfTag = "v0.8.1-pf.1";
+  relaySource = pkgs.fetchFromGitHub {
+    owner = "PannenetsF";
     repo = "herdr-remote";
-    rev = relayVersion;
-    sha256 = "0ysc9lpk74nm62vbzjllkm904za4pvh9b8y79c96pfhi08gflmhg";
+    rev = relayPfTag;
+    sha256 = "sha256-J/jvY+xL2y7s9v116JvyRvyRqFzBW8/QKVh6/9U1UCM=";
   };
-  # Pinned upstream source + one local, out-of-tree patch. The patch makes the
-  # Telegram bot render blocked/finished notifications as
-  # "project > pane(title + pane id) > registered claude session", because the
-  # stock header is just "<claude> blocked in <basename cwd>" and every
-  # herdr-projects pane on one host reports agent=claude with the same/thread
-  # cwd basename. A relayVersion bump that drifts the upstream file makes this
-  # build fail loudly; tests/darwin_herdr_config_test.sh asserts the wiring.
-  # Patch semantics documented in AGENTS.md.
-  relaySource = pkgs.runCommandLocal "herdr-remote-${relayVersion}-source" {
-    nativeBuildInputs = [ pkgs.patch ];
-  } ''
-    cp -r ${relaySourceRaw} $out
-    chmod -R u+w $out
-    patch -d "$out" -p1 < ${
-      ../patches/herdr-remote-telegram-notifications.patch
-    }
-  '';
   relaySrc = "${relaySource}/relay";
 
   startHerdrRelay = pkgs.writeShellScript "start-herdr-relay" ''
