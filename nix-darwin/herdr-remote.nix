@@ -25,7 +25,9 @@ let
   } ''
     cp -r ${relaySourceRaw} $out
     chmod -R u+w $out
-    patch -d "$out" -p1 < ${../patches/herdr-remote-telegram-identity.patch}
+    patch -d "$out" -p1 < ${
+      ../patches/herdr-remote-telegram-notifications.patch
+    }
   '';
   relaySrc = "${relaySource}/relay";
 

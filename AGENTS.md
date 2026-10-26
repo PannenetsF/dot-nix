@@ -520,19 +520,30 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   重启空转——未配置的机器上该 agent 是无害占位。bot 支持
   `/start /agents /read /reply /send /trust /interrupt /digest`，审批按钮
   发的是真实数字按键（`send_keys`）而非粘贴文本。
-  **本地补丁**：上游 v0.8.1 的 blocked/finished 通知头只有
-  `"<harness> blocked in <basename cwd>"`，herdr-projects 主机上几十个 pane
-  全是 `agent=claude`、thread pane 的 cwd basename 还都是 `t-NNNN`，完全无法
-  区分。`patches/herdr-remote-telegram-identity.patch`（`herdr-remote.nix`
-  用 `runCommandLocal` 复制 source 后 `patch -p1`；nix store 源只读，必须
-  复制成可写树）把通知头改成
-  `project > pane(terminal title + pane_id) > 注册 session 名` 三段：
-  project 从 `…/<slug>/threads/t-N` 与 worktree 目录名 `hp-<slug>-t-N-…`
-  反推 slug（不能直接用 relay 给的 basename）；session 用 `herdr agent list`
-  的 `name`（`hp-<slug>-t-N` / `hpc-<slug>`），缺失才退回 harness 名
-  （claude/codex/…）。**bump `relayVersion` 后必须重新 dry-run 补丁**
-  （apply 失败 nix build 直接报错），并同步本条目与
-  `tests/darwin_herdr_config_test.sh`。
+  **本地补丁**（`patches/herdr-remote-telegram-notifications.patch`，
+  `herdr-remote.nix` 用 `runCommandLocal` 复制 source 后 `patch -p1`；nix
+  store 源只读，必须复制成可写树）做两件事：
+  1. **通知头身份**：上游 v0.8.1 的 blocked/finished 通知头只有
+     `"<harness> blocked in <basename cwd>"`，herdr-projects 主机上几十个
+     pane 全是 `agent=claude`、thread pane 的 cwd basename 还都是 `t-NNNN`，
+     完全无法区分。补丁改成
+     `project > pane(terminal title + pane_id) > 注册 session 名` 三段：
+     project 从 `…/<slug>/threads/t-N` 与 worktree 目录名 `hp-<slug>-t-N-…`
+     反推 slug（不能直接用 relay 给的 basename）；session 用
+     `herdr agent list` 的 `name`（`hp-<slug>-t-N` / `hpc-<slug>`），缺失才
+     退回 harness 名（claude/codex/…）。
+  2. **正文走 transcript，不转终端画面**：`/read`、`/reply` 选 pane 后的预览、
+     以及 finished 通知附带的结尾消息，全部经 relay 的 `get_history` WS
+     （`relay/transcript.py` 解析 Claude/Codex/Pi/Kimi JSONL，去 sidechain /
+     thinking / ANSI / tool turn）取结构化对话，渲染成 `-- you/agent/note --`
+     分段等宽正文（最近 6 轮、3500 字上限且保尾），finished 摘录取最后一条
+     assistant（上限 1500）。raw pane capture 只在 transcript 不可用
+     （unknown pane / 超时 / 空）时作为兜底，并加
+     `(transcript unavailable: …; showing terminal)` 前缀——这样 TUI 装饰
+     （`Update available!`、spinner、输入框、权限 footer）永远不会被转发到
+     Telegram。
+  **bump `relayVersion` 后必须重新 dry-run 补丁**（apply 失败 nix build
+  直接报错），并同步本条目与 `tests/darwin_herdr_config_test.sh`。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一

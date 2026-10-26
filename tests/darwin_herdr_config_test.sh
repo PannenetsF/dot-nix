@@ -167,17 +167,29 @@ assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_CHAT_ID"
 assert_contains "nix-darwin/herdr-remote.nix" "ws://127.0.0.1:8375"
 assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 
-# Local out-of-tree patch on the pinned upstream source: Telegram blocked/done
-# notifications must identify a pane as "project > pane(title+pane id) > session"
-# instead of the stock "<claude> blocked in <basename cwd>". The nix module
-# applies it with patch(1) on a copied, writable source tree; a bump that drifts
-# the upstream file makes the nix build fail loudly.
-assert_file_exists "patches/herdr-remote-telegram-identity.patch"
-assert_contains "patches/herdr-remote-telegram-identity.patch" "agent_identity"
-assert_contains "patches/herdr-remote-telegram-identity.patch" "effective_project"
-assert_contains "patches/herdr-remote-telegram-identity.patch" "pane_descriptor"
+# Local out-of-tree patch on the pinned upstream source:
+# 1. Telegram blocked/done notifications identify a pane as
+#    "project > pane(title+pane id) > session" instead of the stock
+#    "<claude> blocked in <basename cwd>".
+# 2. /read, /reply and the finished excerpt are served from the agent's own
+#    transcript (relay get_history -> parsed Claude/Codex/Pi/Kimi JSONL), never
+#    from a raw pane capture, so TUI chrome ("Update available", spinners, the
+#    input box, permission footer) never reaches Telegram; raw capture is only
+#    a labelled fallback when the transcript is unavailable.
+# The nix module applies it with patch(1) on a copied, writable source tree;
+# a bump that drifts the upstream file makes the nix build fail loudly.
+assert_file_exists "patches/herdr-remote-telegram-notifications.patch"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "agent_identity"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "effective_project"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "pane_descriptor"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "get_history"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "fetch_history"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "render_history"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "read_agent"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "last_assistant_excerpt"
+assert_contains "patches/herdr-remote-telegram-notifications.patch" "transcript unavailable"
 assert_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
-assert_contains "nix-darwin/herdr-remote.nix" "herdr-remote-telegram-identity.patch"
+assert_contains "nix-darwin/herdr-remote.nix" "herdr-remote-telegram-notifications.patch"
 
 # Herdi.app rides the local tap as a tracked cask (upstream has no brew cask).
 assert_file_exists "config/homebrew/Casks/herdi.rb"
