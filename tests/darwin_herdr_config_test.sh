@@ -38,6 +38,13 @@ assert_contains "nix-darwin/configuration.nix" "./herdr-remote.nix"
 assert_contains "nix-darwin/herdr.nix" "postActivation.text"
 assert_contains "nix-darwin/herdr.nix" "../install-herdr-plugins.sh"
 assert_contains "nix-darwin/herdr.nix" "HERDR_TEMPLATE="
+assert_contains "nix-darwin/herdr.nix" "HERDR_SIDEBAR_INSTALLER="
+assert_contains "nix-darwin/herdr.nix" "HERDR_SIDEBAR_POLICY="
+assert_contains "modules/herdr.nix" "HERDR_SIDEBAR_INSTALLER="
+assert_contains "modules/herdr.nix" "HERDR_SIDEBAR_POLICY="
+assert_contains "nix-darwin/herdr.nix" "HERDR_PORTAL_POLICY="
+assert_contains "modules/herdr.nix" "HERDR_PORTAL_POLICY="
+assert_contains "$body" '"$sidebar_policy" --activate'
 # The macOS layer runs the loopback relay, so only it hands the push plugin
 # its relay URL; the Linux wrapper passes nothing and the shared body skips
 # the whole push block without it.
@@ -176,10 +183,11 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 #    from a raw pane capture, so TUI chrome ("Update available", spinners, the
 #    input box, permission footer) never reaches Telegram; raw capture is only
 #    a labelled fallback when the transcript is unavailable.
-# 3. transcript markdown is rendered into Telegram HTML before sending (bold/
-#    lists/code/links; tables flatten into per-row labelled metric lines since
-#    Telegram has no markdown tables), and all conversation views use
-#    parse_mode="HTML". MarkdownV2 remains only for the blocked approval prompt.
+# 3. The transcript markdown is rendered to Telegram HTML (tables become
+#    per-row labelled metric lines since Telegram has no markdown tables; bold/
+#    lists/code/links supported, length capped in utf-16 units), and all these
+#    views go out parse_mode="HTML"; MarkdownV2 remains only for the blocked
+#    approval prompt.
 # The nix module applies it with patch(1) on a copied, writable source tree;
 # a bump that drifts the upstream file makes the nix build fail loudly.
 assert_file_exists "patches/herdr-remote-telegram-notifications.patch"

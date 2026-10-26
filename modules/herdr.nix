@@ -16,6 +16,9 @@
     # toolchain (no cargo in the nix host package set by design).
     export PATH="${config.home.profileDirectory}/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
     HERDR_TEMPLATE=${../config/herdr/config.toml} \
+      HERDR_SIDEBAR_INSTALLER=${../config/herdr/install-sidebar-policy.cjs} \
+      HERDR_SIDEBAR_POLICY=${../config/herdr/sidebar-policy.cjs} \
+      HERDR_PORTAL_POLICY=${../config/herdr/portal-policy.py} \
       bash ${../install-herdr-plugins.sh}
   '';
 }

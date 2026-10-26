@@ -36,6 +36,9 @@ in {
       env PATH="${pluginPath}" \
       CC=/usr/bin/cc \
       HERDR_TEMPLATE="${herdrConfig}" \
+      HERDR_SIDEBAR_INSTALLER="${../config/herdr/install-sidebar-policy.cjs}" \
+      HERDR_SIDEBAR_POLICY="${../config/herdr/sidebar-policy.cjs}" \
+      HERDR_PORTAL_POLICY="${../config/herdr/portal-policy.py}" \
       HERDR_CLI="${herdrCli}" \
       HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375" \
       bash "${herdrPluginScript}"

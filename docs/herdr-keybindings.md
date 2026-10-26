@@ -145,7 +145,7 @@ hp_group 排序、按 PROJECT.md 显示名钉每项目一个 header；macOS 经 
 Linux host 经 `modules/herdr.nix` 两个薄封装调用；要求 herdr ≥ 0.9.0，是
 Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
 
-- `P C-r`：在 grouped-by-activity 与 flat recent-first 两种排序间翻转
+- `P C-r`：无 Projects 插件时在 grouped/recent 间翻转；Projects 启用时固定项目分组，避免误切平铺后项目标题消失
 - `P ,`：设置弹窗（空闲分级时长、glyph 样式等都在里面）
 - 上游建议的 `P a` 被 Projects 占用、裸 `P r` 是 herdr resize 模式，所以
   这两个键改到了插件动作所在的 ctrl 层
@@ -204,15 +204,27 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 六分组（waiting-on-you / ready-for-review / working / landing / idle /
 resolved），sidebar 按「待你处理 / 待评审 / …」分组，tab 栏显示需要注意的
 数量。**常驻 ticker 是唯一响铃源**：thread 进入 waiting-on-you /
-ready-for-review 时它调 `herdr notification show --sound request/done`；
+ready-for-review 时默认调 `herdr notification show --sound request/done`；
 launch 放弃（启动超时 / profile 被拒，pf.3 起）同样按 waiting-on-you
 响铃一次，角标与看板按同一分组计数。
+**当前人类通知策略**：项目设 `mute = true`（`herdr-projects set <slug> mute true`），
+关闭 ticker 的 thread 完成/待处理通知和声音；新建项目也应设置。此设置不停止
+thread 工作、inbox 或 coordinator 的接管。插件的错误通知仍可绕过 mute。
+注意 Herdr 0.9.5 的原生生命周期提示是独立来源，现有配置没有按 thread 角色
+静默的开关；不能以关闭所有 Claude/Codex 声音冒充 thread 专属静默。
 pf.4 起每个 pane 带 `hp_role`（coordinator/thread/guest/other）与
-`hp_audience`（human/internal/stalled）：原生 agents sidebar 只显示某
-project 的 coordinator + threads（radar pf.2 镜像同一 filter），同目录里
-的野会话/其他项目 pane 不占行；header 每 project 一个、跨 worktree
-workspace 聚合。单个 thread 巡检报错不再把整个 project 顶闪，无 project
-pane 的分组键也改为稳定的 pane id（列表重排不闪）。
+`hp_audience`（human/internal/stalled）。本仓库的
+`config/herdr/sidebar-policy.cjs` 在 Radar 内统一渲染和 keeper 的投影：
+**只显示 coordinator 与手动启动的 session，隐藏注册 thread 及其目录/worktree
+内衍生会话**。手动 session 按项目目录、关联仓库或 coordinator 所在 workspace
+归组，每项目一个标题（Lagrange System / Learning / Nix Hm）；无项目者按自己的
+workspace 归组。`dn_session`/`dn_group` 是显示专用 token，不改 `hp_role`、
+audience、通知或 owner 权限。分组排序键在项目 slug **之前**加机器命名空间，
+避免同名远端/本地 Project 的 coordinator 与普通 session 被交错排序、挂错标题。
+未完成分类的新 pane 暂不显示，下一帧分类后出现。
+激活时 `install-sidebar-policy.cjs` 幂等修补 pinned Radar 的入口，按序停止旧
+animator 再启动新版，服务器和 agent 会话不重启。原生 Machines/Spaces 的
+workspace 列表不受 agents view 过滤影响，仍是 Herdr 的完整导航。
 
 > **永久 pin fork `v0.2.34-pf.5`，不要升级上游 1.2.x。** 上游
 > `eliasstravik/herdr-projects` 1.2 是不兼容的任务看板模型（任务
@@ -290,7 +302,19 @@ pane 的分组键也改为稳定的 pane id（列表重排不闪）。
 `herdr-portal`（PannenetsF/herdr-portal fork，pinned `v1.3.0-pf.4`，fork 自
 上游 loofare/herdr-portal 未打 tag 的 1.3.0 release commit `ba47b65`，纯
 Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚合成
-一个看板。fork 四个补丁：
+一个看板。
+
+**本仓库当前覆盖策略**（`config/herdr/portal-policy.py`）优先于下列 fork
+历史行为：Portal 各列只保留 coordinator、普通 session 和普通窗口，隐藏
+thread、thread 衍生会话及 legacy 虚拟卡，不再要求人处理 worker。
+`blocked` / `done` 的人类会话进入待处理，仍保留 seen gate；远端上次的焦点
+不自动算已读，显式跳转后按 `(machine,pane,state_change_seq)` 记已读。
+本地快照走快速采集，SSH 在后台并行更新、保留离线快照，用量/套餐扫描走
+独立后台进程（60 秒缓存）；TUI/web 每 500ms 刷新，快照缓存 250ms。
+看板、`P u` 共用跨进程合并的已读存储。策略在激活末尾幂等安装，已有 web
+daemon 才重启；未打开时不会自行启动。
+
+fork 四个历史补丁（thread/虚拟卡行为已被上述策略覆盖）：
 
 1. **unknown 卡可见（pf.1）**：上游 1.3.0 的 columns 只有
    blocked/working/settled/window 四个桶，状态尚未上报的 `unknown`（未知）
@@ -316,16 +340,14 @@ Python stdlib，无 node/uv 依赖）把全部 workspace/tab/pane 的 agent 聚�
 
 - `P S-o`：TUI 看板 overlay（`herdr-portal.open-board`）。↑↓ 选择、←→ 切列、
   数字键 `1..5` 跳列；`Enter` 在普通卡上跳到该 agent 的 pane 并关闭看板，
-  在「待处理」虚拟卡（pane 已死的 thread）上则先 `thread restart` 再跳到新
-  pane；`Tab`/`v` 切普通窗口视图；`N` 新 tab、`s/S` 右/下 split、
-  `E` 重命名、`X` 释放闲置 pane、`Q` 退出。看板本身只读（只移动焦点/重启
-  thread，不发输入）。
+  不展示 thread 或重启虚拟卡；`Tab`/`v` 切普通窗口视图；`N` 新 tab、`s/S` 右/下 split、
+  `E` 重命名、`X` 释放闲置 pane、`Q` 退出。跳转不向 agent 发送输入。
 - `P C-o`：web 大屏（`herdr-portal.open-web`，stdlib HTTP daemon
   `127.0.0.1:8787`，日志 `~/.local/state/herdr-portal/server.log`）。
   `/api/*` 需本机 token（自动生成于
   `~/.local/state/herdr-portal/token`，打开时经 URL 一次性带入并校验
   Host/Origin）。点击普通卡跳 pane、可直接给活 agent **回消息**；
-  attention 虚拟卡走 `/api/legacy-restart`（重启 thread 后跳转），不提供回复框。
+  不展示 thread 的 attention 虚拟卡。
 - 插件按需打开、无 startup hook；激活只负责 pin 安装，不自动起看板。
 - 占的是空着的 o 命名空间：上游 README 建议 `P a`，但该键在本配置属于
   herdr-projects。
@@ -342,7 +364,9 @@ activation 无条件 pin 安装）解决「toast 飘走后忘记是哪个 pane�
   / [#2565](https://github.com/herdrdev/herdr/discussions/2565) 尚未实现）。
 - `P u`（`to4iki.unread-jump.next`）：聚焦下一个仍需处理的 agent pane，
   blocked 优先、done 次之，在该组内循环（wrap）；没有待处理时报错退出，
-  不移动焦点。数据走 `herdr agent list` 的 JSON，不写任何状态。
+  不移动焦点。本仓库把动作替换为 Portal 共享策略：本地及保存的远端机器
+  只选 coordinator/普通 session，跳转携带机器身份与 pane id，并记录已读
+  和轮转位置；远程快照并行抓取，等待上限 1.5 秒。
 - 与 `P o`（只在 toast 还可见时跳到通知目标）互补；也可以直接看
   `P S-o` portal 看板或 radar 侧边栏的常驻 blocked glyph。
 

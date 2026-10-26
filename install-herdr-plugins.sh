@@ -351,4 +351,13 @@ if [ -d "$roadboard_src" ] && [ -f "$roadboard_src/herdr-plugin.toml" ]; then
   fi
 fi
 
+# Keep this after both configure calls: projects owns an older default view,
+# while Radar's renderer and keeper must agree on the user-facing session list.
+sidebar_installer="${HERDR_SIDEBAR_INSTALLER:-$(dirname "$0")/config/herdr/install-sidebar-policy.cjs}"
+sidebar_policy="${HERDR_SIDEBAR_POLICY:-$(dirname "$0")/config/herdr/sidebar-policy.cjs}"
+if command -v node >/dev/null 2>&1 && [ -f "$sidebar_installer" ] && [ -f "$sidebar_policy" ]; then
+  HERDR_BIN_PATH="$herdr_cli" node "$sidebar_installer" "$config_dir" "$sidebar_policy" --activate \
+    || echo >&2 "herdr session sidebar policy could not be activated"
+fi
+
 "$herdr_cli" server reload-config 2>/dev/null || true

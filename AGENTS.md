@@ -482,6 +482,21 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `http://127.0.0.1:8375`（relay 是 macOS launchd 服务），Linux 封装不传即整块
   跳过。relay URL seed 一次到插件 config 目录的 `.env`（0600），已有文件绝不覆盖
   （换隧道 URL 是用户本地编辑）。
+- **当前人类通知面覆盖契约**：`config/herdr/portal-policy.py` 由
+  `install-sidebar-policy.cjs` 安装到 pinned Portal，并替换 unread-jump 动作。
+  此契约覆盖上述 pf.2/pf.3/pf.4 的 thread/legacy attention 行为：Portal
+  所有列和 `P u` 只面向 coordinator/普通 session，隐藏 thread、衍生会话和
+  legacy 虚拟卡；thread 交互由 coordinator 处理，不转嫁给人。远端 coordinator
+  和普通 session 必须保留，focus 和已读身份始终包含 machine + pane。
+  本地快照不等待 SSH、legacy 扫描或用量扫描；SSH 后台并行更新、保留离线
+  快照，用量/套餐在独立进程以 60s 缓存更新。TUI/web 500ms 轮询、采集 TTL
+  250ms。seen 存储跨进程加锁合并；远端旧焦点不自动标已读，显式跳转才标。
+  激活只重启已运行的 web daemon，未运行时保持按需启动。
+  Projects 的 `mute = true` 用于关闭 ticker 的 thread 完成/待处理响铃与
+  toast（`herdr-projects set <slug> mute true`；新项目也应设置），不影响 inbox
+  和 coordinator 工作；插件 error 通知仍会绕过 mute。Herdr 0.9.5 原生
+  生命周期通知独立于 ticker，尚无按 thread 角色静默的配置；不要把全局关闭
+  Claude/Codex 通知说成只静默 thread，也不要把 Portal 过滤说成原生声音过滤。
 - herdr-unread-jump（pinned commit `be4cd1f`，to4iki/herdr-unread-jump，上游无
   release tag）是纯 bash+jq 动作插件（jq 在 `modules/host.nix` 的 host 集合）：
   herdr 应用内 toast 的显示时长硬编码（needs-attention 8s / finished 5s），
@@ -810,6 +825,15 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   环境变量前缀的调用会 127）+ stub coordinator，全程跑在 mktemp 里）：
   `bash tests/herdr_pickers_e2e_test.sh`
 - shell startup：`bash tests/zsh_startup_test.sh`、`bash tests/bash_profile_env_test.sh`
+- herdr 人类会话 sidebar：`node --test tests/herdr_sidebar_policy_test.cjs`。
+  `config/herdr/sidebar-policy.cjs` 在 pinned Radar 内统一 keeper/filter/renderer，
+  固定项目分组，排序键在 slug 前带机器命名空间（防远端/本地同 slug 交错），
+  只显示 coordinator 和手开 session，隐藏 thread/worktree 衍生
+  session；保留 `hp_role`/audience/owner 原语义。两个 nix 封装传 installer 与
+  policy 的独立 store 路径；共享激活脚本最后幂等安装并等待旧 animator 停完
+  再启动（plugin action invoke 本身是异步，不能连续 stop/start 当成同步）。
+- Portal 人类会话投影：`python3 tests/herdr_portal_policy_test.py`（需已安装 pinned
+  Portal），覆盖双机同 pane id、thread 排除、远端 focus 路由、快速采集和已读合并。
 - Claude Code 信任框 shim（stub claude/jq、pty 下跑真 shim；覆盖普通目录/git
   仓库/linked worktree（macOS `/var`→`/private/var` 物理路径）、幂等保数据、
   坏 JSON 不阻启动、非 tty 跳过、python3 fallback、真二进制缺失 127）：
