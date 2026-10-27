@@ -61,6 +61,44 @@ test('catalog reads worktree roots and renderer/view use the same visible projec
   assert.equal(spec.filter.value, 'manual');
 });
 
+test('project workspace stays unified after coordinator registration disappears', async (t) => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sidebar-workspace-'));
+  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  const projectRoot = path.join(tmp, 'projects');
+  const home = path.join(projectRoot, 'learning');
+  fs.mkdirSync(home, { recursive: true });
+  fs.writeFileSync(path.join(home, 'PROJECT.md'), 'name = "Learning"\n');
+  const otherHome = path.join(projectRoot, 'other');
+  fs.mkdirSync(otherHome);
+  fs.writeFileSync(path.join(otherHome, 'PROJECT.md'), 'name = "Other"\n');
+  const agents = [
+    { pane_id: 'anchor', workspace_id: 'learning-space', cwd: home, tokens: { hp_role: 'other' } },
+    { pane_id: 'linear', workspace_id: 'learning-space', cwd: '/outside', tokens: { hp_role: 'other' } },
+    { pane_id: 'unrelated', workspace_id: 'elsewhere', cwd: '/outside', tokens: { hp_role: 'other' } },
+    { pane_id: 'worker', workspace_id: 'learning-space', cwd: home + '/threads/t-0001', tokens: { hp_role: 'thread' } },
+    { pane_id: 'worker-only', workspace_id: 'worker-space', cwd: home + '/threads/t-0002', tokens: { hp_role: 'thread' } },
+    { pane_id: 'no-anchor', workspace_id: 'worker-space', cwd: '/outside', tokens: { hp_role: 'other' } },
+    { pane_id: 'shared-learning', workspace_id: 'shared', cwd: home, tokens: { hp_role: 'other' } },
+    { pane_id: 'shared-other', workspace_id: 'shared', cwd: otherHome, tokens: { hp_role: 'other' } },
+    { pane_id: 'ambiguous', workspace_id: 'shared', cwd: '/outside', tokens: { hp_role: 'other' } },
+  ];
+  const root = path.join(tmp, 'radar');
+  fs.mkdirSync(path.join(root, 'lib'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'lib/herdr.js'), `module.exports={projectsEnabled:()=>true,projectDisplayName:()=>null,source:()=>'radar',agentsAsync:async()=>${JSON.stringify(agents)},workspacesAsync:async()=>[],reportMetadataAsync:async()=>true};`);
+  fs.writeFileSync(path.join(root, 'lib/state.js'), `module.exports={snapshot:async()=>${JSON.stringify(agents.map(a => ({ pane: a.pane_id })))}};`);
+  fs.writeFileSync(path.join(root, 'lib/view.js'), "module.exports={mode:()=>'grouped',apply:()=>null,resolve:()=>null};");
+  fs.writeFileSync(path.join(root, 'lib/frame.js'), 'module.exports={Frame:class {displayOrder(entries){return entries}}};');
+  install(root, { projectRoot });
+  const rows = await require(path.join(root, 'lib/state')).snapshot();
+  const group = id => rows.find(row => row.pane === id).hpGroup.split('!')[0];
+  assert.equal(group('linear'), group('anchor'));
+  assert.notEqual(group('linear'), group('unrelated'));
+  assert.notEqual(group('linear'), group('no-anchor'), 'workers cannot claim a workspace for ordinary sessions');
+  assert.equal(rows.find(row => row.pane === 'worker').dnHidden, true);
+  assert.notEqual(group('ambiguous'), group('shared-learning'));
+  assert.notEqual(group('ambiguous'), group('shared-other'));
+});
+
 test('aggregate sort never interleaves same-slug projects from different machines', () => {
   const local = machineNamespace('/home/user/.herdr-projects', 'mac');
   const remote = machineNamespace('/home/user/.herdr-projects', 'boe');
@@ -105,7 +143,13 @@ test('Portal policy and unread entrypoint are installed idempotently together', 
   fs.mkdirSync(path.join(root, 'board/web'), { recursive: true });
   fs.mkdirSync(unread);
   fs.writeFileSync(path.join(root, 'board/collect.py'), 'if __name__ == "__main__":\n    pass\n');
-  fs.writeFileSync(path.join(root, 'board/tui.py'), 'interval: float = 1.0');
+  fs.writeFileSync(path.join(root, 'board/tui.py'), [
+    'interval: float = 1.0',
+    '    "Enter 跳转",',
+    '        subtitle = f"全局智能体调度 · {view_name}{machine_tail}"',
+    '        elif key in ("r", "R"):',
+    'if __name__ == "__main__":',
+  ].join('\n'));
   fs.writeFileSync(path.join(root, 'board/web/app.js'), 'setInterval(load, 1500)');
   fs.writeFileSync(path.join(unread, 'next.sh'), '#!/bin/bash\n');
   fs.writeFileSync(path.join(tmp, 'plugins.json'), JSON.stringify([
@@ -118,5 +162,7 @@ test('Portal policy and unread entrypoint are installed idempotently together', 
   assert.equal(fs.readFileSync(path.join(root, 'board/collect.py'), 'utf8').match(/_dn_policy.install/g).length, 1);
   assert.match(fs.readFileSync(path.join(unread, 'next.sh'), 'utf8'), /--jump/);
   assert.match(fs.readFileSync(path.join(root, 'board/tui.py'), 'utf8'), /0\.5/);
+  assert.match(fs.readFileSync(path.join(root, 'board/tui.py'), 'utf8'), /board\.cycle_machine\(\)/);
+  assert.equal(fs.readFileSync(path.join(root, 'board/tui.py'), 'utf8').match(/_dn_policy.install_tui/g).length, 1);
   assert.match(fs.readFileSync(path.join(root, 'board/web/app.js'), 'utf8'), /500/);
 });

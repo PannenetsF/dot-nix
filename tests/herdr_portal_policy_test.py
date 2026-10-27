@@ -102,6 +102,31 @@ class PortalPolicyTest(unittest.TestCase):
     def test_default_snapshot_cache_uses_fast_ttl(self):
         self.assertEqual(c.collect_or_error.__defaults__, (0.25,))
 
+    def test_tui_machine_filter_exposes_remote_below_long_local_column(self):
+        spec = importlib.util.spec_from_file_location("human_portal_tui", PORTAL / "board/tui.py")
+        tui = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = tui
+        spec.loader.exec_module(tui)
+        policy.install_tui(tui)
+        board = tui.Board.__new__(tui.Board)
+        local = [{"uid": f"Local/p{i}", "pane_id": f"p{i}", "machine": "Local"} for i in range(15)]
+        remote = {"uid": "boe-fyq/p1", "pane_id": "p1", "machine": "boe-fyq"}
+        board.snapshot = {"machines": [{"label": "Local"}, {"label": "boe-fyq"}],
+                          "columns": {"settled": [*local, remote], "window": [remote]}}
+        board.view = "agents"
+        board.pos = {"agents": [0, 0], "windows": [0, 0]}
+        board.selected_id = None
+        self.assertEqual(len(board.column_items("settled")), 16)
+        board.cycle_machine()
+        self.assertEqual(len(board.column_items("settled")), 15)
+        board.cycle_machine()
+        self.assertEqual(board.column_items("settled"), [remote])
+        self.assertEqual(board.column_items("window"), [remote])
+        self.assertEqual(board.selected_item()["uid"], remote["uid"])
+        self.assertEqual(board.machine_scope_label(), "[boe-fyq] F:machine")
+        board.cycle_machine()
+        self.assertEqual(len(board.column_items("settled")), 16)
+
     def test_cold_collect_does_not_wait_for_usage_or_legacy_or_ssh(self):
         with mock.patch.object(c, "run_herdr", return_value={"result": {"snapshot": snapshot([pane("w1:p1")])}}), \
              mock.patch.object(c, "usage_summary", side_effect=AssertionError("synchronous usage scan")), \

@@ -111,6 +111,22 @@ function install(root, options = {}) {
       const project = classify(agent, catalog).project;
       if (project) workspaceProjects.set(agent.workspace_id, project);
     }
+    // A coordinator can exit or lose its registration while its project
+    // workspace stays open. Infer only an unambiguous live project anchor;
+    // never let worker workspaces or a shared multi-project workspace claim it.
+    const workspaceCandidates = new Map();
+    for (const agent of agents) {
+      if (!agent.workspace_id) continue;
+      const result = classify(agent, catalog);
+      if (result.thread || !result.project) continue;
+      if (!workspaceCandidates.has(agent.workspace_id)) workspaceCandidates.set(agent.workspace_id, new Map());
+      workspaceCandidates.get(agent.workspace_id).set(result.project.slug, result.project);
+    }
+    for (const [workspace, candidates] of workspaceCandidates) {
+      if (!workspaceProjects.has(workspace) && candidates.size === 1) {
+        workspaceProjects.set(workspace, candidates.values().next().value);
+      }
+    }
     const visible = await Promise.all(entries.map(async (entry) => {
       const agent = raw.get(entry.pane);
       if (!agent) return null;

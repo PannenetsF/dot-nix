@@ -235,6 +235,35 @@ def atomic_json(file, data):
         temp.unlink(missing_ok=True)
 
 
+def install_tui(t):
+    """Keep remote sessions discoverable even below a long local column."""
+    if getattr(t.Board, "_human_machine_filter", False):
+        return
+    t.Board._human_machine_filter = True
+    original_items = t.Board.column_items
+
+    def column_items(self, key):
+        items = original_items(self, key)
+        machine = getattr(self, "machine_filter", None)
+        return [item for item in items if not machine or (item.get("machine") or "Local") == machine]
+
+    def machine_scope_label(self):
+        return f"[{getattr(self, 'machine_filter', None) or 'ALL'}] F:machine"
+
+    def cycle_machine(self):
+        labels = sorted({str(row["label"]) for row in self.snapshot.get("machines", []) if row.get("label")})
+        choices = [None, *labels]
+        current = getattr(self, "machine_filter", None)
+        index = choices.index(current) if current in choices else -1
+        self.machine_filter = choices[(index + 1) % len(choices)]
+        self._locate(None)
+        self.flash(self.machine_scope_label())
+
+    t.Board.column_items = column_items
+    t.Board.machine_scope_label = machine_scope_label
+    t.Board.cycle_machine = cycle_machine
+
+
 def jump(board):
     sys.path.insert(0, board)
     import collect as c

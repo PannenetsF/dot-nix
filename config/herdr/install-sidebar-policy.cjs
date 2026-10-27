@@ -59,6 +59,24 @@ function installPortal(configDir, source) {
     const next = current.replace(before, after);
     if (next !== current) { fs.writeFileSync(dest, next); changed = true; }
   }
+  const tuiFile = path.join(root, 'board/tui.py');
+  let tui = fs.readFileSync(tuiFile, 'utf8');
+  const tuiMarker = '_dn_policy.install_tui(sys.modules[__name__])';
+  if (!tui.includes(tuiMarker)) {
+    const anchors = [
+      ['    "Enter 跳转",', '    "F 机器筛选",\n    "Enter 跳转",'],
+      ['        subtitle = f"全局智能体调度 · {view_name}{machine_tail}"',
+        '        subtitle = f"{self.machine_scope_label()} · 全局智能体调度 · {view_name}{machine_tail}"'],
+      ['        elif key in ("r", "R"):', '        elif key in ("f", "F"):\n            board.cycle_machine()\n        elif key in ("r", "R"):'],
+      ['if __name__ == "__main__":', `import dot_nix_portal_policy as _dn_policy\n${tuiMarker}\n\nif __name__ == "__main__":`],
+    ];
+    for (const [before] of anchors) {
+      if (!tui.includes(before)) throw new Error(`unsupported Portal machine-filter anchor: ${before}`);
+    }
+    for (const [before, after] of anchors) tui = tui.replaceAll(before, after);
+    fs.writeFileSync(tuiFile, tui);
+    changed = true;
+  }
   const unread = registry.find((p) => p.plugin_id === 'to4iki.unread-jump' && p.enabled !== false);
   if (unread?.plugin_root) {
     const file = path.join(unread.plugin_root, 'next.sh');
