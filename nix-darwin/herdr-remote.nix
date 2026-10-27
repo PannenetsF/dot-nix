@@ -6,19 +6,20 @@ let
   # fetchFromGitHub and run through `uv run --script` (PEP 723 inline deps);
   # the herdr-push plugin itself is installed by install-herdr-plugins.sh.
   # Upstream dcolinmorgan/herdr-remote v0.8.1 plus the nix-hm telegram patch
-  # set (identity headers, transcript-based reads, markdown -> Telegram HTML
-  # rendering), maintained on the fork branch pf/v0.8.1 and tagged
-  # v0.8.1-pf.N -- same scheme as the other herdr-* forks. To ship a new
-  # change: commit it on pf/v0.8.1, tag v0.8.1-pf.<N+1>, bump relayPfTag and
-  # the hash below; semantics are documented in AGENTS.md and asserted in
+  # set (identity headers, transcript-based reads, markdown -> Telegram HTML,
+  # human-audience filter, live dashboard, reusable pane cards), maintained on
+  # the fork branch pf/v0.8.1 and tagged v0.8.1-pf.N -- same scheme as the
+  # other herdr-* forks. To ship a new change: commit it on pf/v0.8.1, tag
+  # v0.8.1-pf.<N+1>, bump relayPfTag and the hash below; semantics are
+  # documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.1";
+  relayPfTag = "v0.8.1-pf.2";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-J/jvY+xL2y7s9v116JvyRvyRqFzBW8/QKVh6/9U1UCM=";
+    sha256 = "sha256-YyKW4xr29PqOrj5CiHTu9QGyU9D2vA49TpXYCsHczTY=";
   };
   relaySrc = "${relaySource}/relay";
 

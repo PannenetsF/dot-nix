@@ -519,8 +519,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.1`**（= 上游
-  dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 三项定制，分支
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.2`**（= 上游
+  dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
   注册为 `launchd.user.agents.herdrRemote`（label
@@ -545,9 +545,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   其他所有人；chat id 用 `getUpdates` 发现，私聊正数、群为负数）。**wrapper
   在 token 缺失时 `exit 0` 休眠**，配合 `KeepAlive.SuccessfulExit=false` 不会
   重启空转——未配置的机器上该 agent 是无害占位。bot 支持
-  `/start /agents /read /reply /send /trust /interrupt /digest`，审批按钮
-  发的是真实数字按键（`send_keys`）而非粘贴文本。
-  **Telegram 三项定制随 fork tag 发布**（2026-10 起不再是仓库内 build-time
+  `/start /agents /dashboard /read /reply /send /trust /interrupt /digest`，
+  审批按钮发的是真实数字按键（`send_keys`）而非粘贴文本。
+  **Telegram 定制随 fork tag 发布**（2026-10 起不再是仓库内 build-time
   patch；代码只在 `PannenetsF/herdr-remote` 的 `pf/v0.8.1` 分支，tag
   `v0.8.1-pf.N`，`herdr-remote.nix` 直接 `fetchFromGitHub` 该 tag，无
   `runCommandLocal`/`patch` 步骤，仓库里也没有 patch 文件。发布流程：在
@@ -563,24 +563,43 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      `herdr agent list` 的 `name`（`hp-<slug>-t-N` / `hpc-<slug>`），缺失才
      退回 harness 名（claude/codex/…）。
   2. **正文走 transcript，不转终端画面**：`/read`、`/reply` 选 pane 后的预览、
-     以及 finished 通知附带的结尾消息，全部经 relay 的 `get_history` WS
-     （`relay/transcript.py` 解析 Claude/Codex/Pi/Kimi JSONL，去 sidechain /
-     thinking / ANSI / tool turn）取结构化对话，再由 fork 内的 **Markdown→
+     pane 卡片正文，全部经 relay 的 `get_history` WS（`relay/transcript.py`
+     解析 Claude/Codex/Pi/Kimi JSONL，去 sidechain / thinking / ANSI / tool
+     turn）取结构化对话，再由 fork 内的 **Markdown→
      Telegram HTML 渲染器**（`md_to_html`，stdlib re，无新依赖）排版：bold /
      italic / 删除线 / inline code / 链接 / 列表 / 标题 / blockquote / 代码块
      （`<pre><code class="language-…">`）映射到 Telegram HTML 子集，标签始终
-     配平；长度按 UTF-16 code unit 计（每 turn 2600、整条 3700、finished 摘要
-     2600，Telegram 上限 4096），超长按整 block/turn 丢弃保尾，单个畸形巨块
-     降级成 `<pre>` 纯文本尾段。**Telegram 没有 Markdown 表格**，表格由
-     `_render_table` 展平成「每行：首格 + `表头: 值` 度量行（`｜` 分隔）」，
-     CJK 不需要等宽对齐、手机上可读；代码 span 先 stash 再替换其他标记，
-     `**kwargs`、`snake_case`、`__dunder__` 不会被误格式化。最近 6 轮，角色
-     行 `<b>you/agent/note</b>`。raw pane capture 只在 transcript 不可用
-     （unknown pane / 超时 / 空）时作为兜底，套斜体说明前缀 + `<pre>`
-     逃逸——这样 TUI 装饰（`Update available!`、spinner、输入框、权限 footer）
-     永远不会被转发到 Telegram。`/read` 视图、reply 预览、finished 通知三处
-     全部 `parse_mode="HTML"`；blocked 审批提示仍用旧 Markdown（内容是原始
-     prompt 文本，不是对话）。
+     配平；长度按 UTF-16 code unit 计（每 turn 2600、整条 3700，Telegram 上限
+     4096），超长按整 block/turn 丢弃保尾，单个畸形巨块降级成 `<pre>` 纯文本
+     尾段。**Telegram 没有 Markdown 表格**，表格由 `_render_table` 展平成
+     「每行：首格 + `表头: 值` 度量行（`｜` 分隔）」，CJK 不需要等宽对齐、
+     手机上可读；代码 span 先 stash 再替换其他标记，`**kwargs`、`snake_case`、
+     `__dunder__` 不会被误格式化。最近 6 轮，角色行 `<b>you/agent/note</b>`。
+     raw pane capture 只在 transcript 不可用（unknown pane / 超时 / 空）时
+     作为兜底，套斜体说明前缀 + `<pre>` 逃逸——这样 TUI 装饰
+     （`Update available!`、spinner、输入框、权限 footer）永远不会被转发到
+     Telegram。`/read` 视图、reply 预览、pane 卡片正文全部
+     `parse_mode="HTML"`；blocked 审批提示仍用旧 Markdown（内容是原始 prompt
+     文本，不是对话）。
+  3. **（pf.2）人类受众过滤**：herdr-projects 主机上几十个 pane 多数是 thread
+     worker，bot 只面向人。`pane_human()` 判定：注册 agent 名 `hpc-<slug>`
+     coordinator → 人；`hp-<slug>-t-N` thread 名、cwd 落在
+     `…/<slug>/threads/t-N` 或 worktree `…/worktrees/hp-<slug>-t-N-…`、bare
+     `t-NNNN` project → 过滤；无标记 fail-open（普通 session 不因缺标记消失）。
+     快照、通知、`/agents`、blocked 按钮全部走同一过滤；`hp_audience=stalled`
+     的卡住 thread 仍算人。上游 poll 的 stray `update:true`（没有已投递卡片
+     时）直接忽略，不发幽灵卡。
+  4. **（pf.2）单条 live dashboard + 每 pane 卡片复用**：每个被阻塞的 human
+     pane 第一次 block 才发卡，之后 blocked→working→idle/done 全程
+     `editMessage` 同一条消息（恢复行 → ✅ 一行完成摘要 + Read/Reply 按钮），
+     **完成不再主动推全文、不响铃**，全文只通过卡片上的 Read（或 dashboard
+     的 Read 按钮）按需取。另有一条按 project 分组的 dashboard 消息
+     （working/blocked/idle 计数、阻塞 pane 的 Read 按钮、📋 All panes 分页），
+     1s tick 合并编辑、内容签名去重（时钟变化不触发 edit）、断线不主动发，
+     `/dashboard` 与 `/start` 强制刷新单例；dashboard 消息被用户删掉后自动
+     重发，完成行 TTL 30min。pane→message id 等状态持久化在
+     `HERDR_TG_STATE`（默认 `~/.config/herdr-remote/telegram-state.json`，
+     0600、原子写、只存 id/时间戳不存内容与密钥），重启不重复发卡。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一

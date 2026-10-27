@@ -188,15 +188,17 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 
 # The telegram bot's out-of-tree behavior (1. blocked/done headers identify a
 # pane as "project > pane(title+pane id) > session"; 2. /read, /reply and the
-# finished excerpt come from the agent transcript via get_history instead of a
+# finished card come from the agent transcript via get_history instead of a
 # raw pane capture, so TUI chrome never reaches telegram; 3. transcript markdown
-# is rendered to Telegram HTML with tables flattened) ships on the
-# PannenetsF/herdr-remote fork, tagged v0.8.1-pf.N, like the other herdr-*
-# forks. The module fetches that tag directly: no runCommandLocal patch step
-# and no patch file in this repo anymore.
+# is rendered to Telegram HTML with tables flattened; 4. pf.2 hides
+# herdr-projects thread workers from the human audience, keeps one
+# auto-refreshing dashboard message, and reuses a single card per pane across
+# block/resume/finish) ships on the PannenetsF/herdr-remote fork, tagged
+# v0.8.1-pf.N, like the other herdr-* forks. The module fetches that tag
+# directly: no runCommandLocal patch step and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.1"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.2"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
