@@ -16,11 +16,12 @@ restore guide.
 
 - Evaluation and tests never install software or change the running desktop;
   only the user runs activation (`bash ./init.sh`).
-- Activation's preActivation runs `config/omniwm/stop-aerospace.sh`: it unloads
-  the old managed AeroSpace/indicator/borders LaunchAgents and gracefully
-  terminates remaining user-owned AeroSpace/borders instances. Their brew
-  packages (cask cleanup is `none`) and `~/.config/aerospace/` stay on disk for
-  rollback.
+- Activation's preActivation runs `config/omniwm/stop-aerospace.sh`: it boots
+  out the old managed AeroSpace/indicator/borders LaunchAgents **and deletes
+  their RunAtLoad plists** (bootout alone let login relight the stack), then
+  gracefully terminates remaining user-owned AeroSpace/borders instances.
+  Their brew packages (cask cleanup is `none`) and `~/.config/aerospace/`
+  stay on disk for rollback.
 - OmniWM itself has no launch agent managed by Nix. First launch, TCC
   permissions and optional Start at Login are manual choices.
 - The existing skhd shortcuts (Chrome and kitty quick-access terminal) remain.
@@ -124,10 +125,10 @@ wired. To restore the AeroSpace + indicator + borders stack, follow the
 
 Before any rollback: disable OmniWM's Start at Login if enabled, and quit
 OmniWM normally from its menu so it can release parked windows — do not
-force-kill it. The OmniWM app and its writable settings stay installed
-(Homebrew cleanup is `none`); uninstall the cask only if you no longer want
-it. Merely changing Git branches/worktrees never activates or rolls back the
-running system.
+force-kill it. OmniWM normally stays installed while declared in `nix-darwin/homebrew.nix`;
+an undeclared cask is uninstalled by `init.sh`'s post-switch `brew bundle
+cleanup` convergence. Merely changing Git branches/worktrees never activates
+or rolls back the running system.
 
 ## References
 

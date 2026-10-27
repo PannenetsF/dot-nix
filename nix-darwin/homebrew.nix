@@ -14,6 +14,12 @@ in {
           install -m 0644 "${herdiCask}" \
             "${localTapPath}/Casks/herdi.rb"
 
+          # Staging only ever adds files; retired casks must be removed
+          # explicitly or they stay loadable in the local tap forever (the
+          # archived AeroSpace cask blocked `brew cleanup` behind a
+          # tap-trust error after its Brewfile entry was deleted).
+          rm -f "${localTapPath}/Casks/aerospace-patched.rb"
+
           cat > "${localTapPath}/Casks/whatpulse-chmodbpf.rb" <<'RUBY'
     cask "whatpulse-chmodbpf" do
       version "1.0"
@@ -130,8 +136,9 @@ in {
           brew_as_user trust d12frosted/emacs-plus --quiet
 
           # AeroSpace/JankyBorders are retired (see
-          # deprecated/00-aerospace-indicator/). Their installed casks/formulae
-          # are left on disk for manual rollback; only the stale taps go.
+          # deprecated/00-aerospace-indicator/). Their casks/formulae are
+          # uninstalled by init.sh's post-switch `brew bundle cleanup`
+          # convergence; only the obsolete upstream taps go here.
           brew_as_user untap nikitabobko/tap || true
           brew_as_user untap felixkratz/formulae || true
           brew_as_user untap whatpulse/whatpulse || true
@@ -224,6 +231,12 @@ in {
       # TCC-protected .app bundle cannot be unquarantined from activation
       # anyway (xattr removal is EPERM even for root).
       "skim"
+      # Full TeX Live without the GUI bundle (~4.5GB pkg, pulls ghostscript):
+      # Doom's org LaTeX preview for array/complex equations needs a real
+      # distribution (xelatex/pdflatex + preview.sty + dvisvgm/latexmk),
+      # which BasicTeX deliberately omits. org/latex in dot-doom finds it via
+      # /Library/TeX/texbin, the standard MacTeX shim path.
+      "mactex-no-gui"
       "snipaste"
       "tencent-lemon"
       "telegram"
@@ -242,8 +255,12 @@ in {
       # with compile-time options (modern icon, imagemagick, mailutils)
       # that nixpkgs emacs-pgtk (GTK3/X11 on macOS) cannot match. The
       # formula only exists in the d12frosted/emacs-plus tap (declared
-      # above), so it must stay fully-qualified here.
-      "d12frosted/emacs-plus/emacs-plus"
+      # above). Use the canonical versioned token: the tap's bare
+      # `emacs-plus` is an alias to `emacs-plus@31`, whose Cellar rack is
+      # emacs-plus@31, and `brew bundle` matches fully-qualified names by
+      # rack name — the alias token forever reads as "not installed" in
+      # `brew bundle check` and retries an install on every run.
+      "d12frosted/emacs-plus/emacs-plus@31"
       # Doom's (:checkers spell +flyspell) needs an ispell-compatible
       # backend. LaunchServices-started Emacs.app does not see the Home
       # Manager profile, while /opt/homebrew/bin is on its GUI PATH.
@@ -294,6 +311,15 @@ in {
     onActivation = {
       autoUpdate = false;
       upgrade = false;
+      # Stay on "none": Homebrew 7 removed brew bundle's `--cleanup` switch
+      # ("disabled, no replacement"), so nix-darwin's "uninstall" mode now
+      # emits a flag that fails activation. Strict declarative convergence is
+      # done instead by init.sh after every successful darwin switch: it runs
+      # `brew bundle cleanup --force` against the activated system Brewfile
+      # and then re-trusts the taps (the cleanup subcommand replaces the whole
+      # trust store from Brewfile `trusted:` entries, which nix-darwin cannot
+      # emit). Tools that must survive belong in this Brewfile; herdr plugin
+      # cargo builds use rustup at ~/.cargo/bin, not brew rust.
       cleanup = "none";
     };
   };

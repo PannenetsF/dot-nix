@@ -45,19 +45,36 @@ assert_contains "$homebrew_module" "branch -M main" "expected an existing local 
 assert_contains "$homebrew_module" "symbolic-ref HEAD refs/heads/main" "expected the generated local tap to use a deterministic main branch"
 assert_contains "$homebrew_module" "pull --ff-only -q origin main" "expected the installed local tap checkout to refresh before cask migration"
 # The retired AeroSpace cask/JankyBorders formula are archived under
-# deprecated/ and must no longer be managed by Homebrew.
-assert_not_contains "$homebrew_module" "aerospace-patched" "did not expect the retired patched AeroSpace cask to be staged"
+# deprecated/ and must no longer be managed by Homebrew. The only permitted
+# mention of the old cask token is the explicit staging removal (staging
+# never deletes files itself, so archived casks linger otherwise).
+if grep -v 'rm -f.*aerospace-patched' "$homebrew_module" \
+   | grep -qF "aerospace-patched"; then
+  echo "did not expect the retired patched AeroSpace cask to be staged" >&2
+  exit 1
+fi
+grep -q 'rm -f.*aerospace-patched' "$homebrew_module" \
+  || { echo "expected the retired cask to be removed from local tap staging" >&2; exit 1; }
 assert_not_contains "$homebrew_module" "nikitabobko/tap/aerospace" "did not expect the upstream AeroSpace cask"
 assert_not_contains "$homebrew_module" '"felixkratz/formulae"' "did not expect the retired JankyBorders tap"
 assert_not_contains "$homebrew_module" "formulae/borders" "did not expect the retired JankyBorders formula"
 assert_contains "$homebrew_module" "untap nikitabobko/tap" "expected the obsolete upstream AeroSpace tap to be removed"
 assert_contains "$homebrew_module" "untap felixkratz/formulae" "expected the obsolete JankyBorders tap to be removed"
 assert_contains "$homebrew_module" '"omniwm"' "expected the OmniWM cask in the declarative cask list"
+# org LaTeX/preview-latex needs a real TeX Live; BasicTeX lacks preview.sty
+# and dvisvgm, and texliveFull is banned from the nix host layer.
+assert_contains "$homebrew_module" '"mactex-no-gui"' "expected a full TeX Live distribution for Doom org LaTeX preview"
 # emacs-plus lives only in the d12frosted/emacs-plus tap; the tap must be
 # declared and the formula fully-qualified, or `brew bundle` fails with
-# "No available formula with the name emacs-plus".
+# "No available formula with the name emacs-plus". It must be the canonical
+# versioned token emacs-plus@31: the bare alias resolves to Cellar rack
+# emacs-plus@31, so `brew bundle check` would read it as forever missing.
 assert_contains "$homebrew_module" '"d12frosted/emacs-plus"' "expected the emacs-plus tap to be declared"
-assert_contains "$homebrew_module" '"d12frosted/emacs-plus/emacs-plus"' "expected emacs-plus to be installed from its tap, fully-qualified"
+assert_contains "$homebrew_module" '"d12frosted/emacs-plus/emacs-plus@31"' "expected canonical emacs-plus@31, fully-qualified"
+if grep -Fq '"d12frosted/emacs-plus/emacs-plus"' "$homebrew_module"; then
+  echo "did not expect the bare emacs-plus alias token (brew bundle rack-name mismatch)" >&2
+  exit 1
+fi
 # Homebrew 4.4+ refuses formulae from new taps until explicitly trusted.
 assert_contains "$homebrew_module" "tap d12frosted/emacs-plus" "expected the emacs-plus tap to be tapped before bundle"
 assert_contains "$homebrew_module" "trust d12frosted/emacs-plus" "expected the emacs-plus tap to be trusted before bundle"

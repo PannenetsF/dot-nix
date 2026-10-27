@@ -50,9 +50,13 @@ swiftc aerospace/workspace_indicator.swift -o /tmp/aerospace-workspace-indicator
 4. 停用/退出 OmniWM（菜单 Quit，勿与 AeroSpace 同时运行），自行
    `bash ./init.sh` 激活。
 
-## 停用后本机仍保留的东西（有意为之）
+## 停用后本机的清理策略（2026-10 起严格声明式）
 
-- Homebrew cask `aerospace-patched` 与 formula `borders` 不自动卸载
-  （`onActivation.cleanup = "none"`）；`config/omniwm/stop-aerospace.sh`
-  只在激活时卸载 launchd agent 并对残留进程发 SIGTERM。
-- `~/.config/aerospace/` 下的 live 配置不删除。
+- Homebrew cask `aerospace-patched`（连同任何不在 nix Brewfile 里的
+  formula/cask）由 `init.sh` 在每次 darwin switch 后跑
+  `brew bundle cleanup --force` 卸载并清缓存；旧 cask 文件也在 preActivation
+  从本地 tap staging 显式删除。回滚需按上文重新声明 cask 或从本目录的
+  `aerospace-patched.rb` 重新放进 `config/homebrew/Casks/`。
+- `config/omniwm/stop-aerospace.sh` 负责 bootout launchd agent、**删除
+  RunAtLoad plist**（否则登录复活）并对残留进程发 SIGTERM。
+- `~/.config/aerospace/` 等用户配置不由 brew/nix 管理；需要时自行保留或删除。

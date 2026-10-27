@@ -4,8 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/bin" "$tmp/state"
-export WM_TEST_LOG="$tmp/log" WM_TEST_STATE="$tmp/state"
+mkdir -p "$tmp/bin" "$tmp/state" "$tmp/Library/LaunchAgents"
+export WM_TEST_LOG="$tmp/log" WM_TEST_STATE="$tmp/state" HOME="$tmp"
 
 cat >"$tmp/bin/id" <<'SH'
 #!/usr/bin/env bash
@@ -40,11 +40,20 @@ run_cleanup() {
 }
 
 # All desktop commands are stubs; never unload a real LaunchAgent in tests.
+for label in aerospace aerospace-workspace-indicator borders; do
+  touch "$tmp/Library/LaunchAgents/org.nix-community.home.$label.plist"
+done
 run_cleanup
 [[ "$(wc -l <"$WM_TEST_LOG" | tr -d ' ')" == 3 ]]
 grep -Fxq 'launchctl bootout gui/501/org.nix-community.home.aerospace' "$WM_TEST_LOG"
 grep -Fxq 'launchctl bootout gui/501/org.nix-community.home.aerospace-workspace-indicator' "$WM_TEST_LOG"
 grep -Fxq 'launchctl bootout gui/501/org.nix-community.home.borders' "$WM_TEST_LOG"
+
+# RunAtLoad plists must be deleted too, or login relights the stack.
+for label in aerospace aerospace-workspace-indicator borders; do
+  [[ ! -e "$tmp/Library/LaunchAgents/org.nix-community.home.$label.plist" ]] \
+    || { echo "stale $label plist survived cleanup" >&2; exit 1; }
+done
 
 touch "$WM_TEST_STATE/AeroSpace" "$WM_TEST_STATE/borders"
 run_cleanup

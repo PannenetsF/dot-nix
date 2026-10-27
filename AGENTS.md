@@ -65,6 +65,19 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
    Brewfile，执行 `brew update` + `brew bundle --file=… --upgrade`。普通
    `hm-update` 不升级任何 brew/cask（nix-darwin 激活固定
    `brew bundle --no-upgrade`，见 `nix-darwin/homebrew.nix`）。
+   **两种路径在 switch 成功后都跑 `converge_homebrew_bundle`**（严格声明式
+   brew 集合）：`brew bundle cleanup --force` 卸载所有不在 Brewfile 里的
+   formula/cask，再重 trust 全部 tap（cleanup 会把 trust store 整体替换为
+   Brewfile `trusted:` 条目，而 nix-darwin 生成的 Brewfile 发不出该键），
+   最后 `brew cleanup` 清旧版本/下载缓存。**cleanup 子进程必须带
+   `HOMEBREW_NO_REQUIRE_TAP_TRUST=1`**：信任被清空后第三方 tap formula 的
+   递归依赖元数据加载被信任门拦截，递归依赖保护对 emacs-plus 整棵依赖树
+   失效，gdk-pixbuf/pango/librsvg/gcc 等会被当孤儿误删（Brewfile 在只读
+   nix store，本身即可信输入）。不能用 nix-darwin 的
+   `onActivation.cleanup="uninstall"`：Homebrew 7 已移除 `brew bundle
+   install --cleanup` 开关（"disabled, no replacement"），该模式生成的
+   flag 会直接让激活失败。Brewfile 路径可用 `NIX_HM_SYSTEM_BREWFILE` 覆盖
+   （测试用）。
 8. macOS 默认先运行 `brew/install.sh` 确保 Homebrew 和必要 tap 可用，然后通过
    `nix run .#darwin-rebuild -- switch --flake .#<system> --impure` 激活
    nix-darwin。非 root 运行时会通过 `sudo env` 传入 `NIX_HM_USER` 和
@@ -179,11 +192,16 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   workspace 指示器 + JankyBorders 组合已停用并整体归档到
   `deprecated/00-aerospace-indicator/`（含 nix 胶水冻结快照与手动恢复说明），
   不参与求值/激活/测试。
-- OmniWM stable cask 在 `homebrew.nix` 无条件声明；旧 cask/formula 不自动
-  卸载（brew `cleanup = "none"`），留在磁盘以便手动回滚。
-- 用户激活时 preActivation 运行 `config/omniwm/stop-aerospace.sh`，先卸载旧
-  AeroSpace/indicator/borders LaunchAgents，再仅对当前用户残留进程发
-  SIGTERM（拒绝 force-kill）。求值/测试不影响桌面。
+- OmniWM stable cask 在 `homebrew.nix` 无条件声明；旧 cask/formula 不留盘：
+  每次 darwin switch 后 init.sh 跑 `brew bundle cleanup --force` 收敛
+  （Homebrew 7 移除了 `--cleanup` 开关，nix-darwin 的
+  `onActivation.cleanup` 保持 `"none"`，见 §2 第 7 条）；本地 tap staging
+  里的退役 cask 文件也在 preActivation 显式 `rm`。回滚参照
+  `deprecated/00-aerospace-indicator/`。
+- 用户激活时 preActivation 运行 `config/omniwm/stop-aerospace.sh`，先 bootout
+  旧 AeroSpace/indicator/borders LaunchAgents **并删除其 RunAtLoad plist**
+  （只 bootout 不删文件，下次 GUI 登录整套会被 launchd 重新拉起），再仅对
+  当前用户残留进程发 SIGTERM（拒绝 force-kill）。求值/测试不影响桌面。
 - OmniWM 不设自动启动 agent，首次启动、授权、显示器路由由用户操作。
   设置由 OmniWM 首次生成并保持可写，nix 不软链、不整文件覆盖。
 - 机器无关的固化键位由 `config/omniwm/apply-hotkey-overrides.sh` 在
@@ -692,8 +710,19 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   不要混用 hash-table 版 `.eln` 与 plist runtime。
 - dot-doom 的 `config.el` 不再加载 doomenv（v2 的 loader 是坏桩，见上条）。
   子进程 PATH 依赖 emacs-plus 装瓶时烤进 Info.plist 的快照；快照含
-  `/opt/homebrew/bin` 整个目录，新增 Homebrew CLI 工具无需重装 emacs-plus，
-  只有新增前缀路径才需 `brew reinstall emacs-plus` 刷新快照。
+  `/opt/homebrew/bin` 整个目录，新增 Homebrew CLI 工具无需重装 emacs-plus。
+  快照之外的**新前缀**不重装 emacs-plus 刷新——由 dot-doom `config.el`
+  启动时自愈 append（当前含 `/etc/profiles/per-user/$USER/bin`、
+  `~/.nix-profile/bin` 与 MacTeX 的 `/Library/TeX/texbin`；LaunchServices
+  启动的 Emacs 不读 /etc/paths.d，不补这条 org 的 latex preview 找不到
+  xelatex）。新增这类前缀时改 dot-doom，不要 brew reinstall emacs-plus。
+- TeX：org 里的 LaTeX 数组/复杂公式预览（preview-latex：xelatex +
+  `preview.sty` + dvisvgm）需要完整发行版；BasicTeX 故意不带这些包。
+  macOS 侧声明 brew cask `mactex-no-gui`（~4.5GB pkg，含 ghostscript，
+  装到 `/Library/TeX/texbin`），不要往 `modules/host.nix` 塞 texlive
+  （`texliveFull` 有测试禁止，scheme 版 GUI Emacs 又看不见 nix PATH）。
+  声明必须是 Brewfile 里——brew 集合严格声明式，手装会被下次 switch 的
+  converge 卸载。
 - 字体跨仓库约定：kitty `config/kitty/kitty.conf` 用 `Sarasa Term SC`
   16.0，dot-doom `config.el` 的 `doom-font` 同样是 CoreText 名
   `Sarasa Term SC` 16（同一家族，改字体两边一起改）；它自带严格 2:1 的
@@ -736,6 +765,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   advice 会收到 `telega` 的
   可选 prefix 参数，函数必须声明 `&optional _arg`（或 `&rest _`），否则
   启动即 `wrong-number-of-arguments`。
+- **带版本化 token 的 tap formula 必须写规范全名**：如
+  `d12frosted/emacs-plus/emacs-plus@31`，不能写别名
+  `…/emacs-plus`。`brew bundle` 对全名 formula 只用 Cellar rack 名做
+  已装判断，而 tap 的裸名是指向 `emacs-plus@31` 的别名、rack 名带 @31，
+  别名 token 会让 `brew bundle check` 永远报缺失、每次 upgrade 重试安装。
 
 注意：这些脚本在 Home Manager activation 中经模块以 `${../.}/script.sh`
 目录引用进入只读 Nix store（保证与 `install-common.sh` 同目录）后执行。
@@ -768,7 +802,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - 新增 macOS GUI app/cask：改 `nix-darwin/homebrew.nix`，必要时同步
   `brew/install.sh` 里的 tap/trust bootstrap。新增的若是「未公证裸二进制」
   cask（`spctl --assess` 报 Unnotarized Developer ID），还要把 cask token
-  加进 `brew/unquarantine-casks.sh` 的 `CASKS` 白名单。
+  加进 `brew/unquarantine-casks.sh` 的 `CASKS` 白名单。**brew 集合是严格
+  声明式的**：任何手动 `brew install` 的 formula/cask（以及从本地 tap
+  删掉的退役 cask）会在下次 darwin switch 后被 init.sh 的
+  `converge_homebrew_bundle` 卸载——要长期保留就必须声明进 homebrew.nix；
+  不要改回 nix-darwin 的 `onActivation.cleanup`（见 §2 第 7 条）。
 - 新增 macOS 系统 defaults：改 `nix-darwin/macos-defaults.nix`。
 - 修改 Doom Emacs 引导：改 `install-doom.sh`（不要生成 doomenv，v2 的
   loader 是坏桩会污染 `process-environment`，详见 §4 Doom 小节）。个人
@@ -887,7 +925,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   命令全部 stub）、
   `bash tests/omniwm_hotkey_overrides_test.sh`（固化键位 seed/幂等/冲突回滚）
 - cask quarantine 解封：`bash tests/unquarantine_casks_test.sh`（配套
-  `init_brew_upgrade_test.sh` 验证 `hm-upgrade` 在 bundle 之后调用脚本）
+  `init_brew_upgrade_test.sh` 验证 `hm-upgrade` 在 bundle 之后调用脚本，
+  以及每次 darwin switch 后 `converge_homebrew_bundle` 的 cleanup→trust→
+  cache 序列与 Homebrew 7 不兼容的 `--cleanup` 不再从 nix-darwin 发出）
 - macOS defaults / Touch ID：`bash tests/darwin_defaults_test.sh`、
   `bash tests/darwin_touchid_sudo_test.sh`
 - macOS 用户环境 / 激活 PATH：`bash tests/darwin_user_env_test.sh`、

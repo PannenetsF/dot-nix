@@ -618,7 +618,7 @@ upgrade_homebrew_bundle() {
 
   local system_path brewfile
   system_path="$(current_system_dir)"
-  brewfile="$(current_system_brewfile "$system_path" || true)"
+  brewfile="${NIX_HM_SYSTEM_BREWFILE:-$(current_system_brewfile "$system_path" || true)}"
   if [[ -z "$brewfile" || ! -f "$brewfile" ]]; then
     die "could not locate the active system Brewfile from $system_path/activate; aborting Homebrew upgrade"
   fi
@@ -626,7 +626,15 @@ upgrade_homebrew_bundle() {
   echo "[init.sh] Running brew update to refresh the formula/cask index..."
   "$brew_bin" update
   echo "[init.sh] Upgrading formulae/casks per the active system Brewfile (brew bundle --upgrade)..."
-  "$brew_bin" bundle --file="$brewfile" --upgrade
+  # A single failing entry must not abort post-switch maintenance (the
+  # unquarantine pass and the bundle convergence still need to run). Typical
+  # causes: the cask app is running and macOS TCC denies the in-place chgrp
+  # (App Management approval, granted once per app), or a tap is temporarily
+  # unreachable. Brew itself lists the failures; the user retries after
+  # quitting the app or approving the prompt.
+  if ! "$brew_bin" bundle --file="$brewfile" --upgrade; then
+    echo "[init.sh] WARNING: some Homebrew upgrades failed; see Brew output above (running app or pending App Management approval?). Continuing." >&2
+  fi
 
   # Homebrew 7 force-quarantines cask artifacts with no opt-out. The
   # unnotarized bare-binary casks (claude-code, codex) would be re-blocked by
@@ -637,6 +645,70 @@ upgrade_homebrew_bundle() {
   if [[ -f "$unquarantine_script" ]]; then
     BREW_BIN="$brew_bin" bash "$unquarantine_script" || true
   fi
+}
+
+# Strictly declarative brew set: uninstall formulae/casks not listed in the
+# activated system Brewfile, then purge stale versions and download caches.
+# Runs after every darwin switch (both hm-update and hm-upgrade).
+#
+# Homebrew 7 removed `brew bundle install --cleanup` ("disabled, no
+# replacement"), and nix-darwin's onActivation.cleanup="uninstall" now emits
+# that dead flag; the supported path is the standalone `brew bundle cleanup`
+# subcommand. It is destructive by design: anything that must survive belongs
+# in nix-darwin/homebrew.nix.
+#
+# Three quirks this wraps:
+#  - `cleanup --force` REPLACES the whole tap trust store with Brewfile
+#    `trusted:` entries, which the nix-darwin-generated Brewfile cannot
+#    express, so trust is wiped every run; re-trust the Brewfile's taps
+#    immediately after.
+#  - with the store wiped, formula metadata from third-party taps fails the
+#    trust gate, so cleanup's recursive-dependency protection silently omits
+#    the dep trees of Brewfile formulae that live in such taps (e.g.
+#    emacs-plus from d12frosted/emacs-plus): the formula keg survives but
+#    gdk-pixbuf/pango/librsvg/gcc/... get uninstalled as "orphans". Run the
+#    pass with HOMEBREW_NO_REQUIRE_TAP_TRUST=1 — the Brewfile is generated in
+#    the read-only Nix store and is itself the trusted input here.
+#  - the same wiped-store gate aborts cleanup's internal `brew cleanup` cache
+#    sweep; rerun it once trust is restored.
+converge_homebrew_bundle() {
+  local brew_bin="${NIX_HM_BREW_BIN:-brew}"
+  if ! command -v "$brew_bin" >/dev/null 2>&1; then
+    echo "[init.sh] Homebrew not found; skipping brew bundle cleanup." >&2
+    return 0
+  fi
+
+  local system_path brewfile
+  system_path="$(current_system_dir)"
+  brewfile="${NIX_HM_SYSTEM_BREWFILE:-$(current_system_brewfile "$system_path" || true)}"
+  if [[ -z "$brewfile" || ! -f "$brewfile" ]]; then
+    echo "[init.sh] could not locate the active system Brewfile; skipping brew bundle cleanup." >&2
+    return 0
+  fi
+
+  # Trust first: loading the Brewfile itself requires its third-party taps to
+  # be trusted, and the local dot-nix tap casks come from a custom remote.
+  echo "[init.sh] Trusting Brewfile taps..."
+  local tap
+  while IFS= read -r tap; do
+    [[ -n "$tap" ]] && "$brew_bin" trust --quiet "$tap" || true
+  done < <(/usr/bin/sed -n 's/^tap[[:space:]]*"\([^"]*\)".*/\1/p' "$brewfile")
+
+  # Uninstalls land here. NO_REQUIRE_TAP_TRUST keeps dependency metadata for
+  # third-party-tap formulae loadable after cleanup replaces the trust store
+  # (see quirk #2 above). The pass may still exit nonzero on its trailing
+  # cache sweep, which is why a second cache pass runs after re-trust.
+  echo "[init.sh] Removing Homebrew formulae/casks not in the system Brewfile..."
+  HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_REQUIRE_TAP_TRUST=1 \
+    "$brew_bin" bundle --file="$brewfile" cleanup --force || true
+
+  echo "[init.sh] Re-trusting Brewfile taps (cleanup reset the trust store)..."
+  while IFS= read -r tap; do
+    [[ -n "$tap" ]] && "$brew_bin" trust --quiet "$tap" || true
+  done < <(/usr/bin/sed -n 's/^tap[[:space:]]*"\([^"]*\)".*/\1/p' "$brewfile")
+
+  echo "[init.sh] Purging old Homebrew versions and download caches..."
+  HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" cleanup || true
 }
 
 activate_home_manager() {
@@ -816,6 +888,14 @@ main() {
   if [[ "$do_upgrade" == true ]] && is_darwin \
      && [[ "$use_home_manager" != true ]]; then
     upgrade_homebrew_bundle
+  fi
+
+  # Converge the brew set to the activated Brewfile on every darwin switch
+  # (hm-update and hm-upgrade): uninstall undeclared formulae/casks and purge
+  # stale caches. Homebrew 7 removed bundle's --cleanup switch, so this cannot
+  # live in nix-darwin's onActivation; see converge_homebrew_bundle.
+  if is_darwin && [[ "$use_home_manager" != true ]]; then
+    converge_homebrew_bundle
   fi
 }
 
