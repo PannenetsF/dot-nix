@@ -184,7 +184,7 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 
 - `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
   `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）
-- 看板内：`j/k` 移动、`h/l` 折叠、状态键翻转、Enter 派活（先复核 prompt 再确认）、`q` 关
+- 看板内：`j/k` 移动、`h/l` 折叠、状态键翻转、Enter 选择 Project/Coordinator（先复核 prompt 再确认）；在 picker/preview 中 `a` 用 `$VISUAL`/`$EDITOR`/`nvim` 编辑 description、`i` 编辑本次 note；`R` 进入显式 Workspace dispatch；`q` 关
 - `T`：在 roadmap 末尾新增一个 `## 主题` chain 并带上第一个任务（两步行内
   输入：先标题、再任务；Esc 取消）。CLI：
   `roadboard add-chain "主题" --task "第一件事"`
