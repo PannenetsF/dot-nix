@@ -26,7 +26,8 @@ OmniWM 默认会全局劫持 `⌃⌥F`（Niri 列扩展高级动作），已由
 | --- | --- | --- | --- |
 | 切换 pane | `C-A-h/j/k/l` | `P h/j/k/l` | `<C-h/j/k/l>` |
 | 下一个 / 上一个 tab | `C-A-]` / `C-A-[` | `P n` / `P b`（`P p` 同） | `<leader>bn` / `<leader>bb`、`]q`/`[q` |
-| 模糊跳转任意 agent/tab/workspace | `C-A-f` | `P f` / `P g` | `<leader>ff`、`<leader>bj` |
+| 搜索非 thread session（含远程） | `C-A-f` | `P f` | `<leader>ff`、`<leader>bj` |
+| 完整导航（含 threads/tab/workspace） | — | `P g` | — |
 | 竖分 / 横分 pane | `C-A-v` / `C-A-s` | `P v` / `P s` | `:vsplit` / `:split` |
 | 新建 tab | `C-A-c` | `P c` | — |
 | 关闭 pane / tab | `C-A-x` / `C-A-S-x` | `P x` / `P S-x` | `<leader>c`（语义近） |
@@ -86,7 +87,11 @@ OmniWM 默认会全局劫持 `⌃⌥F`（Niri 列扩展高级动作），已由
 | 重载配置 | `herdr server reload-config` | 默认 `P S-r` 已让给 roadboard，用命令行 |
 | 完整按键面板（可 `/` 过滤） | `P ?` | — |
 
-goto 面板（`P f`）里的过滤单键：`b/w/i/d` 分别过滤
+`P f` / `C-A-f` 打开非 thread session 选择器：本机和远端的 coordinator、普通
+session 一起列出，显示机器、workspace、角色、状态和标题；输入搜索、Enter
+聚焦、Esc 取消。`P C-f` 仍只聚焦项目 coordinator，`P C-p` 仍选项目。
+
+完整 goto 面板保留在 `P g`（包含 threads）。其中过滤单键：`b/w/i/d` 分别过滤
 blocked/working/idle/done 的 agent，`a` 恢复全部。
 
 > herdr-projects 三个选择器：`P S-c` 用 fzf 选一个或多个已有 git 仓库建

@@ -154,6 +154,60 @@ class PortalPolicyTest(unittest.TestCase):
         self.assertIn((("agent", "focus", "w1:p1"), "boe-fyq"), calls)
         self.assertFalse(any(args[:2] == ("agent", "focus") and machine is None for args, machine in calls))
 
+    def test_session_picker_includes_ordinary_remote_and_routes_duplicate_pane_id(self):
+        local = snapshot([pane("w1:p1", "coordinator"), pane("worker", "thread")])
+        remote = snapshot([pane("w1:p1", "other"), pane("worker", "thread")])
+        def choose(args, **kw):
+            lines = kw["input"].splitlines()
+            self.assertEqual(len(lines), 2)
+            self.assertNotIn("worker", kw["input"])
+            self.assertIn("session", lines[1])
+            self.assertIn("--no-multi", args)
+            return types.SimpleNamespace(returncode=0, stdout=lines[1]+"\n")
+        with mock.patch.object(policy, "human_parts", return_value=[("Local", local), ("boe-fyq", remote)]), \
+             mock.patch.object(policy.subprocess, "run", side_effect=choose), \
+             mock.patch.object(c, "run_herdr", return_value={"result": {"snapshot": remote}}), \
+             mock.patch.object(c, "focus_target") as focus:
+            self.assertEqual(policy.pick_session(str(PORTAL / "board")), 0)
+        focus.assert_called_once_with("w1:p1", machine="boe-fyq")
+
+    def test_session_picker_cancel_never_focuses(self):
+        with mock.patch.object(policy, "human_parts", return_value=[("Local", snapshot([pane("p")]))]), \
+             mock.patch.object(policy.subprocess, "run", return_value=types.SimpleNamespace(returncode=130)), \
+             mock.patch.object(c, "focus_target") as focus:
+            self.assertEqual(policy.pick_session(str(PORTAL / "board")), 0)
+        focus.assert_not_called()
+
+    def test_picker_columns_align_by_terminal_cells_not_tabs_or_codepoints(self):
+        rows = [
+            ["[Local]", "Learning\u2800", "session", "idle", "TITLE one"],
+            ["[boe-fyq]", "Lagrange System", "coordinator", "working", "TITLE two"],
+            ["[机器]", "中文项目", "session", "done", "TITLE three"],
+            ["[a-very-long-machine-name]", "a very long project name that needs truncation", "session", "idle", "TITLE four"],
+        ]
+        lines = policy.picker_lines(rows)
+        starts = []
+        for index, line in enumerate(lines):
+            self.assertEqual(line.count("\t"), 1)
+            identity, display = line.split("\t")
+            self.assertEqual(identity, str(index))
+            self.assertNotIn("\u2800", display)
+            starts.append(policy.picker_width(display[:display.index("TITLE")]))
+        self.assertEqual(len(set(starts)), 1)
+        self.assertIn("...", lines[-1])
+
+    def test_session_picker_rechecks_thread_identity_before_focus(self):
+        initial = snapshot([pane("p")])
+        def choose(args, **kw):
+            return types.SimpleNamespace(returncode=0, stdout=kw["input"])
+        with mock.patch.object(policy, "human_parts", return_value=[("Local", initial)]), \
+             mock.patch.object(policy.subprocess, "run", side_effect=choose), \
+             mock.patch.object(c, "run_herdr", return_value={"result": {"snapshot": snapshot([pane("p", "thread")])}}), \
+             mock.patch.object(c, "focus_target") as focus:
+            with self.assertRaisesRegex(RuntimeError, "became a thread"):
+                policy.pick_session(str(PORTAL / "board"))
+        focus.assert_not_called()
+
     def test_portal_focus_routes_same_id_to_remote_and_acknowledges_it(self):
         parts = [{"machine": m, "snapshot": snapshot([pane("w1:p1", "coordinator")])}
                  for m in ["Local", "boe-fyq"]]

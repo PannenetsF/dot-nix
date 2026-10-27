@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 
 
 def visible(pane, agent=None):
@@ -264,10 +265,7 @@ def install_tui(t):
     t.Board.cycle_machine = cycle_machine
 
 
-def jump(board):
-    sys.path.insert(0, board)
-    import collect as c
-
+def human_parts(c):
     # The CLI is used on purpose: it keeps the machine-specific routing,
     # credentials and saved connection settings in Herdr, not in this helper.
     local = c.run_herdr("api", "snapshot").get("result", {}).get("snapshot", {})
@@ -292,8 +290,89 @@ def jump(board):
         worker.join(max(0, deadline - time.monotonic()))
     with lock:
         parts.extend(sorted(replies))
+    return parts
+
+
+def picker_width(text):
+    return sum(0 if unicodedata.combining(char) or unicodedata.category(char) == "Cf"
+               else 2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text)
+
+
+def picker_lines(rows):
+    def clean(value):
+        text = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", str(value if value is not None else ""))
+        return "".join(char for char in text if unicodedata.category(char) != "Cf").strip(" \u2800")
+
+    rows = [[clean(value) for value in row] for row in rows]
+    widths = [min(limit, max(picker_width(row[i]) for row in rows))
+              for i, limit in enumerate([20, 24, 11, 8])] if rows else []
+
+    def fit(text, width):
+        if picker_width(text) > width:
+            clipped = ""
+            for char in text:
+                if picker_width(clipped + char) > width - 3:
+                    break
+                clipped += char
+            text = clipped + "..."
+        return text + " " * (width - picker_width(text))
+
+    # Only the hidden identity uses a tab; visible columns use cell padding.
+    return [f"{index}\t" + "  ".join([*(fit(row[i], width) for i, width in enumerate(widths)), row[4]])
+            for index, row in enumerate(rows)]
+
+
+def pick_session(board):
+    sys.path.insert(0, board)
+    import collect as c
+
     candidates = []
-    for machine, snap in parts:
+    rows = []
+
+    for machine, snap in human_parts(c):
+        spaces = {w["workspace_id"]: w.get("label", "") for w in snap.get("workspaces", [])}
+        panes = {p["pane_id"]: p for p in snap.get("panes", [])}
+        for agent in snap.get("agents", []):
+            pane = panes.get(agent["pane_id"], {})
+            if not visible(pane, agent):
+                continue
+            role = "coordinator" if agent.get("tokens", {}).get("hp_role") == "coordinator" or str(agent.get("name", "")).startswith("hpc-") else "session"
+            title = agent.get("terminal_title_stripped") or agent.get("name") or agent["pane_id"]
+            candidates.append((machine, agent))
+            rows.append([f"[{machine}]", spaces.get(agent.get("workspace_id")), role, agent.get("agent_status", "unknown"), title])
+    if not candidates:
+        print("No live non-thread sessions found.", file=sys.stderr)
+        return 1
+    lines = picker_lines(rows)
+    result = subprocess.run(
+        ["fzf", "--no-multi", "--delimiter=\t", "--with-nth=2..", "--layout=reverse",
+         "--prompt=session > ", "--header=Coordinators + ordinary sessions | type to search | Enter: focus | Esc: cancel"],
+        input="\n".join(lines) + "\n", text=True, stdout=subprocess.PIPE,
+    )
+    if result.returncode in {1, 130}:
+        return 0
+    if result.returncode:
+        raise RuntimeError(f"session picker failed ({result.returncode})")
+    # Resolve an opaque row index, never parse a title/path as a command.
+    selected = result.stdout.rstrip("\n")
+    if selected not in lines:
+        raise RuntimeError("invalid session picker selection")
+    machine, agent = candidates[int(selected.split("\t", 1)[0])]
+    fresh = c.run_herdr("api", "snapshot", machine=machine).get("result", {}).get("snapshot", {})
+    live = next((a for a in fresh.get("agents", []) if a["pane_id"] == agent["pane_id"]), None)
+    pane = next((p for p in fresh.get("panes", []) if p["pane_id"] == agent["pane_id"]), {})
+    if not live or not visible(pane, live):
+        raise RuntimeError("selected session closed or became a thread; reopen the picker")
+    c.focus_target(agent["pane_id"], machine=machine)
+    return 0
+
+
+def jump(board):
+    sys.path.insert(0, board)
+    import collect as c
+
+    candidates = []
+    for machine, snap in human_parts(c):
         candidates.extend((machine, a) for a in snap.get("agents", []) if visible(a))
     for status in ("blocked", "done"):
         pending = [(machine, a) for machine, a in candidates if a.get("agent_status") == status]
@@ -330,3 +409,5 @@ if __name__ == "__main__":
         atomic_json(Path(sys.argv[3]), {"usage": c.usage_summary(), "plan": c.plan_summary()})
     elif sys.argv[1] == "--jump":
         raise SystemExit(jump(sys.argv[2]))
+    elif sys.argv[1] == "--pick":
+        raise SystemExit(pick_session(sys.argv[2]))

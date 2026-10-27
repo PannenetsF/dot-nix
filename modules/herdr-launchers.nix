@@ -5,7 +5,7 @@
   # bindings on every platform, so without these links the popup commands
   # resolve to a missing ~/.local/bin binary.
   # Imported on every host layer (macOS via home.nix's isHost import, Linux
-  # host likewise), keeping a single source of truth: a fifth launcher must
+  # host likewise), keeping a single source of truth: any new launcher must
   # be added here once, not mirrored in modules/darwin.nix and
   # modules/herdr.nix separately. The scripts are bash runnable on both
   # platforms (macOS ships bash 3.2); the macOS-only PATH entries are
@@ -41,7 +41,13 @@
       force = true;
     };
 
-    # Shared preamble sourced by all five launchers above; linked into the same
+    ".local/bin/herdr-pick-session" = {
+      source = ../config/herdr/pick-session.sh;
+      executable = true;
+      force = true;
+    };
+
+    # Shared preamble sourced by the launchers above; linked into the same
     # .local/bin directory because each launcher resolves one symlink hop and
     # sources the sibling next to its resolved nix-store file.
     ".local/bin/herdr-popup-lib.sh" = {

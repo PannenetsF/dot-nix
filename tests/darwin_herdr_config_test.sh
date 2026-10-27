@@ -232,11 +232,14 @@ assert_contains "config/herdr/config.toml" 'herdr-pick-project'
 # (and the rest of the project namespace) silently no-op on that layer.
 assert_file_exists "modules/herdr-launchers.nix"
 assert_contains "home.nix" "./modules/herdr-launchers.nix"
-for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator herdr-focus-coordinator; do
+for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator herdr-focus-coordinator herdr-pick-session; do
 	assert_contains "modules/herdr-launchers.nix" "\".local/bin/$launcher\""
 	assert_not_contains "modules/herdr.nix" "\".local/bin/$launcher\""
 	assert_not_contains "modules/darwin.nix" "\".local/bin/$launcher\""
 done
+assert_file_exists "config/herdr/pick-session.sh"
+assert_contains "config/herdr/config.toml" 'goto = "prefix+g"'
+assert_contains "config/herdr/config.toml" 'herdr-pick-session'
 # Focus-coordinator (prefix+ctrl+f) ships its own binding.
 assert_file_exists "config/herdr/focus-coordinator.sh"
 assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+f"'

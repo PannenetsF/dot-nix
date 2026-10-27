@@ -75,8 +75,8 @@ close_tab = ["prefix+shift+x", "ctrl+alt+shift+x"]
 toggle_sidebar = ["prefix+e", "ctrl+alt+e"]
 edit_scrollback = "prefix+shift+e"
 
-# goto picker = fzf / BufferLinePick (<leader>f*)
-goto = ["prefix+g", "prefix+f", "ctrl+alt+f"]
+# Full navigation retains threads; the human-session picker below owns f.
+goto = "prefix+g"
 
 # indexed jumps: tabs keep defaults, workspaces mirror AeroSpace alt-shift-1..9
 switch_tab = "prefix+1..9"
@@ -84,6 +84,22 @@ switch_workspace = "prefix+shift+1..9"
 focus_agent = "prefix+ctrl+1..9"
 
 zoom = ["prefix+z", "ctrl+alt+z"]
+
+[[keys.command]]
+key = "prefix+f"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-pick-session\"'"
+description = "Sessions: coordinators and ordinary sessions (no threads)"
+width = "85%"
+height = "75%"
+
+[[keys.command]]
+key = "ctrl+alt+f"
+type = "popup"
+command = "sh -c 'exec \"$HOME/.local/bin/herdr-pick-session\"'"
+description = "Sessions: coordinators and ordinary sessions (no threads)"
+width = "85%"
+height = "75%"
 
 # <leader>g LazyGit -> herdr popup (lazygit comes from modules/common.nix)
 [[keys.command]]
