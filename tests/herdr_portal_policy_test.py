@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
+import types
 from unittest import mock
 
 REPO = Path(__file__).resolve().parent.parent
@@ -17,7 +18,12 @@ spec.loader.exec_module(policy)
 registry = json.loads((Path.home() / ".config/herdr/plugins.json").read_text())
 PORTAL = Path(next(p["plugin_root"] for p in registry if p["plugin_id"] == "herdr-portal"))
 sys.path.insert(0, str(PORTAL / "board"))
-import collect as c
+# Exercise the repository policy, not an older already-patched live module.
+c = types.ModuleType("collect")
+c.__file__ = str(PORTAL / "board/collect.py")
+source = Path(c.__file__).read_text().split("import dot_nix_portal_policy as _dn_policy")[0]
+sys.modules["collect"] = c
+exec(compile(source, c.__file__, "exec"), c.__dict__)
 policy.install(c)
 
 
@@ -122,6 +128,28 @@ class PortalPolicyTest(unittest.TestCase):
             self.assertEqual(policy.jump(str(PORTAL / "board")), 0)
         self.assertIn((("agent", "focus", "w1:p1"), "boe-fyq"), calls)
         self.assertFalse(any(args[:2] == ("agent", "focus") and machine is None for args, machine in calls))
+
+    def test_portal_focus_routes_same_id_to_remote_and_acknowledges_it(self):
+        parts = [{"machine": m, "snapshot": snapshot([pane("w1:p1", "coordinator")])}
+                 for m in ["Local", "boe-fyq"]]
+        result = c.assemble_snapshot(parts)
+        with mock.patch.object(c, "collect", return_value=result), \
+             mock.patch.object(c, "collect_or_error", return_value=result), \
+             mock.patch.object(c, "run_herdr", return_value={"ok": True}) as run:
+            c.focus_target("w1:p1", "boe-fyq")
+        run.assert_called_once_with("agent", "focus", "w1:p1", machine="boe-fyq")
+        self.assertEqual(c.seen_map()["boe-fyq"]["w1:p1"], 9)
+        self.assertNotIn("Local", c.seen_map())
+
+    def test_offline_remote_keeps_last_good_human_cards_and_machine_identity(self):
+        now = time.time()
+        with mock.patch.object(c, "_remote_states", {"boe-fyq": {
+            "snapshot": snapshot([pane("w1:p1", "coordinator"), pane("w1:p2", "thread")]),
+            "ok_at": now - 3600, "error": "SSH timeout"}}):
+            parts = c.remote_parts(now)
+            result = c.assemble_snapshot(parts)
+        self.assertTrue(parts[0]["stale"])
+        self.assertEqual([(i["machine"], i["pane_id"]) for i in result["items"]], [("boe-fyq", "w1:p1")])
 
 
 if __name__ == "__main__":

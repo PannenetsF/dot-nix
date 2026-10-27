@@ -124,8 +124,11 @@ herdr server reload-config
 `furkankly.zoetrope` 插件把聚焦的 agent pane 会话画成实时流程图。插件由共享
 激活脚本 `install-herdr-plugins.sh` 以 pinned ref 安装（macOS 经
 `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
-两个薄封装调用），`zoe` CLI 在 macOS 由 `nix-darwin/homebrew.nix` 管理。前提：`herdr integration install claude`
-（或 codex）已装，且 agent 是在集成安装之后启动的，否则 pane 没有 session id。
+两个薄封装调用），`zoe` CLI 在 macOS 由 `nix-darwin/homebrew.nix` 管理。
+前提：claude/codex 的 agent 集成由同一个激活脚本每次激活幂等下发
+（`HERDR_AGENT_INTEGRATIONS="claude codex"` → `herdr integration install`，
+agent 未装时自门控跳过，`herdr integration status` 可查 current）；agent
+必须是在集成安装之后启动的，否则 pane 没有 session id。
 
 - `P S-z`：在当前 pane 上叠加流程图，跟 live 会话；再按一次或图内 `q` 关闭
 - 其他放置方式：`furkankly.zoetrope.open-split` / `open-tab`（改 config.toml
@@ -157,8 +160,8 @@ Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
   codepoint map 直接预置在 `config/kitty/kitty.conf`（否则插件首次安装的
   build hook 会因写只读 Nix-store 软链硬失败）
 - 插件默认跟随 macOS 深浅色模式并改写 `[theme] name`；模板把
-  `light_name`/`dark_name` 都钉成 `"terminal"`，于是它只切换自己侧边栏
-  的调色板，不会动 terminal 跟随 kitty 的主题
+  `light_name`/`dark_name` 钉成内置配对 `solarized-light`/`solarized`
+  （不用 `terminal`：它借 kitty ANSI 调色板画 chrome，亮色下对比度烂）
 - 与 herdr-projects 共存：v0.2.34 的 projects 会把自己的 tab-bar 命令和
   `$hp_sub` 侧边栏分组行合并进 radar 的 marker 块，所以激活顺序固定为
   radar configure 在前、projects configure 在后（共享激活脚本已保证）。
@@ -296,6 +299,12 @@ workspace 列表不受 agents view 过滤影响，仍是 Herdr 的完整导航�
   focus-coordinator）全部由单一来源 `modules/herdr-launchers.nix` 链到
   `~/.local/bin`，共享 `herdr-popup-lib.sh` 里的截断/名字族判定（镜像
   Rust `names.rs` 的 24/22 截断规则）；新增第六个只改这个模块
+- `P a` → 项目 → settings：repositories 区域每个 repo 独占一行，保留
+  `PATH@MACHINE`。`+ Add repository` 回车输入路径；选中某一 repo 回车显示
+  移除确认，`y` 仅解除关联（不删文件），Esc 取消。仓库里含空格或逗号也
+  按完整路径处理，不再从逗号拼接文本反解析。列表较长时 ↑↓/j/k 滚动。
+  此 UI 补丁在激活时幂等应用到 pinned Projects 并 cargo 构建，不重启 ticker
+  或 agent；已打开的 popup 需关闭重开。
 
 ## 可选：herdr-portal 全局 agent 看板
 

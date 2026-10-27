@@ -16,6 +16,14 @@
 #   HERDR_CONFIG_DIR     Default: $HOME/.config/herdr.
 #   HERDR_PROJECTS_BIN   Default: $HOME/.local/bin/herdr-projects.
 #   HERDR_ROADBOARD_SRC  Default: $HOME/Documents/workspace/roadboard.
+#   HERDR_AGENT_INTEGRATIONS
+#                        Space-separated list of built-in agent integrations
+#                        (e.g. "claude codex") ensured on every activation via
+#                        `herdr integration install <name>`. The installer is a
+#                        purely local, idempotent file write and self-gates with
+#                        rc=1 when the agent's own config directory does not
+#                        exist, so wrappers pass the full desired list without
+#                        probing what is installed. Unset: nothing is ensured.
 #   HERDR_PUSH_RELAY_URL When set (http(s) URL of a herdr-remote relay), the
 #                        dcolinmorgan/herdr-push plugin is pinned-installed and
 #                        its .env seeded once with HERDR_RELAY=<url>. Unset on
@@ -78,6 +86,23 @@ if [ -z "$herdr_cli" ]; then
   echo >&2 "herdr CLI not found; wrote config template, skipping plugin install"
   exit 0
 fi
+
+# Built-in agent integrations: session-reporting hooks herdr merges into each
+# agent's own config directory (~/.claude/hooks/herdr-agent-state.sh,
+# ~/.codex/herdr-agent-state.sh + a SessionStart hook entry), so herdr can map
+# a pane to the agent session running inside it (radar glyphs, zoetrope,
+# transcript reads and portal all depend on that session id). Unlike the
+# plugins below, `integration install` is a purely local, network-free file
+# merge: it is idempotent (no-op while the bundled integration version is
+# current, upgrades when outdated) and self-gates with rc=1 when the agent's
+# config directory does not exist, so wrappers pass the full desired list on
+# every platform without probing what is installed. It also never talks to
+# the running server, hence it stays OUTSIDE the version gate below; running
+# it on every activation repairs the hook when another tool rewrites the
+# agent's settings file (same recovery rationale as projects' configure).
+for integration in ${HERDR_AGENT_INTEGRATIONS:-}; do
+  "$herdr_cli" integration install "$integration" >/dev/null 2>&1 || true
+done
 
 # herdr has no declarative plugin config, so install plugins here, pinned to
 # refs. `plugin install` re-installs even when current, so guard on the
@@ -353,6 +378,12 @@ fi
 
 # Keep this after both configure calls: projects owns an older default view,
 # while Radar's renderer and keeper must agree on the user-facing session list.
+repo_list_installer="${HERDR_REPO_LIST_INSTALLER:-$(dirname "$0")/config/herdr/install-projects-repo-list.cjs}"
+repo_list_patch="${HERDR_REPO_LIST_PATCH:-$(dirname "$0")/patches/herdr-projects-multiline-repos.patch}"
+if command -v node >/dev/null 2>&1 && [ -f "$repo_list_installer" ] && [ -f "$repo_list_patch" ]; then
+  node "$repo_list_installer" "$config_dir" "$repo_list_patch" \
+    || echo >&2 "herdr Projects multiline repo list could not be installed"
+fi
 sidebar_installer="${HERDR_SIDEBAR_INSTALLER:-$(dirname "$0")/config/herdr/install-sidebar-policy.cjs}"
 sidebar_policy="${HERDR_SIDEBAR_POLICY:-$(dirname "$0")/config/herdr/sidebar-policy.cjs}"
 if command -v node >/dev/null 2>&1 && [ -f "$sidebar_installer" ] && [ -f "$sidebar_policy" ]; then

@@ -39,7 +39,10 @@ in {
       HERDR_SIDEBAR_INSTALLER="${../config/herdr/install-sidebar-policy.cjs}" \
       HERDR_SIDEBAR_POLICY="${../config/herdr/sidebar-policy.cjs}" \
       HERDR_PORTAL_POLICY="${../config/herdr/portal-policy.py}" \
+      HERDR_REPO_LIST_INSTALLER="${../config/herdr/install-projects-repo-list.cjs}" \
+      HERDR_REPO_LIST_PATCH="${../patches/herdr-projects-multiline-repos.patch}" \
       HERDR_CLI="${herdrCli}" \
+      HERDR_AGENT_INTEGRATIONS="claude codex" \
       HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375" \
       bash "${herdrPluginScript}"
   '';

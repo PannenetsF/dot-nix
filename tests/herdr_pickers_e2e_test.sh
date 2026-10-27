@@ -278,6 +278,10 @@ case_new_erdos() {
 		ng "new-erdos" "PROJECT.md missing name = \"Erdos\""
 		return
 	fi
+	if ! grep -Eq '^mute = true[[:space:]]*$' "$CASE_ROOT/erdos/PROJECT.md"; then
+		ng "new-erdos" "new project must mute worker ticker notifications"
+		return
+	fi
 	if ! grep -Fq "erdos" "$CASE_T/hp_log" 2>/dev/null; then
 		ng "new-erdos" "stub open not called with erdos"
 		return

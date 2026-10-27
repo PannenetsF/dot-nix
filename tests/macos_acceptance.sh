@@ -233,6 +233,22 @@ for plugin in devswha.herdr-web-ui herdr-portal herdr.push; do
   fi
 done
 
+# Agent session integrations: activation ensures these via
+# `herdr integration install`; status reports "current" (never "outdated" or
+# "not installed") on machines where the agent itself is present.
+if command -v codex >/dev/null 2>&1; then
+  if herdr integration status 2>/dev/null | grep -F 'codex:' | grep -Fq 'current'; then
+    pass "herdr codex integration current"
+  else
+    fail "herdr codex integration not current: $(herdr integration status 2>/dev/null | grep -F 'codex:' || true)"
+  fi
+fi
+if herdr integration status 2>/dev/null | grep -F 'claude:' | grep -Fq 'current'; then
+  pass "herdr claude integration current"
+else
+  fail "herdr claude integration not current"
+fi
+
 installed_herdi_cask="$(brew list --cask --versions herdi 2>/dev/null || true)"
 if [[ "$installed_herdi_cask" == "herdi ${herdi_version}" ]]; then
   pass "Herdi cask version: ${herdi_version}"

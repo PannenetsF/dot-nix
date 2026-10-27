@@ -1,13 +1,15 @@
 onboarding = false
 
 [theme]
-name = "terminal"
+name = "solarized"
 auto_switch = false
 # herdr-radar (plugin, see nix-darwin/herdr.nix) follows macOS light/dark
-# appearance and rewrites `name` from these keys. Pin both to "terminal" so its
-# palette swap keeps the terminal-following theme instead of catppuccin.
-light_name = "terminal"
-dark_name = "terminal"
+# appearance and rewrites `name` from these keys. Use Herdr's own paired
+# themes, NOT "terminal": the terminal theme borrows kitty's ANSI palette for
+# sidebar fills/selection, and light palettes (e.g. Solarized Light) render
+# the chrome with broken contrast.
+light_name = "solarized-light"
+dark_name = "solarized"
 
 [ui]
 # Distinct static glyphs for blocked/working/done/idle instead of color dots.

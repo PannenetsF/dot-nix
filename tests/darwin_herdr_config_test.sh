@@ -37,7 +37,18 @@ assert_contains "nix-darwin/configuration.nix" "./herdr.nix"
 assert_contains "nix-darwin/configuration.nix" "./herdr-remote.nix"
 assert_contains "nix-darwin/herdr.nix" "postActivation.text"
 assert_contains "nix-darwin/herdr.nix" "../install-herdr-plugins.sh"
-assert_contains "nix-darwin/herdr.nix" "HERDR_TEMPLATE="
+assert_contains "nix-darwin/herdr.nix" "HERDR_CLI="
+# Both thin wrappers request the same agent-integration set; the shared body
+# performs the idempotent, server-independent `herdr integration install`.
+assert_contains "nix-darwin/herdr.nix" 'HERDR_AGENT_INTEGRATIONS="claude codex"'
+assert_contains "modules/herdr.nix" 'HERDR_AGENT_INTEGRATIONS="claude codex"'
+assert_contains "$body" "integration install"
+assert_contains "$body" "HERDR_AGENT_INTEGRATIONS"
+# The target list must be the wrappers' parameter, never hard-coded in the
+# platform-neutral body.
+if grep -Eq 'integration install[[:space:]]+(claude|codex)' "${repo_root}/$body"; then
+	fail "agent integration targets must come from HERDR_AGENT_INTEGRATIONS, not be hard-coded in $body"
+fi
 assert_contains "nix-darwin/herdr.nix" "HERDR_SIDEBAR_INSTALLER="
 assert_contains "nix-darwin/herdr.nix" "HERDR_SIDEBAR_POLICY="
 assert_contains "modules/herdr.nix" "HERDR_SIDEBAR_INSTALLER="
@@ -69,15 +80,16 @@ assert_contains "$body" 'rm -f "$live"'
 # Home Manager must no longer force-link the file (the nix-darwin module owns it).
 assert_not_contains "modules/darwin.nix" ".config/herdr/config.toml"
 
-# herdr UI follows kitty's own palette (kitty auto-switches with the
-# macOS light/dark appearance), not a herdr-built-in theme.
-assert_contains "config/herdr/config.toml" 'name = "terminal"'
+# Herdr UI uses Herdr's own paired themes, NOT "terminal": the terminal theme
+# borrows kitty's ANSI palette for chrome fills and renders light palettes
+# (e.g. Solarized Light) with broken contrast.
+assert_contains "config/herdr/config.toml" 'name = "solarized"'
 
 # herdr-radar follows macOS appearance and rewrites [theme] name from the
-# light/dark keys; both pinned to "terminal" so the terminal-following theme
-# survives its sync.
-assert_contains "config/herdr/config.toml" 'light_name = "terminal"'
-assert_contains "config/herdr/config.toml" 'dark_name = "terminal"'
+# light/dark keys; pin the built-in solarized pair so each appearance gets a
+# palette curated for Herdr's chrome.
+assert_contains "config/herdr/config.toml" 'light_name = "solarized-light"'
+assert_contains "config/herdr/config.toml" 'dark_name = "solarized"'
 
 # herdr-radar plugin: pinned fork install + post-template configure repair in
 # the nix-darwin postActivation, and its keybindings in the template.

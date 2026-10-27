@@ -46,6 +46,11 @@ case "$1" in
         ;;
     esac
     ;;
+  integration)
+    # The real installer self-gates with rc=1 ("install codex first") when
+    # the target agent's config directory does not exist.
+    [ "${STUB_INTEGRATION_FAIL:-}" = 1 ] && exit 1
+    ;;
 esac
 exit 0
 SH
@@ -74,6 +79,9 @@ run_case() {
     export HERDR_CONFIG_DIR="$home/.config/herdr"
     export HERDR_PROJECTS_BIN="$home/nonexistent-herdr-projects"
     export HERDR_ROADBOARD_SRC="$home/no-roadboard"
+    # Wrappers pass the full desired agent-integration list on every platform;
+    # the installer self-gates when an agent directory is absent.
+    export HERDR_AGENT_INTEGRATIONS="claude codex"
     "$@"
   )
 }
@@ -90,6 +98,12 @@ grep -q "marker = 1" "$home1/.config/herdr/config.toml" || fail "template conten
 [ ! -L "$home1/.config/herdr/config.toml" ] || fail "config must be a regular file, not symlink"
 
 log1="$(cat "$home1/calls.log")"
+# Agent integrations are ensured on every activation (local file merge, no
+# server/network), so panes always carry their session id for radar/zoetrope.
+echo "$log1" | grep -q "integration install claude" \
+  || fail "claude agent integration not ensured"
+echo "$log1" | grep -q "integration install codex" \
+  || fail "codex agent integration not ensured"
 echo "$log1" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope not installed"
 echo "$log1" | grep -q "plugin install -y --ref be4cd1fecf9bf0684a0fe0f2dd1c2316bf819389 to4iki/herdr-unread-jump" \
   || fail "herdr-unread-jump not installed at the pinned ref"
@@ -161,6 +175,10 @@ log3="$(cat "$home3/calls.log")"
 # the server version is unobtainable.
 echo "$log3" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope installs before the version gate"
 echo "$log3" | grep -q "to4iki/herdr-unread-jump" || fail "unread-jump installs before the version gate (min herdr 0.7.5)"
+# Integrations are a purely local file merge and never query the server, so
+# they must still be ensured while the server version is unobtainable.
+echo "$log3" | grep -q "integration install codex" \
+  || fail "agent integrations must install outside the server-version gate"
 echo "$log3" | grep -q "PannenetsF/herdr-radar" && fail "radar needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.5 server" || true
 echo "$log3" | grep -q "devswha/herdr-web-ui" && fail "web-ui needs a reachable >=0.9.0 server" || true
@@ -272,5 +290,33 @@ echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.5" \
   && fail "fork must not be reinstalled when already at the pinned ref" || true
 echo "$log8" | grep -q "action invoke configure --plugin herdr-projects" \
   || fail "configure must still run (idempotent repair) when the fork is present"
+
+# --- Case 9: agent integrations self-gate and are skipped when not requested -
+# 9a: the installer exits 1 when an agent is not installed (real "install
+# codex first" behavior); a missing agent must not abort the activation.
+stub9="$tmp/stub9"; make_stub "$stub9"; home9="$tmp/home9"
+STUB_MODE=ok STUB_VERSION=0.9.5 STUB_INTEGRATION_FAIL=1 \
+  run_case "$home9" env PATH="$stub9/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log9="$(cat "$home9/calls.log")"
+echo "$log9" | grep -q "integration install claude" || fail "integration still attempted"
+echo "$log9" | grep -q "furkankly/zoetrope/herdr-plugin" \
+  || fail "activation must continue after an integration self-gate"
+
+# 9b: no HERDR_AGENT_INTEGRATIONS (e.g. a wrapper that opts out) -> no
+# integration calls at all.
+home9b="$tmp/home9b"; mkdir -p "$home9b"
+(
+  export HOME="$home9b"
+  export STUB_LOG="$home9b/calls.log"
+  export HERDR_TEMPLATE="$template"
+  export HERDR_CONFIG_DIR="$home9b/.config/herdr"
+  export HERDR_PROJECTS_BIN="$home9b/nonexistent-herdr-projects"
+  export HERDR_ROADBOARD_SRC="$home9b/no-roadboard"
+  export STUB_MODE=ok STUB_VERSION=0.9.5
+  env PATH="$stub9/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
+)
+grep -q "integration install" "$home9b/calls.log" \
+  && fail "no integration may be ensured without HERDR_AGENT_INTEGRATIONS" || true
 
 echo "all herdr plugin activation cases passed"

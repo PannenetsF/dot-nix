@@ -137,4 +137,6 @@ open_project() {
   die "'open' failed for '$open_slug'"
 }
 
+# Worker results belong in the coordinator inbox, not in human notifications.
+"$hp_bin" --root "$hp_root" set "$slug" mute true
 open_project "$slug"

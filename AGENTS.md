@@ -294,7 +294,14 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   自己会通过设置界面写它，不能是只读 nix store 软链；覆盖前备份/diff/留 5 份），
   随后 `herdr server reload-config` 热加载。脚本以**目标用户身份**运行，通过
   环境变量参数化：`HERDR_TEMPLATE`（必填）、`HERDR_CLI`、`HERDR_CONFIG_DIR`、
-  `HERDR_PROJECTS_BIN`、`HERDR_ROADBOARD_SRC`。脚本里**禁止**出现平台专有关键词
+  `HERDR_PROJECTS_BIN`、`HERDR_ROADBOARD_SRC`、`HERDR_AGENT_INTEGRATIONS`
+  （空格分隔的内置 agent 集成名单，两个薄封装都传 `"claude codex"`；脚本对每个
+  名字跑 `herdr integration install <name>`，把 session 上报 hook 合并进该
+  agent 自己的配置目录——`~/.claude/hooks/`、`~/.codex/`，pane→agent session
+  映射是 radar glyph / zoetrope / transcript 读取的前提。该安装是纯本地文件
+  合并、不联网不连 server，幂等（current 时无操作、outdated 时升级），且 agent
+  配置目录不存在时自门控 rc=1，所以放在 server 版本门**之外**、每次激活都跑，
+  修复被其他工具重写 settings 后丢失的 hook）。脚本里**禁止**出现平台专有关键词
   （`launchctl`/`chown`/`homebrew`，有测试断言）。两个 nix 模块只是薄封装：
   - `nix-darwin/herdr.nix`：postActivation 以 root 跑，用一次
     `launchctl asuser … sudo -u … --set-home env PATH=… bash <脚本>` 越权到用户，
@@ -757,6 +764,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   guard + 版本门），平台差异通过环境变量从 `nix-darwin/herdr.nix` /
   `modules/herdr.nix` 两个薄封装传入，脚本里禁止写平台名/URL 常量；新增插件
   的解释器依赖（bun/node/uv）加进 `modules/host.nix` 或对应 nix-darwin 模块。
+- 新增/调整 herdr agent 集成（claude、codex 等 `herdr integration install`
+  的目标）：只改两个薄封装传入的 `HERDR_AGENT_INTEGRATIONS` 名单；不要在共享
+  脚本里写死目标名，也不要把它放进 server 版本门（安装是纯本地文件合并）。
+  agent 本身未装时安装器自门控 rc=1，故可无条件传完整期望名单。
 - 新增只发 GitHub release、无 brew cask 的 macOS app：在
   `config/homebrew/Casks/` 加 tracked cask 并由 homebrew.nix preActivation
   `install` 进本地 tap（`herdi.rb` 模式）。
@@ -807,6 +818,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `bash tests/herdr_plugins_activation_test.sh`
   （配套 `darwin_herdr_config_test.sh` 校验 macOS/Linux 两个薄封装与脚本的
   平台无关性：脚本里不得出现 launchctl/chown/homebrew；两个测试也覆盖
+  `HERDR_AGENT_INTEGRATIONS="claude codex"` 经两个薄封装下发、共享脚本对每个
+  名字跑 `herdr integration install`（本地幂等、agent 缺失时自门控 rc=1、
+  在 server 版本门之外、名单只能来自环境变量不许在脚本里写死）、
   herdr-projects fork pin v0.2.34-pf.5 + 0.9.5 版本门（configure 在 radar
   configure 之后）、检测到 1.2.x 已装时先 uninstall 再 pkill 四类孤儿
   守护（keeper/keeper-work/voice helper/serve，正则不命中 ticker）的回退
@@ -816,7 +830,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   web-ui v0.4.11、herdr-portal fork tag pin v1.3.0-pf.4（unknown 卡并入执行中列 + attention 列读 0.2 thread 状态 + pf.3 restart 后重试 focus + pf.4 seen-gate/internal 过滤/SSH 机器聚合，只安装、不自动 invoke）、
   radar fork pin v1.4.9-pf.2（hp_role filter/hp_group 排序镜像 projects）、
   herdr-push pin + .env seed-once、relay launchd 模块和
-  Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件和
+  Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件、
+  claude/codex agent 集成（`herdr integration status` 必须 current）和
   cask 验收在 `macos_acceptance.sh`（静态断言在
   `macos_acceptance_script_test.sh`）。
 - herdr project/coordinator 选择器 e2e（真实 herdr-projects **0.2.x**
