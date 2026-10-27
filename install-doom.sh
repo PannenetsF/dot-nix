@@ -53,18 +53,19 @@ emacs --batch -Q --eval '
     (require (quote comp))
     (when (and (boundp (quote comp-native-version-dir))
                (fboundp (quote comp-el-to-eln-filename)))
-    (let* ((source (locate-library "cl-macs.el"))
-           (name (and source (file-name-nondirectory
-                              (comp-el-to-eln-filename source))))
-           (current (and name
-                         (catch (quote found)
-                           (dolist (dir native-comp-eln-load-path)
-                             (let ((file (expand-file-name
-                                          name (expand-file-name comp-native-version-dir dir))))
-                               (when (and (file-exists-p file)
-                                          (not (file-newer-than-file-p source file)))
-                                 (throw (quote found) file))))))))
-        (when (and source (not current)) (native-compile source)))))'
+    (dolist (library (list "cl-macs.el" "cl-seq.el"))
+      (let* ((source (locate-library library))
+             (name (and source (file-name-nondirectory
+                                (comp-el-to-eln-filename source))))
+             (current (and name
+                           (catch (quote found)
+                             (dolist (dir native-comp-eln-load-path)
+                               (let ((file (expand-file-name
+                                            name (expand-file-name comp-native-version-dir dir))))
+                                 (when (and (file-exists-p file)
+                                            (not (file-newer-than-file-p source file)))
+                                   (throw (quote found) file))))))))
+        (when (and source (not current)) (native-compile source))))))'
 
 if [ -f "$DOOM_LOCK" ]; then
   echo "[install-doom.sh] lock file present, skipping first-time bootstrap: $DOOM_LOCK"
