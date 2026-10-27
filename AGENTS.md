@@ -409,9 +409,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   1. kitty 的 codepoint map 必须预置在 `config/kitty/kitty.conf`（字节与
      插件 setup 生成的块一致），否则插件安装 build hook 在首次激活时写只读
      HM nix-store 软链会 `EACCES` 硬失败（其 setup.js 不捕获该错误）；
-  2. 模板把 `[theme]` 的 `light_name`/`dark_name` 都钉成 `"terminal"`，
-     让插件的 macOS 深浅色跟随只切换它自己的侧边栏调色板，不把
-     `name = "terminal"`（terminal 跟随 kitty 主题）改写成 catppuccin。
+  2. 模板把 `[theme]` 的 `light_name`/`dark_name` 钉成 herdr 内置配对
+     `solarized-light`/`solarized`（`name` 兜底为 `solarized`），让插件的
+     macOS 深浅色跟随在两个内置主题间切换。**不要用 `"terminal"`**：
+     terminal 主题借 kitty 的 ANSI 调色板画 chrome（侧栏填充/选中/边框），
+     亮色调色板（如 Solarized Light）对比度稀烂；kitty 自身的亮暗跟随与
+     herdr 无关。
   键位：上游建议的 `P a` 被 Projects 占用、裸 `P r` 是 resize 模式，
   故 view-flip 用 `P C-r`、settings 用 `P ,`，速查表同步
   `docs/herdr-keybindings.md`。
@@ -639,8 +642,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - 首次引导才跑 `doom install --doomdir … --no-env` + `doom sync --aot --rebuild`；
   锁文件 `$HOME/pf-init-doom`。`--aot` 不可省：普通 `doom sync` 只字节编译，
   ~2000 个包全靠 JIT 懒编译，首次用到时卡顿 + 后台 gcc 拖很多天；
-  `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器补做一次
-  手动全量（锁文件存在，activation 不会重跑首次引导，见下条命令）。
+  `--aot` 在无 NATIVE_COMP 的 emacs 上是 no-op。已引导过的旧机器每次 activation
+  也会检查并修复早期内置 cl-macs 的原生缓存；包缓存仍需手动全量重建
+  （锁文件存在，activation 不会重跑首次引导，见下条命令）。
   **Doom v2 的 `--aot` 是增量的**：只编译本次 sync 新装/更新的包，所以对
   已装好的系统跑它 16 秒无事可做；要全量复刻旧版 AOT（如清空 eln 缓存、
   升 Emacs 大版本后）必须 `doom sync --aot --rebuild`（`-b` = 无条件重建
@@ -673,7 +677,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `…/™/μ` 按 1 格计数却画 1.5–2 格，顶歪 which-key，细节见 §4），再
   `APPEND=t` 追加 Apple Symbols 作缺字兜底。字体必须以 Homebrew
   cask 安装（见 §4 homebrew.nix）。
-- `-nw` 终端下 Doom 跟随终端调色板（与 herdr `name = "terminal"` 同一思路，
+- `-nw` 终端下 Doom 跟随终端调色板（herdr 不跟随终端，见 §4 radar 小节，
   逻辑在 dot-doom `config.el`，nix-hm 无配置项）：通过 kitty remote control
   （`kitty @ get-colors`，socket 探测顺序镜像 `config/kitty/kitty-theme.sh`：
   `KITTY_LISTEN_ON` 先、`/tmp/kitty-<pid>` 按 mtime 新→旧）读实时背景色，按
@@ -831,6 +835,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   再启动（plugin action invoke 本身是异步，不能连续 stop/start 当成同步）。
 - Portal 人类会话投影：`python3 tests/herdr_portal_policy_test.py`（需已安装 pinned
   Portal），覆盖双机同 pane id、thread 排除、远端 focus 路由、快速采集和已读合并。
+- Projects 多行 repo UI：`patches/herdr-projects-multiline-repos.patch` 修改 pinned
+  0.2 fork 的 popup，每 repo 一行、独立 add、逐项 remove 确认；保留机器和
+  完整路径，不用逗号拼接文本作为数据。`install-projects-repo-list.cjs` 在
+  共享激活末尾校验/应用补丁、cargo build（失败后可重试、成功后按 hash 跳过），
+  两个 nix 封装传 installer/patch 独立 store 路径；不修改 pin 或重启 ticker。
+  安装器测试：`node --test tests/herdr_projects_repo_list_test.cjs`，实际源码
+  回归：`cargo test --locked popup::tests`（插件 checkout 或隔离开发副本）。
 - Claude Code 信任框 shim（stub claude/jq、pty 下跑真 shim；覆盖普通目录/git
   仓库/linked worktree（macOS `/var`→`/private/var` 物理路径）、幂等保数据、
   坏 JSON 不阻启动、非 tty 跳过、python3 fallback、真二进制缺失 127）：

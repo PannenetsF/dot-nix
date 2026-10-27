@@ -44,6 +44,28 @@ fi
 # left from the old `doom env` step so config.el can never load it.
 rm -f "$DOOM_DIR/doomenv"
 
+# This also runs for existing installations: Emacs upgrades change the ABI
+# cache directory even when the first-install lock is already present.
+# cl-macs loads before Doom redirects its cache, outside package AOT.
+emacs --batch -Q --eval '
+  (when (and (fboundp (quote native-comp-available-p))
+             (native-comp-available-p))
+    (require (quote comp))
+    (when (and (boundp (quote comp-native-version-dir))
+               (fboundp (quote comp-el-to-eln-filename)))
+    (let* ((source (locate-library "cl-macs.el"))
+           (name (and source (file-name-nondirectory
+                              (comp-el-to-eln-filename source))))
+           (current (and name
+                         (catch (quote found)
+                           (dolist (dir native-comp-eln-load-path)
+                             (let ((file (expand-file-name
+                                          name (expand-file-name comp-native-version-dir dir))))
+                               (when (and (file-exists-p file)
+                                          (not (file-newer-than-file-p source file)))
+                                 (throw (quote found) file))))))))
+        (when (and source (not current)) (native-compile source)))))'
+
 if [ -f "$DOOM_LOCK" ]; then
   echo "[install-doom.sh] lock file present, skipping first-time bootstrap: $DOOM_LOCK"
   exit 0
@@ -60,9 +82,9 @@ echo "[install-doom.sh] first-time Doom Emacs bootstrap..."
 # bootstrap everything is new anyway, and this stays correct when
 # straight's repo cache survives a failed run.
 #
-# Post-install full rebuild (emptied eln cache, Emacs major upgrade, or after
-# adding packages so their files get AOT coverage):
+# Post-install full rebuild (emptied eln cache or Emacs major upgrade):
 #   LSP_USE_PLISTS=1 ~/.config/emacs/bin/doom sync --aot --rebuild
+# New/updated packages only: LSP_USE_PLISTS=1 doom sync --aot --no-env
 # LSP_USE_PLISTS=1: the AOT compile workers must see it, or lsp-mode's
 # accessors get baked in hash-table form while runtime runs plist mode
 # (flycheck errors on every diagnostic). The persistent fix for

@@ -70,6 +70,14 @@ assert_contains "install-doom.sh" 'rm -f "$DOOM_DIR/doomenv"' \
 assert_contains "install-doom.sh" 'LSP_USE_PLISTS=1 "$EMACS_DIR/bin/doom" sync --aot --rebuild' \
 	"expected bootstrap to run 'doom sync --aot --rebuild' with LSP_USE_PLISTS=1"
 
+# cl-macs loads before Doom redirects the native cache, outside package AOT.
+assert_contains "install-doom.sh" 'emacs --batch -Q --eval' \
+	"expected built-in compilation to use Emacs initial cache, not Doom cache"
+assert_contains "install-doom.sh" '(let* ((source (locate-library "cl-macs.el"))' \
+	"expected targeted native compilation of the early-loaded cl-macs built-in"
+assert_contains "install-doom.sh" '(when (and source (not current)) (native-compile source))' \
+	"expected built-in compilation to tolerate installations without Lisp sources"
+
 # Doom/straight recursively AOT-compiles built package files without running
 # every major mode. Runtime initialization cannot be warmed in another process.
 assert_not_contains "install-doom.sh" 'aot-warm-modes.el' \
