@@ -235,7 +235,7 @@ audience、通知或 owner 权限。分组排序键在项目 slug **之前**加�
 animator 再启动新版，服务器和 agent 会话不重启。原生 Machines/Spaces 的
 workspace 列表不受 agents view 过滤影响，仍是 Herdr 的完整导航。
 
-> **永久 pin fork `v0.2.34-pf.5`，不要升级上游 1.2.x。** 上游
+> **永久 pin fork `v0.2.34-pf.6`，不要升级上游 1.2.x。** 上游
 > `eliasstravik/herdr-projects` 1.2 是不兼容的任务看板模型（任务
 > `repo/123`、`data/repos.json`、keeper/voice 守护），删掉了 thread 状态机
 > 和 ticker——2026-10 曾切到 1.2.13，响铃全部消失、需要交互的 session 无从
@@ -243,12 +243,12 @@ workspace 列表不受 agents view 过滤影响，仍是 Herdr 的完整导航�
 > 孤儿守护。数据根是 `~/.herdr-projects/<slug>/`（0.2 布局）。
 
 - 插件由共享激活脚本 `install-herdr-plugins.sh` 安装（fork pinned
-  `v0.2.34-pf.5`，PannenetsF/herdr-projects；macOS 经
+  `v0.2.34-pf.6`，PannenetsF/herdr-projects；macOS 经
   `nix-darwin/herdr.nix` postActivation、Linux host 经 `modules/herdr.nix`
   两个薄封装调用；要求 herdr server ≥ 0.9.5；server 过旧时激活会跳过并提示
   重启 herdr）。fork 无 release 资产，安装走本机 cargo 构建（两个薄封装的
   PATH 都前置 `~/.cargo/bin`）
-- 版本被激活 pin 在 fork `v0.2.34-pf.5`：不要用插件自更新（`herdr-projects
+- 版本被激活 pin 在 fork `v0.2.34-pf.6`：不要用插件自更新（`herdr-projects
   update` 等），下次激活会被装回 pin 版本
 - **coordinator 身份是注册的 agent 名**（pf.2 起）：只有带 `hpc-<slug>` /
   `hpc-<slug>-N` 名字、且 cwd 在项目家目录的 agent 才算 coordinator。
@@ -270,6 +270,14 @@ workspace 列表不受 agents view 过滤影响，仍是 Herdr 的完整导航�
   `env -u HERDR_ENV` 命令也不能冒充人）；真人在 herdr 之外的真终端不受
   影响。残留：同 uid 另起 rogue herdr 会话、完全 double-fork 的孤儿，
   client 侧无法区分
+- **pf.6 起手开 session 在 project 内可见**：未注册 pane 落在 project
+  子目录下时，ticker 不再一律标 `guest`（被 sidebar filter 藏掉）。新增
+  `session` 角色：只有与**存活**注册 thread pane 共享同一 thread 目录的
+  未注册 pane 才是真第二 harness（`guest`，隐藏）；其余落在 project 根或
+  已 resolved thread 目录里的手开会话都是 `session`（可见）。同时
+  `sidebar-policy.cjs` 不再按 cwd 把 `hp_role=session` 的 pane 重新分类成
+  hidden thread——手开会话（如 oncaller 监控 pane）即使 cwd 在
+  `threads/t-xxxx/` 下也正常显示在 sidebar
 - sidebar 分组行、`P a` 弹窗、tab 栏条目不由仓库模板维护：激活时在模板
   写入 live config 之后跑 `herdr-projects configure`，由插件自己把这些块
   加进可写的 `~/.config/herdr/config.toml`（幂等；hm-update 会先用模板

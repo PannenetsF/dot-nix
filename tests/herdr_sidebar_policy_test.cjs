@@ -11,7 +11,7 @@ const installer = require('../config/herdr/install-sidebar-policy.cjs');
 test('only threads and their descendants are hidden, not manual sessions', () => {
   const catalog = [{ slug: 'nix-hm', name: 'Nix Hm', home: '/projects/nix-hm', repos: ['/repo/nix-hm'], threadRoots: ['/projects/nix-hm/threads', '/worktrees/t1'] }];
   const a = (cwd, role, name = '') => ({ cwd, name, pane_id: 'w:p', tokens: { hp_role: role } });
-  for (const agent of [a('/repo/nix-hm', 'other'), a('/projects/nix-hm', 'other'), a('/projects/nix-hm/manual-subdir', 'guest'), a('/unrelated', 'other'), a('/repo/nix-hm-extra', ''), a('/projects/nix-hm', 'coordinator', 'hpc-nix-hm')]) {
+  for (const agent of [a('/repo/nix-hm', 'other'), a('/projects/nix-hm', 'other'), a('/projects/nix-hm/manual-subdir', 'guest'), a('/unrelated', 'other'), a('/repo/nix-hm-extra', ''), a('/projects/nix-hm', 'coordinator', 'hpc-nix-hm'), a('/projects/nix-hm/threads/t-1/sub', 'session')]) {
     assert.equal(classify(agent, catalog).thread, false, agent.cwd);
   }
   for (const agent of [a('/repo/nix-hm', 'thread'), a('/projects/nix-hm/threads/t-1/sub', ''), a('/worktrees/t1/sub', 'other'), a('/x', '', 'hp-nix-hm-t-0001')]) {

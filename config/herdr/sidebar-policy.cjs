@@ -59,7 +59,14 @@ function classify(agent, catalog) {
     || catalog.find((p) => p.threadRoots.some((root) => inside(cwd, root)))
     || catalog.find((p) => p.repos.some((root) => inside(cwd, root)));
   const coordinator = tokens.hp_role === 'coordinator' || /^hpc-/.test(agent.name || '');
-  const thread = !coordinator && (tokens.hp_role === 'thread'
+  // The ticker stamps hp_role for every pane: `session` is a hand-started
+  // session the human wants visible (a project-root pane, or a pane in a
+  // thread folder whose registered pane is gone — NOT a second harness,
+  // which the ticker marks `guest`). Honor that signal over cwd heuristics:
+  // a session parked in a thread folder must not be reclassified as a
+  // hidden thread here.
+  const session = tokens.hp_role === 'session';
+  const thread = !coordinator && !session && (tokens.hp_role === 'thread'
     || /^hp-.+-t-\d+/.test(agent.name || '')
     || catalog.some((p) => p.threadRoots.some((root) => inside(cwd, root)))
     || /(?:^|\/)\.herdr-project\//.test(cwd));
