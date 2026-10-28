@@ -199,8 +199,10 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # every send; 6. pf.4 puts the project on every /switch pane row (no header
 # rows), collapses hpc-<own project> to "coord", and shrinks the filter chips
 # to one short Chinese row; pf.5 budgets rows by phone display cells (CJK/
-# emoji = 2), tags only the first pane of each project per page so
-# continuation rows show the title, and drops chip emoji; 7. pf.6 renders the
+# emoji = 2) and drops chip emoji; pf.8 makes every button two lines (topic
+# title owns line 1, project > pane . session is the line-2 identity tail that
+# is never clipped, project truncated then dropped under 4 cells) with
+# ellipsis dedup; 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
 # header on the topic title + stable pane id, project only as title-less
@@ -210,7 +212,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.7"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.8"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
