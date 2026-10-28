@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.4`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.5`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -636,15 +636,19 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      identity 回执（`✅ 已发送 → project > pane > session · HH:MM`，带
      Read / 🔀 切换按钮）；群聊保持旧契约（只有 reply 才发送、回 `"Sent"`、
      不弹 bar）。
-  6. **（pf.4）/switch 每行自带 project、coord 缩写、一行短过滤键**：手机上
-     ▸ project 标题行会随滚动消失，pane 行改成 `glyph project › title
-     (pane_id) · session @host`，project 写死在行内；注册名
-     `hpc-<slug>[-N]`（含 names.rs 的 24/22 截断）与行首 project 重复，缩写成
-     `coord`/`coord-N`（底部 bar 的 `project › session` 标签同规则，slug 不再
-     出现两次）；自由 title 是唯一可截短字段，project/session/host 预截断、
-     pane id 永不截，截短的行也能唯一定位 pane；▸ 分组行删除（仍按 project
-     相邻、状态优先排序），每页放满 10 个 pane；过滤键缩成一行短中文
-     `全部 / 🚫 待处理 / ▶️ 运行 / 💤 空闲`，不再截成 `O…ked/O…ing`。
+  6. **（pf.4/pf.5）/switch 行格式：project 标签 + coord 缩写 + 手机显示宽度预算**：
+     手机上 ▸ project 标题行会随滚动消失，pane 行格式为紧凑的
+     `glyph project›title (pane_id)·session@host`（分隔符两侧不留空格）。
+     注册名 `hpc-<slug>[-N]`（含 names.rs 的 24/22 截断）与行首 project 重复，
+     缩写成 `coord`/`coord-N`（底部 bar 的 `project › session` 标签同规则）。
+     **宽度按显示 cell（CJK/emoji=2）而非 UTF-16 code unit 计**——u16 预算
+     会让 CJK 标题按两倍按钮宽度渲染（pf.4 实测只剩一个汉字）；每行上限
+     `SWITCH_LABEL_CELLS=40`（实测 iPhone inline button 容量），pane id 与
+     session 是**永不被标题预算截掉的尾部**。**每页每个 project 只有第一个
+     pane 带 `project›` 标签**，同 project 的后续行把宽度让给 title（跨页边界
+     会重新打标签）；带标签的行给 title 保留最小宽度、project 先截短，无 title
+     时才整行给 project。过滤键两字中文、不带 emoji：
+     `全部 / 待办 / 运行 / 空闲`（emoji+三字实测截成 `O…理`）。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
