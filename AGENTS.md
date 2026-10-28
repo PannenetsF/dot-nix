@@ -649,13 +649,20 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      会重新打标签）；带标签的行给 title 保留最小宽度、project 先截短，无 title
      时才整行给 project。过滤键两字中文、不带 emoji：
      `全部 / 待办 / 运行 / 空闲`（emoji+三字实测截成 `O…理`）。
-  7. **（pf.6）选 session 必带对话预览**：从 `/switch` 行或底部 bar 的 🔄 recent
-     键选定 pane 后，不只发"已聚焦"一行，而是复用 📖 Read 的**每 pane 一条可
-     原地编辑**的视图（`show_pane_view`/`read_views`）：`🎯 身份 · 已聚焦` 头 +
-     `get_history` 渲染的最近对话（无 transcript 才回退终端画面）+ 聚焦 footer；
-     重复选同一 pane 是 edit 不是新发。bar 的 🎯 active 键打开同一预览但不改
-     聚焦。pf.3 引入 sticky focus 时把预览丢成了纯 one-liner，pf.6 补回；不再发
-     ForceReply（输入框提示由常驻 ReplyKeyboard 的 placeholder 承担）。
+  7. **（pf.6/pf.7）选 session 必带对话预览 + pane 锚点头**：从 `/switch` 行或
+     底部 bar 的 🔄 recent 键选定 pane 后，不只发"已聚焦"一行，而是复用 📖 Read
+     的**每 pane 一条可原地编辑**的视图（`show_pane_view`/`read_views`）：
+     `🎯 头 · 已聚焦` + `get_history` 渲染的最近对话（无 transcript 才回退终端
+     画面）+ 聚焦 footer；重复选同一 pane 是 edit 不是新发。bar 的 🎯 active 键
+     打开同一预览但不改聚焦。pf.3 引入 sticky focus 时把预览丢成了纯 one-liner，
+     pf.6 补回；不再发 ForceReply（输入框提示由常驻 ReplyKeyboard 的 placeholder
+     承担）。**pf.7 把头从三段 `project > pane > session` 改成 pane 锚定的
+     `<title> (<pane_id>) · <short session>`**：实测一群 pane 多数同 project
+     （曾同时 6 个 lagrange-system coordinator），slug 几乎无区分度，`hpc-<slug>`
+     又重复一遍 slug；pane title 才是 1:1 的对话主题，pane id 是 title 变化时的
+     稳定键，short session（coord/coord-N/claude/codex）留作运行时小尾巴。project
+     只在 title 缺失（唯一可读线索）时保留。blocked/finished 通知卡仍用完整三段
+     `agent_identity`。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
