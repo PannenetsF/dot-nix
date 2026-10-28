@@ -193,12 +193,15 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # is rendered to Telegram HTML with tables flattened; 4. pf.2 hides
 # herdr-projects thread workers from the human audience, keeps one
 # auto-refreshing dashboard message, and reuses a single card per pane across
-# block/resume/finish) ships on the PannenetsF/herdr-remote fork, tagged
-# v0.8.1-pf.N, like the other herdr-* forks. The module fetches that tag
-# directly: no runCommandLocal patch step and no patch file in this repo anymore.
+# block/resume/finish; 5. pf.3 keeps one sticky focus pane for plain-text
+# routing, a persistent bottom session bar (active + recent panes), the
+# /switch / /find / /unfocus selector commands, and identity receipts after
+# every send) ships on the PannenetsF/herdr-remote fork, tagged v0.8.1-pf.N,
+# like the other herdr-* forks. The module fetches that tag directly: no
+# runCommandLocal patch step and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.2"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.3"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \

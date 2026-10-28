@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.2`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.3`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -563,7 +563,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   其他所有人；chat id 用 `getUpdates` 发现，私聊正数、群为负数）。**wrapper
   在 token 缺失时 `exit 0` 休眠**，配合 `KeepAlive.SuccessfulExit=false` 不会
   重启空转——未配置的机器上该 agent 是无害占位。bot 支持
-  `/start /agents /dashboard /read /reply /send /trust /interrupt /digest`，
+  `/start /agents /dashboard /switch /find /unfocus /read /reply /send /trust /interrupt /digest`，
   审批按钮发的是真实数字按键（`send_keys`）而非粘贴文本。
   **Telegram 定制随 fork tag 发布**（2026-10 起不再是仓库内 build-time
   patch；代码只在 `PannenetsF/herdr-remote` 的 `pf/v0.8.1` 分支，tag
@@ -618,6 +618,24 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      重发，完成行 TTL 30min。pane→message id 等状态持久化在
      `HERDR_TG_STATE`（默认 `~/.config/herdr-remote/telegram-state.json`，
      0600、原子写、只存 id/时间戳不存内容与密钥），重启不重复发卡。
+  5. **（pf.3）sticky focus + 常驻底部 session bar + /switch 选择器 + 发送回执**：
+     私聊里维护**一个 sticky focus pane**（`active_pane` + MRU 最近 8 个，
+     均持久化进 state 文件），之后直接打字就发往该 pane，不再需要 reply
+     卡片；reply 某张卡片、点审批按钮、从选择器挑中都会顺带重设 focus。
+     Telegram 的 ReplyKeyboard（输入框上方、独立于任何消息存在）是唯一能
+     常驻的控件，做成持久底部 bar：🎯 当前 pane、🔄 最多 3 个最近 pane、
+     以及「📋 切换 session / 📊 Dashboard / ✖ 取消聚焦」静态键；bar 靠
+     发一条不可见占位消息（实测 Bot API 只接受 U+2060 WORD JOINER，
+     U+200B/U+2800/U+1160/U+3164/nbsp/ZWNJ 单独成消息都被判空拒绝）再立刻
+     删除来静默换键盘（键盘随消息保留），按内容签名 + 1s 节流，快照抖动
+     不会刷屏，输入框 placeholder 显示当前目标的完整 identity。重名 `project › session` 自动补 pane id 后缀；死亡 pane
+     与 thread worker 永不上 bar。`/switch [query]`（别名 `/find`）弹出按
+     project 分组的内联选择器（all/blocked/working/idle 过滤、搜索、分页、
+     callback data ≤64 字节），`/unfocus` 清空目标；没有 focus（或 focus
+     已死亡）时打字会**弹选择器而不是被静默吞掉**。每次私聊发送后回一条
+     identity 回执（`✅ 已发送 → project > pane > session · HH:MM`，带
+     Read / 🔀 切换按钮）；群聊保持旧契约（只有 reply 才发送、回 `"Sent"`、
+     不弹 bar）。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
