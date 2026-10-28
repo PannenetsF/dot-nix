@@ -537,8 +537,8 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.8`**（= 上游
-  dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 定制，分支
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.10`**（= 上游
+  dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
   注册为 `launchd.user.agents.herdrRemote`（label
@@ -546,6 +546,17 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   postActivation kickstart）。默认 `127.0.0.1:8375` loopback；机器本地覆盖放
   `~/.config/herdr-remote/config.env`（不进 git，activation 只 `install -d`
   保目录）：`HERDR_RELAY_HOST` 绑非环回时上游强制要求 `HERDR_RELAY_TOKEN`。
+  **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里
+  `enabled` 的机器作为 SSH 轮询目标（45s 缓存、读失败保留上一次集合的
+  fail-sticky 语义、跳过会 SSH 回本机的自环项），与
+  `HERDR_REMOTES`（逗号分隔，显式项排在最前、永不被发现失败剔除）合并；
+  `HERDR_NO_MACHINE_DISCOVERY=1` 只轮询 env 清单。**pf.9 同时修复了
+  SSH ControlPath 超长静默失败**：旧代码只量字面模板（`%C` 算 2 字符），
+  但 ssh 实际把 `%C` 展开成 40 字符 SHA-1、再追加 17 字符随机后缀，91 字符
+  模板生成的 socket 撞 macOS sun_path 104 上限，ControlMaster 建不起来，
+  每个远程 tick 静默死亡；新代码按展开后长度预算（默认短路径
+  `~/.ssh/herdr-remote-%C`），且某 host 的 master 首次失败后对该 host
+  自动降级为无 multiplexing。排查用启动日志 `Polling: local, ...`。
   wrapper 的 PATH 用 `config.homebrew.brewPrefix`（该值已含 `/bin`，不要再拼
   `/bin`），让 relay 能轮询本机 brew 版 `herdr`。两个 wrapper source
   config/secrets 都必须 `set -a`：plain `.` 只建 shell 变量，uv/python 子进程
@@ -669,6 +680,19 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      稳定键，short session（coord/coord-N/claude/codex）留作运行时小尾巴。project
      只在 title 缺失（唯一可读线索）时保留。blocked/finished 通知卡仍用完整三段
      `agent_identity`。
+  8. **（pf.10）命令菜单 + 底部栏两个新入口 + /agents 分页**：`post_init` 对
+     授权私聊 `set_my_commands`（输入 `/` 即见中文命令提示，注册失败只告警不
+     阻启动；手动 app.start 生命周期不跑 builder 的 post_init，main 里显式
+     再调一次）。常驻 ReplyKeyboard 新增独立一行 **`🚫 待办`**（等价 Portal
+     待办列：直接弹 blocked 过滤的 /switch 选择器，选中走同一 focus + pf.6
+     预览；无 blocked 人类 pane 时回「当前没有待办。」）与 **`📁 项目`**
+     两级下钻（第一级只列含 ≥1 人类 pane 的 project，按 blocked 数排序、
+     按钮带 `🚫n ▶️n` 计数；第二级该 project 的人类 session，复用 pf.8
+     两行按钮与分页，带「‹ 返回项目列表」；选中走 focus + 预览。slug 走
+     64 字节 callback_data，超长改 12 字符 hash token、点击时按实时快照
+     重解析，过期 slug 重弹新列表）。**所有计数/列表仍只含人类 pane，
+     thread worker 不出现也不计数。** `/agents` 不再单条 4096 字符硬截断：
+     按段分文本页 + inline 翻页器（新页重发段标题），每一行也有兜底截断。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一

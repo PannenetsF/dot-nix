@@ -202,7 +202,15 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # emoji = 2) and drops chip emoji; pf.8 makes every button two lines (topic
 # title owns line 1, project > pane . session is the line-2 identity tail that
 # is never clipped, project truncated then dropped under 4 cells) with
-# ellipsis dedup; 7. pf.6 renders the
+# ellipsis dedup; pf.9 moves to the relay: enabled machines from
+# `herdr machine list` are auto-discovered (45s fail-sticky cache, merged with
+# HERDR_REMOTES, HERDR_NO_MACHINE_DISCOVERY=1 opts out) and the SSH
+# ControlPath is measured after %C/suffix expansion so an over-long socket no
+# longer kills every remote poll silently; pf.10 registers the typing-"/"
+# command menu, adds the bar's 🚫 待办 shortcut and 📁 项目 two-level
+# drill-down (project list with blocked/working counts -> project sessions ->
+# focus preview), and paginates /agents instead of truncating at 4096;
+# 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
 # header on the topic title + stable pane id, project only as title-less
@@ -212,7 +220,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.8"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.10"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
