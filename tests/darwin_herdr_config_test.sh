@@ -200,13 +200,15 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # rows), collapses hpc-<own project> to "coord", and shrinks the filter chips
 # to one short Chinese row; pf.5 budgets rows by phone display cells (CJK/
 # emoji = 2), tags only the first pane of each project per page so
-# continuation rows show the title, and drops chip emoji) ships on the
+# continuation rows show the title, and drops chip emoji; 7. pf.6 renders the
+# transcript preview again on /switch and bottom-bar picks (focus header +
+# rendered conversation in the reusable per-pane view)) ships on the
 # PannenetsF/herdr-remote fork, tagged v0.8.1-pf.N, like the other herdr-*
 # forks. The module fetches that tag directly: no runCommandLocal patch step
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.5"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.6"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \

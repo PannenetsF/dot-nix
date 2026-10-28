@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.5`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.6`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -649,6 +649,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      会重新打标签）；带标签的行给 title 保留最小宽度、project 先截短，无 title
      时才整行给 project。过滤键两字中文、不带 emoji：
      `全部 / 待办 / 运行 / 空闲`（emoji+三字实测截成 `O…理`）。
+  7. **（pf.6）选 session 必带对话预览**：从 `/switch` 行或底部 bar 的 🔄 recent
+     键选定 pane 后，不只发"已聚焦"一行，而是复用 📖 Read 的**每 pane 一条可
+     原地编辑**的视图（`show_pane_view`/`read_views`）：`🎯 身份 · 已聚焦` 头 +
+     `get_history` 渲染的最近对话（无 transcript 才回退终端画面）+ 聚焦 footer；
+     重复选同一 pane 是 edit 不是新发。bar 的 🎯 active 键打开同一预览但不改
+     聚焦。pf.3 引入 sticky focus 时把预览丢成了纯 one-liner，pf.6 补回；不再发
+     ForceReply（输入框提示由常驻 ReplyKeyboard 的 placeholder 承担）。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
