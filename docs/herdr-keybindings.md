@@ -185,22 +185,23 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
 - `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
   `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）
 - 看板内：`j/k` 移动、`h/l` 折叠、状态键翻转、Enter 选择 Project/Coordinator（先复核 prompt 再确认）；在 picker/preview 中 `a` 用 `$VISUAL`/`$EDITOR`/`nvim` 编辑 description、`i` 编辑本次 note；`R` 进入显式 Workspace dispatch；`q` 关
+- `e` 行内编辑任务/topic/分组标题（左右键、Home/End、Delete，Enter 保存、Esc 取消）；`E` 用默认编辑器编辑标题；`o` 打开详情。
 - `T`：在 roadmap 末尾新增一个 `## 主题` chain 并带上第一个任务（两步行内
   输入：先标题、再任务；Esc 取消）。CLI：
   `roadboard add-chain "主题" --task "第一件事"`
 - 长行（含中文双宽字符）在 popup 内按视觉列自动换行，光标移动时滚动跟随
-- `C`：把选中节点**交给 herdr-projects 0.2 fork 的 project coordinator**（不开
+- `C`：把选中节点**交给 herdr-projects 0.2 fork 的全新 project coordinator**（不开
   road-rN agent）：`j/k` 选已注册项目（`herdr-projects list` 的 slug）→
   复核消息 → `y` 发送（底层
-  `herdr-projects --root <root> coordinator prompt <slug> --text-file -`，
-  句子走 stdin；只投递**已在跑的注册 coordinator** `hpc-<slug>`，没起时
-  fail-closed，需先用 `P S-c`/`P C-p`/`P C-n` 起并 adopt，不会自动拉起）；
+  `herdr-projects --root <root> open <slug> --new --tab`，使用项目默认 profile，
+  每次创建**独立 pane 和全新 agent session**，仅向这次命令返回的新 pane
+  投递，不继续旧 coordinator 对话；启动/校验失败也绝不回退向旧会话发送）；
   目标项目可在 detail note frontmatter 写 `project: <slug>`（沿祖先继承，
   gate 里选中即写入绑定）。投递成功后节点标 `[/]`，后续 `?`/`x` 仍由人翻；
   coordinator 不调 `roadboard done`（无 run）；未注册/不存在的项目直接报错
   且节点不动（fail-closed，且校验发生在任何 roadmap 写入之前）。
   CLI：`roadboard projects` / `bind-project` / `handoff` / `preview --coordinator`
-- 派活默认在目标 workspace 新开一个**后台独立 tab**（标签 `road-rN`，
+- `R` 的显式 Workspace 派活在目标 workspace 新开一个**后台独立 tab**（标签 `road-rN`，
   `--no-focus` 不抢焦点）；同一节点重派复用其 tab/pane
 - 占掉了 herdr 默认的 `P S-r`（重载配置）：需要时跑
   `herdr server reload-config`
