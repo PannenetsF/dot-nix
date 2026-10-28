@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.3`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.4`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -630,12 +630,21 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      删除来静默换键盘（键盘随消息保留），按内容签名 + 1s 节流，快照抖动
      不会刷屏，输入框 placeholder 显示当前目标的完整 identity。重名 `project › session` 自动补 pane id 后缀；死亡 pane
      与 thread worker 永不上 bar。`/switch [query]`（别名 `/find`）弹出按
-     project 分组的内联选择器（all/blocked/working/idle 过滤、搜索、分页、
+     project 相邻排序的内联选择器（all/blocked/working/idle 过滤、搜索、分页、
      callback data ≤64 字节），`/unfocus` 清空目标；没有 focus（或 focus
      已死亡）时打字会**弹选择器而不是被静默吞掉**。每次私聊发送后回一条
      identity 回执（`✅ 已发送 → project > pane > session · HH:MM`，带
      Read / 🔀 切换按钮）；群聊保持旧契约（只有 reply 才发送、回 `"Sent"`、
      不弹 bar）。
+  6. **（pf.4）/switch 每行自带 project、coord 缩写、一行短过滤键**：手机上
+     ▸ project 标题行会随滚动消失，pane 行改成 `glyph project › title
+     (pane_id) · session @host`，project 写死在行内；注册名
+     `hpc-<slug>[-N]`（含 names.rs 的 24/22 截断）与行首 project 重复，缩写成
+     `coord`/`coord-N`（底部 bar 的 `project › session` 标签同规则，slug 不再
+     出现两次）；自由 title 是唯一可截短字段，project/session/host 预截断、
+     pane id 永不截，截短的行也能唯一定位 pane；▸ 分组行删除（仍按 project
+     相邻、状态优先排序），每页放满 10 个 pane；过滤键缩成一行短中文
+     `全部 / 🚫 待处理 / ▶️ 运行 / 💤 空闲`，不再截成 `O…ked/O…ing`。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一
