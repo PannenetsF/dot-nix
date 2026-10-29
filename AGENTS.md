@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.11`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.12`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -665,7 +665,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      第 1 行 `glyph <title>`（标题独占整行，无 title 才放 project）；第 2 行
      `<project> › <pane_id> · <session>[ @host]`，project 是唯一可缩部分
      （先截短、剩不足 4 cell 就整段丢掉），pane id/session 尾部永不被截；
-     title-less pane 第 2 行省略 project 不重复打印。`_cell_truncate` 对源串
+     title-less pane 第 2 行省略 project 不重复打印。**pf.12** 把同一两行式
+     应用到 dashboard「📋 All panes」以及 read/trust 等菜单的
+     `build_agent_keyboard`（此前它还是无标题的旧单行 `[STATUS] project
+     (agent) [pane]`，同项目多个手开 session 完全分不清），并让超长 pane
+     id 改走 `_pane_id_label` **中部省略、保留区分度所在的尾部**
+     （`…-2606`/`…-3604`；头部截断会让重复长 id 渲染成同一个）。
+     `_cell_truncate` 对源串
      尾部已有的 `…` 去重，杜绝双省略号。不能改成 Markdown 超链接按钮：
      URL 按钮只能带 URL、带不了 switch 所需的 callback_data，交互选择必须
      保留 callback button。过滤键两字中文、不带 emoji：

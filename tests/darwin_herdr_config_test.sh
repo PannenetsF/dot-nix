@@ -210,7 +210,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # command menu, adds the bar's 🚫 待办 shortcut and 📁 项目 two-level
 # drill-down (project list with blocked/working counts -> project sessions ->
 # focus preview), and paginates /agents instead of truncating at 4096;
-# pf.11 makes a manual /dashboard (and the 📊 bar key) retire the old singleton
+# pf.12 gives the All-panes picker two-line topic/pane buttons; pf.11 makes a manual /dashboard (and the 📊 bar key) retire the old singleton
 # and post a fresh copy at the chat bottom for pinning, while snapshot refresh
 # keeps editing in place;
 # 7. pf.6 renders the
@@ -223,7 +223,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.11"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.12"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
