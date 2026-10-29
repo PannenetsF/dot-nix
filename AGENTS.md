@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.15`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.16`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -713,6 +713,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      （远端渲染 `📁 slug @host`，callback 带 `h`，hash token 按 host+slug
      分别计算），第二级只列该机器的 session——镜像 sidebar 的机器命名空间
      分组与 Portal 的 `[machine]` 卡，避免远端项目被本机同名项吞掉。
+     **pf.16 把 `@host` 机器标记铺到所有跨机界面**：统一 `_host_suffix()`
+     一处出标记——`agent_identity`（通知头、`/agents`、发送回执、bar
+     placeholder）、focus 预览头、底部 bar 的 `project › session`、
+     dashboard 的 blocked 按钮；dashboard 分组也改 `(host, slug)`、渲染
+     `project @host` 段头（/switch 行尾与 pane 描述原本已带 @host）。
+     双机撞同一 pane id 时 pane token 解析 fail-closed（不动作），不会
+     跨机误操作。
      **所有计数/列表仍只含人类 pane，
      thread worker 不出现也不计数。** `/agents` 不再单条 4096 字符硬截断：
      按段分文本页 + inline 翻页器（新页重发段标题），每一行也有兜底截断。

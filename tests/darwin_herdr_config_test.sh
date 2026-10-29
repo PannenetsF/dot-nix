@@ -218,7 +218,10 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # threads still surface), so cwd-basename phantom projects such as
 # "workspace" disappear and grouping uses the registered slug; pf.15 keys the
 # /project drill-down by (host, slug) so the same project on a remote stays
-# its own "@host" row instead of merging into the local copy;
+# its own "@host" row instead of merging into the local copy; pf.16 carries
+# the @host marker across every other surface (/agents, notification
+# headers, focus preview, session bar, dashboard groups and blocked
+# buttons) so a remote session is named everywhere it appears;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -229,7 +232,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.15"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.16"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \

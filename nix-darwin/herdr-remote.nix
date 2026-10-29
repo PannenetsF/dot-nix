@@ -15,7 +15,9 @@ let
   # herdr-projects' hp_role/hp_project/hp_audience tokens (only coordinator/
   # session rows reach the bot; phantom cwd-basename projects are gone);
   # pf.15 namespaces the /project drill-down by (host, slug) so the same
-  # project running on a remote stays its own @host row,
+  # project running on a remote stays its own @host row; pf.16 puts the
+  # @host marker on every cross-machine surface (/agents, notification
+  # headers, focus preview, session bar, dashboard groups/buttons),
   # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
@@ -23,12 +25,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.15";
+  relayPfTag = "v0.8.1-pf.16";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-i9PuqnDJbm2SLUrZa8jVuThuzTgzX3mb9blZRgW88kY=";
+    sha256 = "sha256-2wWWGtGBIM5g2oVh5Cay1j52ztPlXmIbVqQzrzVw3e0=";
   };
   relaySrc = "${relaySource}/relay";
 
