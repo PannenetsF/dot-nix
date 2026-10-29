@@ -221,7 +221,12 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # its own "@host" row instead of merging into the local copy; pf.16 carries
 # the @host marker across every other surface (/agents, notification
 # headers, focus preview, session bar, dashboard groups and blocked
-# buttons) so a remote session is named everywhere it appears;
+# buttons) so a remote session is named everywhere it appears; pf.17
+# answers Claude single-select question menus (the "Type something."
+# row) with arbitrary free text, gated on the real menu footer so
+# document lists are never driven, and only answers via respond while
+# the pane snapshot is still blocked -- a stale prompt id sends a fresh
+# instruction through agent prompt instead of being refused;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -232,7 +237,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.16"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.17"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \

@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.16`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.17`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -720,6 +720,18 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      `project @host` 段头（/switch 行尾与 pane 描述原本已带 @host）。
      双机撞同一 pane id 时 pane token 解析 fail-closed（不动作），不会
      跨机误操作。
+     **pf.17 让自由文本能回答 Claude Code 单选问题菜单**：菜单以
+     `N. Type something.`（omp 叫 `Other (type your own)`）自定义回答行收尾，
+     relay 必须同时检出该行与不可变菜单 footer（`…to navigate…`）才认定为
+     真菜单——agent 自己输出里的 1./2./3. markdown 列表（2026-10 实测
+     refusal：文档五步列表被检出 5 个编号项）没有 footer，仍然拒绝，绝不
+     往无关程序发方向键。投递方式：读当前光标行，发方向键走到自定义行、
+     Enter 打开内联输入框、轮询到 `ctrl+g to edit in` footer 出现后 send-text
+     正文再 Enter（数字快捷键在单选菜单上只会直接选中该选项，不能输入）。
+     输入框已开时走原有纯 text 路由直接打字。bot 侧 `handle_text` 只在快照
+     `status == blocked` 时才用缓存 prompt_id 走 `respond`；问题已消失但
+     `blocked_prompt_ids` 残留（快照滞后）时，新指令改走 `agent prompt`，
+     不再被 relay 的 "no question detected" 门吞掉。
      **所有计数/列表仍只含人类 pane，
      thread worker 不出现也不计数。** `/agents` 不再单条 4096 字符硬截断：
      按段分文本页 + inline 翻页器（新页重发段标题），每一行也有兜底截断。
