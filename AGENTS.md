@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.13`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.14`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -610,14 +610,22 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      Telegram。`/read` 视图、reply 预览、pane 卡片正文全部
      `parse_mode="HTML"`；blocked 审批提示仍用旧 Markdown（内容是原始 prompt
      文本，不是对话）。
-  3. **（pf.2）人类受众过滤**：herdr-projects 主机上几十个 pane 多数是 thread
-     worker，bot 只面向人。`pane_human()` 判定：注册 agent 名 `hpc-<slug>`
-     coordinator → 人；`hp-<slug>-t-N` thread 名、cwd 落在
-     `…/<slug>/threads/t-N` 或 worktree `…/worktrees/hp-<slug>-t-N-…`、bare
-     `t-NNNN` project → 过滤；无标记 fail-open（普通 session 不因缺标记消失）。
+  3. **（pf.2，pf.14 改为 token 权威）人类受众过滤**：herdr-projects 主机上
+     几十个 pane 多数是 thread worker，bot 只面向人。**pf.14 起判定权威来源是
+     relay 从 `herdr agent list` 转发的 tokens**（`hp_role` / `hp_project` /
+     `hp_audience` / `hp_group`，与 radar/sidebar 同源）：只显示
+     `hp_role ∈ {coordinator, session}`，`thread/guest/other` 一律过滤——精确
+     镜像侧边栏默认 agents view 的 `not(in hp_role [guest,other])` 再加 thread
+     排除；项目分组也以 `hp_project` 注册 slug 为准，不再用 cwd basename 猜
+     （修掉了 `/project` 里凭空出现的 "workspace" 项目：一个 cwd 在
+     `~/Documents/workspace` 的 `hp_role=other` pane）。无 tokens 的旧 server /
+     纯远端才回退 pf.2 的名字/cwd 启发式：`hpc-<slug>` coordinator → 人；
+     `hp-<slug>-t-N` thread 名、cwd 落在 `…/<slug>/threads/t-N` 或 worktree
+     `…/worktrees/hp-<slug>-t-N-…`、bare `t-NNNN` project → 过滤；仍无标记
+     fail-open（普通 session 不因缺标记消失）。
      快照、通知、`/agents`、blocked 按钮全部走同一过滤；`hp_audience=stalled`
-     的卡住 thread 仍算人。上游 poll 的 stray `update:true`（没有已投递卡片
-     时）直接忽略，不发幽灵卡。
+     的卡住 thread 仍算人（token 与启发式两条路径都保留该例外）。上游 poll 的
+     stray `update:true`（没有已投递卡片时）直接忽略，不发幽灵卡。
   4. **（pf.2）单条 live dashboard + 每 pane 卡片复用**：每个被阻塞的 human
      pane 第一次 block 才发卡，之后 blocked→working→idle/done 全程
      `editMessage` 同一条消息（恢复行 → ✅ 一行完成摘要 + Read/Reply 按钮），

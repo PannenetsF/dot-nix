@@ -212,7 +212,11 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # focus preview), and paginates /agents instead of truncating at 4096;
 # pf.13 registers /project; pf.12 gives the All-panes picker two-line topic/pane buttons; pf.11 makes a manual /dashboard (and the 📊 bar key) retire the old singleton
 # and post a fresh copy at the chat bottom for pinning, while snapshot refresh
-# keeps editing in place;
+# keeps editing in place; pf.14 mirrors the sidebar audience: the relay
+# forwards herdr-projects hp_role/hp_project/hp_audience tokens and the bot
+# shows only coordinator/session rows (thread/guest/other hidden, stalled
+# threads still surface), so cwd-basename phantom projects such as
+# "workspace" disappear and grouping uses the registered slug;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -223,7 +227,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.13"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.14"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \

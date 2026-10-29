@@ -11,19 +11,22 @@ let
   # pane, persistent session bar, /switch selector whose two-line buttons put
   # the topic on line 1 and project > pane . session on line 2 (phone
   # display-cell budgets, transcript preview on session pick, pane-anchored
-  # preview header), maintained on the fork branch
+  # preview header); pf.14 mirrors the sidebar audience filter by forwarding
+  # herdr-projects' hp_role/hp_project/hp_audience tokens (only coordinator/
+  # session rows reach the bot; phantom cwd-basename projects are gone),
+  # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
   # pf/v0.8.1, tag v0.8.1-pf.<N+1>, bump relayPfTag and the hash below;
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.13";
+  relayPfTag = "v0.8.1-pf.14";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-IEVKwtPpW+62z54T0UfgEsCRqjbkzWhcOh/6DMHyid0=";
+    sha256 = "sha256-joUrzEux8zMbPUWtoP/99kknm1+SQbC8tltT6MkL5pQ=";
   };
   relaySrc = "${relaySource}/relay";
 
