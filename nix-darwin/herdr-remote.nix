@@ -18,12 +18,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.10";
+  relayPfTag = "v0.8.1-pf.11";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-X6jxd0kciEvukYy64Pf54puGB5K0bMeY3+X28CxS6sk=";
+    sha256 = "sha256-ad3Lg1jiNruRaA4CjdLfgH19HKqcYhKVpIM6UipldME=";
   };
   relaySrc = "${relaySource}/relay";
 

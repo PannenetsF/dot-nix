@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.10`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.11`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -625,8 +625,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
      的 Read 按钮）按需取。另有一条按 project 分组的 dashboard 消息
      （working/blocked/idle 计数、阻塞 pane 的 Read 按钮、📋 All panes 分页），
      1s tick 合并编辑、内容签名去重（时钟变化不触发 edit）、断线不主动发，
-     `/dashboard` 与 `/start` 强制刷新单例；dashboard 消息被用户删掉后自动
-     重发，完成行 TTL 30min。pane→message id 等状态持久化在
+     `/start` 原地强制刷新单例；dashboard 消息被用户删掉后自动
+     重发，完成行 TTL 30min。**pf.11 起手动 `/dashboard`（及 📊 bar 键）
+     语义改为「换新」**：自动快照刷新始终只静默原地 edit，而手动命令先
+     best-effort 删除旧单例、再在聊天底部重发一条（删除失败不阻断，旧条
+     冻结、后续 edit 只跟踪新条），方便用户找到并置顶；命令本身不另发
+     回执，新 dashboard 就是聊天里最后一条。pane→message id 等状态持久化在
      `HERDR_TG_STATE`（默认 `~/.config/herdr-remote/telegram-state.json`，
      0600、原子写、只存 id/时间戳不存内容与密钥），重启不重复发卡。
   5. **（pf.3）sticky focus + 常驻底部 session bar + /switch 选择器 + 发送回执**：
