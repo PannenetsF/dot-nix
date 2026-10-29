@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.12`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.13`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -574,7 +574,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   其他所有人；chat id 用 `getUpdates` 发现，私聊正数、群为负数）。**wrapper
   在 token 缺失时 `exit 0` 休眠**，配合 `KeepAlive.SuccessfulExit=false` 不会
   重启空转——未配置的机器上该 agent 是无害占位。bot 支持
-  `/start /agents /dashboard /switch /find /unfocus /read /reply /send /trust /interrupt /digest`，
+  `/start /agents /dashboard /switch /project /find /unfocus /read /reply /send /trust /interrupt /digest`（`/project` pf.13 起注册：弹出与 📁 项目栏键相同的项目列表两级下钻），
   审批按钮发的是真实数字按键（`send_keys`）而非粘贴文本。
   **Telegram 定制随 fork tag 发布**（2026-10 起不再是仓库内 build-time
   patch；代码只在 `PannenetsF/herdr-remote` 的 `pf/v0.8.1` 分支，tag
