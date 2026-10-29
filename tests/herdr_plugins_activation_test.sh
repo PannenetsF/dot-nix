@@ -114,7 +114,7 @@ echo "$log1" | grep -q "server reload-config" || fail "server config not reloade
 
 # radar configure must precede projects install (marker-block ownership order).
 radar_cfg=$(echo "$log1" | grep -n "action invoke configure" | head -1 | cut -d: -f1)
-proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.6" | head -1 | cut -d: -f1)
+proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.7" | head -1 | cut -d: -f1)
 [ -n "$radar_cfg" ] && [ -n "$proj_inst" ] && [ "$radar_cfg" -lt "$proj_inst" ] \
   || fail "radar configure ($radar_cfg) must run before projects install ($proj_inst)"
 
@@ -256,7 +256,7 @@ STUB_MODE=ok STUB_VERSION=0.9.5 \
 log7="$(cat "$home7/calls.log")"
 uninst=$(echo "$log7" | grep -n "plugin uninstall herdr-projects" | head -1 | cut -d: -f1)
 kill_line=$(echo "$log7" | grep -n "pkill" | head -1 | cut -d: -f1)
-proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.6" | head -1 | cut -d: -f1)
+proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.7" | head -1 | cut -d: -f1)
 [ -n "$uninst" ] || fail "upstream 1.2 plugin must be uninstalled before the fork installs"
 [ -n "$kill_line" ] || fail "orphan 1.2 daemons must be signalled after uninstall"
 [ -n "$proj_inst7" ] || fail "0.2 fork must be installed in the same activation"
@@ -278,7 +278,7 @@ echo "$pkill_log" | grep -q 'ticker' \
 # --- Case 8: 0.2 fork already pinned -> no uninstall, no pkill, no reinstall -
 stub8="$tmp/stub8"; make_stub "$stub8"; home8="$tmp/home8"
 STUB_MODE=ok STUB_VERSION=0.9.5 \
-  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.6" \
+  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.7" \
   run_case "$home8" env PATH="$stub8/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log8="$(cat "$home8/calls.log")"
@@ -286,7 +286,7 @@ echo "$log8" | grep -q "plugin uninstall" \
   && fail "must not uninstall when the pinned fork is already registered" || true
 echo "$log8" | grep -q "pkill" \
   && fail "must not signal daemons when the pinned fork is already registered" || true
-echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.6" \
+echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.7" \
   && fail "fork must not be reinstalled when already at the pinned ref" || true
 echo "$log8" | grep -q "action invoke configure --plugin herdr-projects" \
   || fail "configure must still run (idempotent repair) when the fork is present"
