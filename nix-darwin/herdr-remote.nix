@@ -120,7 +120,14 @@ in {
   launchd.user.agents.herdrRemote.serviceConfig = {
     Label = "org.nix-community.home.herdr-remote";
     Program = "${startHerdrRelay}";
-    KeepAlive = { SuccessfulExit = false; };
+    # Unconditional restart: unlike the telegram job below, the relay has no
+    # dormant state. Its SIGINT/SIGTERM handlers shut down gracefully with
+    # exit code 0, so `SuccessfulExit = false` parked the job forever after
+    # ANY SIGTERM -- a `kickstart -k` from a mid-switch (even one that later
+    # fails before the activation kickstart), bootout, or a manual kill --
+    # and every client then sat on "Relay disconnected" until the next
+    # successful darwin switch (measured: 30h outage, 2026-10-30).
+    KeepAlive = true;
     RunAtLoad = true;
     StandardOutPath = "${homeDir}/Library/Logs/herdr-remote/launchd.out.log";
     StandardErrorPath = "${homeDir}/Library/Logs/herdr-remote/launchd.err.log";

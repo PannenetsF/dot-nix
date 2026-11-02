@@ -543,7 +543,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
   注册为 `launchd.user.agents.herdrRemote`（label
   `org.nix-community.home.herdr-remote`，日志 `~/Library/Logs/herdr-remote`，
-  postActivation kickstart）。默认 `127.0.0.1:8375` loopback；机器本地覆盖放
+  postActivation kickstart，`KeepAlive = true` 无条件重启——relay 的
+  SIGTERM 优雅退出码是 0，`SuccessfulExit = false` 会在任何
+  `kickstart -k`/bootout 后把它永久 park；telegram agent 相反，无 token
+  时 exit 0 休眠，必须保留 `SuccessfulExit = false`）。默认 `127.0.0.1:8375` loopback；机器本地覆盖放
   `~/.config/herdr-remote/config.env`（不进 git，activation 只 `install -d`
   保目录）：`HERDR_RELAY_HOST` 绑非环回时上游强制要求 `HERDR_RELAY_TOKEN`。
   **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里

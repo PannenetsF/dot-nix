@@ -172,6 +172,12 @@ assert_contains "nix-darwin/herdr-remote.nix" "org.nix-community.home.herdr-remo
 assert_contains "nix-darwin/herdr-remote.nix" "kickstart"
 assert_contains "nix-darwin/herdr-remote.nix" ".config/herdr-remote/config.env"
 assert_contains "nix-darwin/herdr-remote.nix" "Library/Logs/herdr-remote"
+# The relay restarts unconditionally: its graceful SIGTERM handler exits 0,
+# and SuccessfulExit=false then parked the job after every kickstart -k/bootout
+# (30h "Relay disconnected" outage, 2026-10-30). The telegram job keeps the
+# SuccessfulExit=false gate because exit 0 there means "no token, stay dormant".
+assert_contains "nix-darwin/herdr-remote.nix" "KeepAlive = true;"
+assert_contains "nix-darwin/herdr-remote.nix" "KeepAlive = { SuccessfulExit = false; };"
 
 # herdr-remote Telegram bot: second launchd user agent running relay/herdr_telegram.py
 # as a WebSocket client of the loopback relay. Credentials come from machine-local
@@ -322,8 +328,8 @@ assert_contains "config/herdr/herdr-popup-lib.sh" "coordinator adopt"
 assert_contains "config/herdr/new-coordinator.sh" "hp_adopt \"\$hp_bin\""
 assert_contains "config/herdr/focus-coordinator.sh" "herdr agent focus"
 assert_contains "config/herdr/focus-coordinator.sh" ".state/coordinator.json"
-# The fork pin for the plugin is pf.6 in the shared activation body.
-assert_contains "$body" "v0.2.34-pf.6"
+# The fork pin for the plugin is pf.7 in the shared activation body.
+assert_contains "$body" "v0.2.34-pf.7"
 
 # Repo paths containing @ are rejected before reaching the plugin (they break
 # TOML/shell handling); both scripts that accept repo paths must guard them.
@@ -361,7 +367,7 @@ assert_contains "$body" "diff -u"
 # The fork pin is permanent (project+threads/ticker model vs 1.2 task board);
 # activation must unregister a present 1.2 plugin, signal only its four orphan
 # helper daemons by argv (never the 0.2 ticker), then install the 0.2 fork.
-assert_contains "$body" "v0.2.34-pf.6"
+assert_contains "$body" "v0.2.34-pf.7"
 assert_contains "$body" "eliasstravik/herdr-projects@"
 assert_contains "$body" "plugin uninstall herdr-projects"
 assert_contains "$body" "(keeper|keeper-work|voice helper|serve)"
