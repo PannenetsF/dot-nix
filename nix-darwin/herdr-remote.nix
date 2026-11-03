@@ -22,7 +22,11 @@ let
   # "N. Type something." row) with arbitrary text -- footer-verified so
   # numbered markdown lists in agent output are never driven -- and only
   # answers via respond while the pane is still blocked, so a stale prompt
-  # id routes a fresh instruction through agent prompt;
+  # id routes a fresh instruction through agent prompt; pf.18 makes every
+  # explicit session open (picker tap / 🔄 recent / Read button) post a
+  # FRESH preview at the chat bottom instead of silently editing the pane's
+  # buried reusable message (which read as a dead/frozen button); only the
+  # 🎯 current-pane bar key and /read keep in-place refresh;
   # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
@@ -30,12 +34,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.17";
+  relayPfTag = "v0.8.1-pf.18";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-nzRY5GnuxxpFAPlydedc8eQp+0DMLqh5dVFmJSUt/4A=";
+    sha256 = "sha256-xL+/71iaIqy8ZwKFEqTwSWbnuzj47GbUFp98ayjgtU0=";
   };
   relaySrc = "${relaySource}/relay";
 

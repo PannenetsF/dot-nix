@@ -232,7 +232,11 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # row) with arbitrary free text, gated on the real menu footer so
 # document lists are never driven, and only answers via respond while
 # the pane snapshot is still blocked -- a stale prompt id sends a fresh
-# instruction through agent prompt instead of being refused;
+# instruction through agent prompt instead of being refused; pf.18 makes
+# an explicit session pick (picker / 🔄 recent / Read) always post a
+# fresh preview at the chat bottom instead of silently editing a buried
+# reusable message that read as a dead button; the 🎯 current-pane bar
+# key and /read remain in-place refreshes;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -243,7 +247,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.17"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.18"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
