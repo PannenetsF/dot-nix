@@ -196,7 +196,7 @@ checkout，不是远端 pin；缺失也不让 activation 失败）。
   `herdr-projects --root <root> open <slug> --new --tab`，使用项目默认 profile，
   每次创建**独立 pane 和全新 agent session**，仅向这次命令返回的新 pane
   投递，不继续旧 coordinator 对话；启动/校验失败也绝不回退向旧会话发送）；
-  目标项目可在 detail note frontmatter 写 `project: <slug>`（沿祖先继承，
+  节点 detail note 的 `machine: <label>` 决定项目所在的 Herdr 机器；Roadboard 会在该机器上读取项目、创建新 pane 并发送。目标项目可在 detail note frontmatter 写 `project: <slug>`（沿祖先继承，
   gate 里选中即写入绑定）。投递成功后节点标 `[/]`，后续 `?`/`x` 仍由人翻；
   coordinator 不调 `roadboard done`（无 run）；未注册/不存在的项目直接报错
   且节点不动（fail-closed，且校验发生在任何 roadmap 写入之前）。
