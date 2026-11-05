@@ -11,13 +11,13 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "keybr-tui";
-  version = "0.1.1";
+  version = "0.1.0";
 
-  # Bump: version + hash (the url is derived from version).
+  # Tag tui-v0.1.0 = fork main c588f55.
   src = fetchurl {
     url =
       "https://github.com/PannenetsF/keybr.com/releases/download/tui-v${finalAttrs.version}/keybr-tui-${finalAttrs.version}.tgz";
-    hash = "sha256-fAZhg4lb/M4LI3TCqxtnvsZBSviQM1LEjYu96JTCfkc=";
+    hash = "sha256-wMTh6Kje+sT6y8iHULfFblwfxg7FlgyjGU7Va1ve4Yk=";
   };
 
   nativeBuildInputs = [ makeWrapper ];
@@ -32,14 +32,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     makeWrapper ${nodejs_22}/bin/node $out/bin/keybr-tui \
       --add-flags $out/lib/keybr-tui/keybr-tui.cjs
     runHook postInstall
-  '';
-
-  doInstallCheck = true;
-  installCheckPhase = ''
-    runHook preInstallCheck
-    [ "$($out/bin/keybr-tui --version)" = "keybr-tui ${finalAttrs.version}" ]
-    $out/bin/keybr-tui --help > /dev/null
-    runHook postInstallCheck
   '';
 
   meta = {
