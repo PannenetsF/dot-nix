@@ -156,6 +156,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   多个 language server（`bash`、`lua`、`yaml`、`ltex`、`vscode-langservers` 等）、
   `pythonEnv`（`python3.withPackages`：`jedi-language-server`、`pip`、`pynvim`、
   `ruff`）、`shfmt`、`stylua`、`gh`、`go`、`tree-sitter`、`ty` 等。
+- 仓库自带包放 `pkgs/<name>.nix`，host.nix 里 `pkgs.callPackage` 引入，并在
+  `flake.nix` 的 `packages.<system>` 暴露（`nix build .#<name>`）。当前只有
+  `keybr-tui`（PannenetsF/keybr.com fork 的 release tarball `tui-v*`，
+  `fetchurl` + `makeWrapper` 包 nodejs_22；不走 buildNpmPackage：fork 的
+  package-lock 里嵌套 chalk@6.0.0 缺 `resolved`，离线安装 ENOTCACHED）。
+  升级：改 version 与 hash。
 - macOS host 额外加 `colima`、`rar`、`sketchybar`、`terminal-notifier`、
   `yabai`、`macism`。
 - 不要把特别巨大的包无脑塞进默认 host 集合；现有测试明确防止
