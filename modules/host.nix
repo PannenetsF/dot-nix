@@ -7,7 +7,6 @@ let
       pynvim
       ruff
     ]);
-  keybr-tui = pkgs.callPackage ../pkgs/keybr-tui.nix { };
 in {
   home.packages = (with pkgs; [
     aerc
@@ -27,7 +26,6 @@ in {
     imagemagick
     ispell
     jq
-    keybr-tui
     ltex-ls
     libgccjit
     libsodium

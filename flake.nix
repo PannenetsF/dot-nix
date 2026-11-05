@@ -95,12 +95,7 @@
             home-manager.darwinModules.home-manager
           ];
         };
-      allSystems = darwinSystems ++ [ "x86_64-linux" "aarch64-linux" ];
     in {
-      packages = lib.genAttrs allSystems (system: {
-        keybr-tui = (mkPkgs system).callPackage ./pkgs/keybr-tui.nix { };
-      });
-
       apps = lib.genAttrs darwinSystems (system: {
         darwin-rebuild = {
           type = "app";
