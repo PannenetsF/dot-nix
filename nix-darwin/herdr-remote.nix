@@ -26,7 +26,13 @@ let
   # explicit session open (picker tap / 🔄 recent / Read button) post a
   # FRESH preview at the chat bottom instead of silently editing the pane's
   # buried reusable message (which read as a dead/frozen button); only the
-  # 🎯 current-pane bar key and /read keep in-place refresh;
+  # 🎯 current-pane bar key and /read keep in-place refresh; pf.19 lets a
+  # direct loopback event push (`?d=`, no X-Forwarded-*/Via) through without
+  # HERDR_RELAY_TOKEN -- herdr-push is plain curl and cannot send the token,
+  # so with a token set every push 401'd; proxied requests (an ssh -R tunnel
+  # also ends on loopback) still need it; pf.20 never exempts a WebSocket
+  # upgrade (the token skips the origin check, so `/?d=` would otherwise
+  # open a token-free session for any local page);
   # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
@@ -34,12 +40,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.18";
+  relayPfTag = "v0.8.1-pf.20";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-xL+/71iaIqy8ZwKFEqTwSWbnuzj47GbUFp98ayjgtU0=";
+    sha256 = "sha256-jIc8LDCPq5as7uul+wx9R5EmTBLXPyYK3SFkMaD5oS4=";
   };
   relaySrc = "${relaySource}/relay";
 

@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.18`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.20`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -549,6 +549,14 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   时 exit 0 休眠，必须保留 `SuccessfulExit = false`）。默认 `127.0.0.1:8375` loopback；机器本地覆盖放
   `~/.config/herdr-remote/config.env`（不进 git，activation 只 `install -d`
   保目录）：`HERDR_RELAY_HOST` 绑非环回时上游强制要求 `HERDR_RELAY_TOKEN`。
+  设了 token 后除静态资源外所有 HTTP/WS 都要 token（index 页也是，验收的
+  `http://127.0.0.1:8375/` 检查会自动从 config.env 读 token 带 Bearer）；
+  **pf.19 起直连 loopback 的事件推送（`?d=`、无 `X-Forwarded-*`/`Via`
+  代理头）免 token**——herdr-push 的 on_event.sh 是裸 curl 带不了 token，
+  否则每次推送 401、blocked/done 退化成轮询；经反代/ssh -R 隧道进来的请求
+  同样落在 loopback，但带代理头，仍需 token。pf.20 起带 `Upgrade` 的请求
+  永不豁免（设了 token 后 relay 跳过 WS origin 校验，`/?d=` 若能开 WS，
+  本机任意网页都能拿到免 token 会话）。
   **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里
   `enabled` 的机器作为 SSH 轮询目标（45s 缓存、读失败保留上一次集合的
   fail-sticky 语义、跳过会 SSH 回本机的自环项），与

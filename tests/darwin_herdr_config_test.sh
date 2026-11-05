@@ -236,7 +236,9 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # an explicit session pick (picker / 🔄 recent / Read) always post a
 # fresh preview at the chat bottom instead of silently editing a buried
 # reusable message that read as a dead button; the 🎯 current-pane bar
-# key and /read remain in-place refreshes;
+# key and /read remain in-place refreshes; pf.19 exempts direct loopback
+# event pushes (herdr-push curl, no proxy headers) from HERDR_RELAY_TOKEN;
+# pf.20 keeps WebSocket upgrades out of that exemption;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -247,7 +249,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.18"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.20"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \

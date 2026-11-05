@@ -74,6 +74,29 @@ check_http_200() {
   fi
 }
 
+# The relay puts its index page behind HERDR_RELAY_TOKEN once the machine-local
+# config.env sets one, so send it as a Bearer (read without sourcing the file).
+check_relay_http_200() {
+  local url="$1"
+  local config_env="${HOME}/.config/herdr-remote/config.env"
+  local token=""
+  local code
+  if [[ -r "$config_env" ]]; then
+    token="$(sed -n 's/^HERDR_RELAY_TOKEN=//p' "$config_env" | tail -n 1 | tr -d "\"'")"
+  fi
+  if [[ -n "$token" ]]; then
+    code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 3 \
+      -H "Authorization: Bearer ${token}" "$url" 2>/dev/null || true)"
+  else
+    code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 3 "$url" 2>/dev/null || true)"
+  fi
+  if [[ "$code" == "200" ]]; then
+    pass "HTTP 200: $url"
+  else
+    fail "service not answering 200: $url (got '${code:-nothing}')"
+  fi
+}
+
 check_binary_contains() {
   local path="$1"
   local expected="$2"
@@ -221,7 +244,7 @@ check_plist_value "${HOME}/Library/Preferences/org.p0deje.Maccy.plist" historySi
 # herdr-remote relay (launchd agent) and herdr-web-ui bridge: both local
 # loopback HTTP services, independent of herdr app UI state.
 check_launch_agent org.nix-community.home.herdr-remote
-check_http_200 "http://127.0.0.1:8375/"
+check_relay_http_200 "http://127.0.0.1:8375/"
 check_http_200 "http://127.0.0.1:7317/"
 
 herdr_plugins="$(herdr plugin list 2>/dev/null || true)"
