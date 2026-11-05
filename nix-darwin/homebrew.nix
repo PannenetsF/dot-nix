@@ -130,6 +130,9 @@ in {
           brew_as_user tap furkankly/tap
           brew_as_user trust furkankly/tap --quiet
 
+          brew_as_user tap pannenetsf/tap
+          brew_as_user trust pannenetsf/tap --quiet
+
           # Homebrew 4.4+ refuses formulae from newly added third-party taps
           # until explicitly trusted; emacs-plus exists only in this tap.
           brew_as_user tap d12frosted/emacs-plus
@@ -165,6 +168,7 @@ in {
       "daipeihust/tap"
       "furkankly/tap"
       "gromgit/fuse"
+      "pannenetsf/tap"
       {
         name = "dot-nix/local";
         clone_target = localTapPath;
@@ -271,6 +275,8 @@ in {
       "fswatch"
       "gromgit/fuse/sshfs-mac"
       "herdr"
+      # Terminal client for keybr.com typing practice (PannenetsF fork).
+      "pannenetsf/tap/keybr-tui"
       # Native backend for Doom's :input chinese +rime (liberime links
       # -lrime and finds headers via pkg-config; dot-doom compiles the
       # liberime emacs module on demand, see ~/.config/doom/config.el).
