@@ -116,6 +116,47 @@ dialogs, native terminal tabs, sleep/wake, dock/undock and lid close/reopen.
 Check every display for stranded windows and incorrect focus. These checks
 require a real desktop and are not established by Nix evaluation.
 
+## Backup and restore (machine migration)
+
+OmniWM 0.7.x has no export/import action; the GUI writes the complete
+configuration as plain TOML at
+`${XDG_CONFIG_HOME:-$HOME/.config}/omniwm/settings.toml`. A byte-identical
+snapshot is kept in the repo at
+[`config/omniwm/settings.snapshot.toml`](../config/omniwm/settings.snapshot.toml)
+so a rebuilt machine can reproduce the GUI-tuned settings. Nix never deploys
+this file: OmniWM remains the sole owner of the live `settings.toml`, and no
+activation script reads the snapshot.
+
+Refresh the snapshot after meaningful GUI changes (quit OmniWM first so the
+copy is not taken mid-write; the app also keeps its own
+`settings.toml.bak-<ts>` rotations):
+
+```bash
+cp -p "$HOME/.config/omniwm/settings.toml" \
+  "$HOME/.config/nix-hm/config/omniwm/settings.snapshot.toml"
+```
+
+On the new machine: install the same or newer OmniWM cask, launch it once so
+it creates the directory, quit it, then restore:
+
+```bash
+mkdir -p "$HOME/.config/omniwm"
+cp config/omniwm/settings.snapshot.toml \
+  "$HOME/.config/omniwm/settings.toml"
+```
+
+Caveats:
+
+- The file pins `schemaVersion`; an older OmniWM release rejects newer keys
+  and parks the file as `settings.toml.corrupt`. Match versions when moving
+  machines.
+- `[[routing.arrangements.monitors]]` binds hardware `monitorDisplayUUID`s
+  (plus monitor names). Those UUIDs differ per machine, so monitor routing
+  must be re-done in the GUI after restore; everything else — `appRules`
+  (keyed by bundle id), hotkeys, appearance, gaps — is machine-independent.
+- `~/.config/omniwm/.hotkey-overrides.rev` is local seed state, not
+  configuration, and is deliberately not backed up.
+
 ## Rollback to AeroSpace
 
 There is no Nix option to switch back — the old WM glue is archived, not
