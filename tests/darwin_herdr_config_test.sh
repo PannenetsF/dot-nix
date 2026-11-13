@@ -283,14 +283,18 @@ assert_contains "config/herdr/config.toml" 'herdr-pick-project'
 # (and the rest of the project namespace) silently no-op on that layer.
 assert_file_exists "modules/herdr-launchers.nix"
 assert_contains "home.nix" "./modules/herdr-launchers.nix"
-for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator herdr-focus-coordinator herdr-pick-session; do
+for launcher in herdr-new-project herdr-pick-project herdr-add-repo herdr-new-coordinator herdr-focus-coordinator; do
 	assert_contains "modules/herdr-launchers.nix" "\".local/bin/$launcher\""
 	assert_not_contains "modules/herdr.nix" "\".local/bin/$launcher\""
 	assert_not_contains "modules/darwin.nix" "\".local/bin/$launcher\""
 done
-assert_file_exists "config/herdr/pick-session.sh"
-assert_contains "config/herdr/config.toml" 'goto = "prefix+g"'
-assert_contains "config/herdr/config.toml" 'herdr-pick-session'
+# Session search is herdr's built-in cross-machine navigator (goto), not a
+# popup script: the old fzf pick-session launcher must stay gone.
+assert_not_contains "modules/herdr-launchers.nix" "herdr-pick-session"
+assert_not_contains "config/herdr/config.toml" 'herdr-pick-session'
+assert_contains "config/herdr/config.toml" 'goto = ["prefix+g", "ctrl+alt+g"]'
+assert_not_contains "config/herdr/config.toml" 'key = "prefix+f"'
+assert_not_contains "config/herdr/config.toml" 'key = "ctrl+alt+f"'
 # Focus-coordinator (prefix+ctrl+f) ships its own binding.
 assert_file_exists "config/herdr/focus-coordinator.sh"
 assert_contains "config/herdr/config.toml" 'key = "prefix+ctrl+f"'
@@ -334,8 +338,8 @@ assert_contains "config/herdr/herdr-popup-lib.sh" "coordinator adopt"
 assert_contains "config/herdr/new-coordinator.sh" "hp_adopt \"\$hp_bin\""
 assert_contains "config/herdr/focus-coordinator.sh" "herdr agent focus"
 assert_contains "config/herdr/focus-coordinator.sh" ".state/coordinator.json"
-# The fork pin for the plugin is pf.7 in the shared activation body.
-assert_contains "$body" "v0.2.34-pf.7"
+# The fork pin for the plugin is pf.8 in the shared activation body.
+assert_contains "$body" "v0.2.34-pf.8"
 
 # Repo paths containing @ are rejected before reaching the plugin (they break
 # TOML/shell handling); both scripts that accept repo paths must guard them.
@@ -373,7 +377,7 @@ assert_contains "$body" "diff -u"
 # The fork pin is permanent (project+threads/ticker model vs 1.2 task board);
 # activation must unregister a present 1.2 plugin, signal only its four orphan
 # helper daemons by argv (never the 0.2 ticker), then install the 0.2 fork.
-assert_contains "$body" "v0.2.34-pf.7"
+assert_contains "$body" "v0.2.34-pf.8"
 assert_contains "$body" "eliasstravik/herdr-projects@"
 assert_contains "$body" "plugin uninstall herdr-projects"
 assert_contains "$body" "(keeper|keeper-work|voice helper|serve)"

@@ -41,12 +41,6 @@
       force = true;
     };
 
-    ".local/bin/herdr-pick-session" = {
-      source = ../config/herdr/pick-session.sh;
-      executable = true;
-      force = true;
-    };
-
     # Shared preamble sourced by the launchers above; linked into the same
     # .local/bin directory because each launcher resolves one symlink hop and
     # sources the sibling next to its resolved nix-store file.
