@@ -200,7 +200,7 @@ except Exception:
   # herdr-projects: project + thread model with a persistent ticker daemon.
   # Requires server >= 0.9.5; plugin install talks to the running server and
   # fails hard against a stale one, so skip until the server is restarted.
-  # Pinned to fork v0.2.34-pf.8 (PannenetsF/herdr-projects): registered
+  # Pinned to fork v0.2.34-pf.9 (PannenetsF/herdr-projects): registered
   # coordinator identity (`hpc-<slug>` family names), adoption of
   # hand-started sessions, context registration gate, session-sticky nudges
   # and the untracked-pane claim for a second harness in a tracked project
@@ -241,6 +241,13 @@ except Exception:
   # agent panes inside a project folder self-register as coordinator on
   # their first owner-gated command instead of failing; thread panes and
   # agents with an existing name are still rejected.
+  # pf.9 makes the AGENTS.md priming template auto_adopt-aware: an
+  # unregistered pane is told to run `context` once (which triggers the
+  # pf.8 self-registration) and only falls back to a user-run
+  # `coordinator adopt` on explicit refusal. The old template forbade the
+  # one command that self-registration needs, deadlocking the feature. A
+  # new marker lets doctor --fix refresh pre-pf.9 AGENTS.md files, and
+  # doctor's stranger warning now reflects the auto_adopt setting.
   # The 0.2 model uses project slugs with per-project
   # home directories (`~/.herdr-projects/<slug>/`); the ticker is its ONLY
   # bell source — herdr notification show --sound request/done when threads
@@ -258,10 +265,10 @@ except Exception:
 v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
 t = tuple(int(x) for x in v.split(".") if x != "")
 sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
-    # Fork pin v0.2.34-pf.8 (see block comment above).
+    # Fork pin v0.2.34-pf.9 (see block comment above).
     installed_projects="$("$herdr_cli" plugin list 2>/dev/null || true)"
     if ! printf '%s' "$installed_projects" \
-        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.8"; then
+        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.9"; then
       # One-time rolloff window from the incompatible upstream 1.2.x
       # task-board plugin: the plugin id must be free before the 0.2 fork can
       # register, and 1.2 leaves four orphan daemons running forever
@@ -282,7 +289,7 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
       # No release assets on the fork: the server builds from source with the
       # user's cargo (darwin wrapper and modules/herdr.nix both prepend
       # ~/.cargo/bin). A build failure must not abort activation.
-      "$herdr_cli" plugin install -y --ref v0.2.34-pf.8 \
+      "$herdr_cli" plugin install -y --ref v0.2.34-pf.9 \
         PannenetsF/herdr-projects || true
     fi
     # configure merges the sidebar/tab-bar blocks into radar's marker blocks
@@ -297,7 +304,7 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
         --plugin herdr-projects >/dev/null 2>&1 || true
     fi
   else
-    echo >&2 "herdr server is older than 0.9.5; restart herdr to install herdr-projects pf.8"
+    echo >&2 "herdr server is older than 0.9.5; restart herdr to install herdr-projects pf.9"
   fi
 
   # herdr-web-ui: browser/PWA client over the herdr socket API (workspaces,
