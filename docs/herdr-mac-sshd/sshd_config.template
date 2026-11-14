@@ -1,0 +1,19 @@
+# Template for a second, loopback-only sshd used to expose this Mac as a herdr relay source.
+#
+# This is NOT the system sshd in /etc/ssh: it binds a high loopback port with key-only auth and a
+# dedicated host key kept inside the state dir. Copy to ~/.config/herdr-mac-sshd/sshd_config and
+# replace every ABS_HOME with the absolute home directory path (sshd_config does not expand ~ or
+# environment variables). The host key is generated on the machine and must never be committed:
+#
+#   ssh-keygen -q -t ed25519 -N '' -f "$HOME/.config/herdr-mac-sshd/ssh_host_ed25519_key"
+#
+Port 2222
+ListenAddress 127.0.0.1
+HostKey ABS_HOME/.config/herdr-mac-sshd/ssh_host_ed25519_key
+PidFile ABS_HOME/.config/herdr-mac-sshd/sshd.pid
+AuthorizedKeysFile ABS_HOME/.ssh/authorized_keys
+UsePAM no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+Subsystem sftp /usr/libexec/sftp-server

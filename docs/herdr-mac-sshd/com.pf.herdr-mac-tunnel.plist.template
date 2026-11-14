@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template LaunchAgent: reverse-tunnel this Mac's loopback sshd to the relay host.
+
+  The relay reaches the Mac over ssh, so the connection is opened outbound FROM the Mac.
+  -R 127.0.0.1:REMOTE_PORT:127.0.0.1:LOCAL_SSHD_PORT means "on the relay host, listen on
+  REMOTE_PORT and forward back to this Mac's LOCAL_SSHD_PORT". The relay's ~/.ssh/config then
+  defines an alias whose HostName is 127.0.0.1 and Port is REMOTE_PORT, and the relay puts that
+  alias in HERDR_REMOTES.
+
+  Replace ABS_HOME and RELAY_HOST (an ~/.ssh/config alias, so no address is baked into the unit).
+  No -6 flag: with an explicit 127.0.0.1 forward target, forcing address family inet6 makes ssh
+  resolve the loopback target as v6 and fail with "Address family not supported".
+  Copy to ~/Library/LaunchAgents/com.pf.herdr-mac-tunnel.plist and bootstrap like the sshd agent.
+-->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.pf.herdr-mac-tunnel</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/bin/ssh</string><string>-N</string>
+    <string>-R</string><string>127.0.0.1:2223:127.0.0.1:2222</string>
+    <string>-o</string><string>ExitOnForwardFailure=yes</string>
+    <string>-o</string><string>ServerAliveInterval=30</string>
+    <string>-o</string><string>ServerAliveCountMax=3</string>
+    <string>-o</string><string>ConnectTimeout=12</string>
+    <string>RELAY_HOST</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>ABS_HOME/.config/herdr-mac-sshd/tunnel.out.log</string>
+  <key>StandardErrorPath</key><string>ABS_HOME/.config/herdr-mac-sshd/tunnel.err.log</string>
+</dict></plist>

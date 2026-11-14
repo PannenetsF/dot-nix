@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template LaunchAgent: run the loopback-only sshd from sshd_config.template.
+  Replace ABS_HOME with the absolute home path, copy to
+  ~/Library/LaunchAgents/com.pf.herdr-mac-sshd.plist, then:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pf.herdr-mac-sshd.plist
+-->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.pf.herdr-mac-sshd</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/sbin/sshd</string><string>-D</string><string>-f</string><string>ABS_HOME/.config/herdr-mac-sshd/sshd_config</string><string>-E</string><string>ABS_HOME/.config/herdr-mac-sshd/sshd.log</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>ABS_HOME/.config/herdr-mac-sshd/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>ABS_HOME/.config/herdr-mac-sshd/launchd.err.log</string>
+</dict></plist>
