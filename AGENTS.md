@@ -537,7 +537,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.20`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.21`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -557,6 +557,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   同样落在 loopback，但带代理头，仍需 token。pf.20 起带 `Upgrade` 的请求
   永不豁免（设了 token 后 relay 跳过 WS origin 校验，`/?d=` 若能开 WS，
   本机任意网页都能拿到免 token 会话）。
+  **pf.21 起 Web 端默认 Projects 投影**：只显示 coordinator 与手动启动的
+  session 并按注册的 `hp_project`（加 host）分组，内部 thread 仅在
+  `hp_audience` 为 human/stalled 时出现，All panes 保留全部 pane；Timeline、
+  提示音与 Web Push 走同一套 `relay/audience.py` 投影，internal → stalled
+  即使 prompt 文本不变也恰好通知一次，推送深链在首个快照到达后打开目标 pane。
   **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里
   `enabled` 的机器作为 SSH 轮询目标（45s 缓存、读失败保留上一次集合的
   fail-sticky 语义、跳过会 SSH 回本机的自环项），与
@@ -572,6 +577,24 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `/bin`），让 relay 能轮询本机 brew 版 `herdr`。两个 wrapper source
   config/secrets 都必须 `set -a`：plain `.` 只建 shell 变量，uv/python 子进程
   看到空环境（telegram 曾因此一直报 `Set HERDR_TG_TOKEN`）。
+  **2026-11-14 起公网后端迁到 boe-fyq，Mac relay 仅本地 loopback。** 背景：Mac 的
+  WireGuard（`new-mac(1)`，network extension 配置仍在但 app 已不在）断开后无 IPv6
+  默认路由，旧的 Mac→ec2 `ssh -R 127.0.0.1:8376` LaunchAgent
+  （`com.pf.herdr-web-tunnel`，已 `launchctl disable` 并 bootout，plist 保留可回滚）
+  持续 exit 255，`https://herdr-mldev.byted.org/` 因此 502/不可达。新链路：
+  boe-fyq 用户态 `herdr-remote-relay.service`（`~/herdr-remote` 检出 tag
+  `v0.8.1-pf.21`，`uv run --script`，绑 `127.0.0.1:8375`，
+  `HERDR_NO_MACHINE_DISCOVERY=1` 且 `HERDR_REMOTES=` 只轮本机 herdr，
+  linger=yes）+ 用户态 `herdr-ec2-tunnel.service`（`ssh -R
+  127.0.0.1:8376:127.0.0.1:8375 tiger@<ec2 v6>`，**不要加 `-6`**：否则回环转发目标
+  `127.0.0.1` 被强制 v6 解析报 Address family not supported）。ec2 侧
+  Caddy(`herdr-web-relay`, :80) 与 HTML 登录 sidecar(`herdr-web-login`, :8377)
+  完全未动，`forward_auth` 仍保护 HTTP 与 WS，Caddy 注入的后端 Bearer 与
+  `~/.config/herdr-remote/config.env` 的 `HERDR_RELAY_TOKEN` 是同一个（迁移时
+  scp 过去，权限 600）。Mac 的 nix pin 已同步到 pf.21，下次 `darwin-rebuild
+  switch` 会把当前手工替换的 relay plist 收敛到同一 store 路径，无 drift。
+  boe-fyq 上无关的 devswha/herdr-web-ui（:7317）不得改动。回滚：Mac 上
+  `launchctl enable` + kickstart 旧 tunnel 并在 boe-fyq 停 `herdr-ec2-tunnel`。
 - **Telegram bot 守护**：同一 fetchFromGitHub source 的
   `relay/herdr_telegram.py`，第二个 `launchd.user.agents.herdrTelegram`
   （label `org.nix-community.home.herdr-telegram`，日志

@@ -32,7 +32,14 @@ let
   # so with a token set every push 401'd; proxied requests (an ssh -R tunnel
   # also ends on loopback) still need it; pf.20 never exempts a WebSocket
   # upgrade (the token skips the origin check, so `/?d=` would otherwise
-  # open a token-free session for any local page);
+  # open a token-free session for any local page); pf.21 ships the
+  # Projects-first web herd: coordinators and hand-started sessions grouped
+  # by registered hp_project (+host), internal threads hidden unless
+  # hp_audience is human/stalled, with All panes keeping every live pane;
+  # the same projection drives Timeline, sound and Web Push via
+  # relay/audience.py, so an internal -> stalled upgrade notifies exactly
+  # once even when the prompt is unchanged, and push deep links open the
+  # target pane once the first snapshot lands;
   # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
@@ -40,12 +47,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.20";
+  relayPfTag = "v0.8.1-pf.21";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-jIc8LDCPq5as7uul+wx9R5EmTBLXPyYK3SFkMaD5oS4=";
+    sha256 = "sha256-fX+HRHlpG4XisJR+8p6EdnNIgZnLRnpPDRa3HBnc/5k=";
   };
   relaySrc = "${relaySource}/relay";
 

@@ -238,7 +238,11 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # reusable message that read as a dead button; the 🎯 current-pane bar
 # key and /read remain in-place refreshes; pf.19 exempts direct loopback
 # event pushes (herdr-push curl, no proxy headers) from HERDR_RELAY_TOKEN;
-# pf.20 keeps WebSocket upgrades out of that exemption;
+# pf.20 keeps WebSocket upgrades out of that exemption; pf.21 ships the
+# Projects-first web herd (coordinator/session panes grouped by hp_project
+# and host, internal threads hidden unless escalated human/stalled, All
+# panes keeps the raw list) and routes Timeline, sound and Web Push through
+# the same audience projection so internal -> stalled notifies exactly once;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -249,7 +253,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.20"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.21"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
