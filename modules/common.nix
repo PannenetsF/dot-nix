@@ -77,11 +77,16 @@ let
     # per-folder "Do you trust the files in this folder?" dialog (no official
     # switch exists; acceptance is a flag in ~/.claude.json), so agent sessions
     # started by herdr-projects in brand-new folders never stall on an
-    # interactive prompt. Must sit ahead of /opt/homebrew/bin (prepended above)
-    # and of $HOME/.local/bin (hm-session-vars).
+    # interactive prompt. Codex gets the same directory-only preseeding through
+    # ~/.local/bin/codex-shim/codex; approvals, sandbox and hook trust remain
+    # unchanged. Both must sit ahead of Homebrew and $HOME/.local/bin.
     case ":$PATH:" in
       *":$HOME/.local/bin/claude-shim:"*) ;;
       *) export PATH="$HOME/.local/bin/claude-shim:$PATH" ;;
+    esac
+    case ":$PATH:" in
+      *":$HOME/.local/bin/codex-shim:"*) ;;
+      *) export PATH="$HOME/.local/bin/codex-shim:$PATH" ;;
     esac
   '';
 in {
@@ -104,11 +109,16 @@ in {
       pkgs.universal-ctags
     ];
 
-    # Claude Code trust shim, prepended to PATH at the end of shellProfileInit
-    # above. Bash-only and portable, so it ships on every host layer; on hosts
-    # without claude the wrapper is simply never invoked.
+    # Claude Code and Codex directory-trust shims, prepended to PATH at the end
+    # of shellProfileInit above. Bash + Python 3.11 (tomllib), portable across
+    # host layers; on hosts without either agent its wrapper is never invoked.
     file.".local/bin/claude-shim/claude" = {
       source = ../config/claude/claude-shim.sh;
+      executable = true;
+      force = true;
+    };
+    file.".local/bin/codex-shim/codex" = {
+      source = ../config/codex/codex-shim.sh;
       executable = true;
       force = true;
     };

@@ -145,6 +145,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     `$HOME/.nix-profile/bin`；
   - macOS 加入 `/opt/homebrew/*` 和 `/usr/local/*`；
   - source `hm-session-vars.sh` 时临时关闭 `nounset`。
+  - 末尾前置 `~/.local/bin/claude-shim` 与 `~/.local/bin/codex-shim`：两者只预写
+    当前目录/repo 根/linked worktree 主 checkout 的目录 trust，Claude 写
+    `~/.claude.json`，Codex 追加缺失的 `projects.<root>.trust_level` 到
+    `$CODEX_HOME/config.toml`；不放开命令审批、沙箱或 hooks trust。
 - zsh 内含 lazy NVM、TERM fallback、natural text editing bindkey、
   `hm-update` / `hm-upgrade` alias，并 source 仓库外的 `local.zsh`（git 忽略，
   放机器本地私有别名/token）。
@@ -1072,6 +1076,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   仓库/linked worktree（macOS `/var`→`/private/var` 物理路径）、幂等保数据、
   坏 JSON 不阻启动、非 tty 跳过、python3 fallback、真二进制缺失 127）：
   `bash tests/claude_shim_test.sh`
+- Codex 目录信任 shim（临时 CODEX_HOME、stub codex、macOS/Linux pty；覆盖普通目录/
+  嵌套 repo/linked worktree、参数边界、TOML 注释与既有配置保留、显式 untrusted
+  不覆盖、并发启动不丢项目、文件权限、坏 TOML 不阻启动、非 tty 跳过、真二进制缺失 127）：
+  `bash tests/codex_shim_test.sh`
 - Homebrew/GUI：`bash tests/brew_gui_apps_test.sh`、
   `bash tests/brew_install_bootstrap_test.sh`
 - OmniWM（受管窗口管理器）：`bash tests/omniwm_eval_test.sh`（darwin 配置求值，
