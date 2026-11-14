@@ -40,13 +40,22 @@ SH
 chmod +x "$tmp/bin/claude"
 
 # A pty is required: the shim only preseeds trust for interactive sessions
-# ([ -t 0 ] && [ -t 1 ]). macOS `script` allocates one.
+# ([ -t 0 ] && [ -t 1 ]). macOS and util-linux `script` have different argv forms.
 run_shim() { # cwd [args...]
   local dir="$1"; shift
-  script -q /dev/null env -i HOME="$work" \
-    PATH="$tmp/shimdir:$tmp/tools:$tmp/bin:/usr/bin:/bin" \
-    TERM="$TERM" bash -c 'cd "$1" && shift && exec "$@"' \
-    _ "$dir" "$tmp/shimdir/claude" "$@" | tr -d '\010\r' | sed '1s/^\^D//'
+  local tools_path="${CLAUDE_TEST_TOOLS:-$tmp/tools}"
+  local envs=(env -i HOME="$work" TERM="$TERM"
+    PATH="$tmp/shimdir:$tools_path:$tmp/bin:/usr/bin:/bin")
+  if [ "$(uname -s)" = Darwin ]; then
+    script -q /dev/null "${envs[@]}" \
+      bash -c 'cd "$1" && shift && exec "$@"' \
+      _ "$dir" "$tmp/shimdir/claude" "$@"
+  else
+    local command quoted
+    printf -v command 'cd %q && exec ' "$dir"
+    printf -v quoted '%q ' "${envs[@]}" "$tmp/shimdir/claude" "$@"
+    script -qec "$command$quoted" /dev/null
+  fi | tr -d '\010\r' | sed '1s/^\^D//'
 }
 
 config="$work/.claude.json"
@@ -108,9 +117,7 @@ ln -sf "$(command -v python3)" "$tmp/pybin/python3"
 pyp="$tmp/pyplain"
 mkdir -p "$pyp"
 pyp_real="$(cd "$pyp" && pwd -P)"
-out="$(script -q /dev/null env -i HOME="$work" \
-    PATH="$tmp/shimdir:$tmp/pybin:$tmp/bin:/usr/bin:/bin" TERM="$TERM" \
-    bash -c 'cd "$1" && shift && exec "$@"' _ "$pyp" "$tmp/shimdir/claude" 2>&1 | tr -d '\010\r' | sed '1s/^\^D//')"
+out="$(CLAUDE_TEST_TOOLS="$tmp/pybin" run_shim "$pyp" 2>&1)"
 check "python fallback: passthrough works" "real-claude ran" "$out"
 got="$(python3 -I -c 'import json,sys;print(json.load(open(sys.argv[1]))["projects"][sys.argv[2]]["hasTrustDialogAccepted"])' "$config" "$pyp_real")"
 check "python fallback: cwd flagged true" "True" "$got"
