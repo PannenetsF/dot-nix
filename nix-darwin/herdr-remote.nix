@@ -34,12 +34,13 @@ let
   # upgrade (the token skips the origin check, so `/?d=` would otherwise
   # open a token-free session for any local page); pf.21 ships the
   # Projects-first web herd: coordinators and hand-started sessions grouped
-  # by registered hp_project (+host), internal threads hidden unless
-  # hp_audience is human/stalled, with All panes keeping every live pane;
-  # the same projection drives Timeline, sound and Web Push via
-  # relay/audience.py, so an internal -> stalled upgrade notifies exactly
-  # once even when the prompt is unchanged, and push deep links open the
-  # target pane once the first snapshot lands;
+  # by registered hp_project (+host); pf.22 makes Projects strictly
+  # primary-only -- no hp_role=thread pane is ever its own card regardless of
+  # hp_audience or status; human/stalled workers are coalesced into a
+  # "N thread follow-ups" badge (one push, one chime, one timeline entry) on
+  # the earliest live coordinator in the same (host, project), with All panes
+  # keeping every live pane; a project with no live coordinator gets no card,
+  # badge or alert;
   # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
@@ -47,12 +48,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.21";
+  relayPfTag = "v0.8.1-pf.22";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-fX+HRHlpG4XisJR+8p6EdnNIgZnLRnpPDRa3HBnc/5k=";
+    sha256 = "sha256-80GJaQkaYko4+keQsqAuIOukZPixBKKGzHmNOJQmK9w=";
   };
   relaySrc = "${relaySource}/relay";
 

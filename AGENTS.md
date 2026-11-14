@@ -541,7 +541,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.21`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.22`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -561,11 +561,17 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   同样落在 loopback，但带代理头，仍需 token。pf.20 起带 `Upgrade` 的请求
   永不豁免（设了 token 后 relay 跳过 WS origin 校验，`/?d=` 若能开 WS，
   本机任意网页都能拿到免 token 会话）。
-  **pf.21 起 Web 端默认 Projects 投影**：只显示 coordinator 与手动启动的
-  session 并按注册的 `hp_project`（加 host）分组，内部 thread 仅在
-  `hp_audience` 为 human/stalled 时出现，All panes 保留全部 pane；Timeline、
-  提示音与 Web Push 走同一套 `relay/audience.py` 投影，internal → stalled
-  即使 prompt 文本不变也恰好通知一次，推送深链在首个快照到达后打开目标 pane。
+  **pf.22 起 Web 端 Projects 投影严格只含 primary session**：Projects 只显示
+  coordinator 与手动启动的 session（加无权威 role 的 legacy fail-open 普通
+  session），任何 `hp_role=thread` 都不再是独立卡片——无论 `hp_audience`
+  （internal/human/stalled）或进程状态如何，guest/other 同样隐藏；human/
+  stalled worker 按 (host, hp_project) 聚合成所属最早在线 coordinator 卡片上的
+  “N thread follow-ups” 角标，聚合（而非伪造的进程 blocked）把该 coordinator
+  归入 Needs you，推送/提示音/Timeline 每个 project 最多一次且深链 coordinator；
+  没有在线 coordinator 的 project 不出卡片、角标或提醒，worker 仍可在 All panes
+  到达，All panes 保留全部 pane。（pf.21 的初版投影曾允许 human/stalled thread
+  成为独立行，线上 95 个 agent 里 75 个 thread 直接淹没了 Projects，pf.22 用
+  13 个 primary 行取代。）
   **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里
   `enabled` 的机器作为 SSH 轮询目标（45s 缓存、读失败保留上一次集合的
   fail-sticky 语义、跳过会 SSH 回本机的自环项），与

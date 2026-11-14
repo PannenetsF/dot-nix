@@ -220,9 +220,9 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and post a fresh copy at the chat bottom for pinning, while snapshot refresh
 # keeps editing in place; pf.14 mirrors the sidebar audience: the relay
 # forwards herdr-projects hp_role/hp_project/hp_audience tokens and the bot
-# shows only coordinator/session rows (thread/guest/other hidden, stalled
-# threads still surface), so cwd-basename phantom projects such as
-# "workspace" disappear and grouping uses the registered slug; pf.15 keys the
+# shows only coordinator/session rows (thread/guest/other hidden; the stalled
+# exception pf.14 carried was removed in pf.22), so cwd-basename phantom
+# projects such as "workspace" disappear and grouping uses the registered slug; pf.15 keys the
 # /project drill-down by (host, slug) so the same project on a remote stays
 # its own "@host" row instead of merging into the local copy; pf.16 carries
 # the @host marker across every other surface (/agents, notification
@@ -243,6 +243,11 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and host, internal threads hidden unless escalated human/stalled, All
 # panes keeps the raw list) and routes Timeline, sound and Web Push through
 # the same audience projection so internal -> stalled notifies exactly once;
+# pf.22 makes Projects strictly primary-only: no hp_role=thread pane is ever
+# its own card (regardless of hp_audience or status); human/stalled workers
+# are coalesced per (host, project) into one follow-up badge on the earliest
+# live coordinator plus one push/chime/timeline entry, and a project with no
+# live coordinator gets no card or alert; All panes keeps every pane;
 # 7. pf.6 renders the
 # transcript preview again on /switch and bottom-bar picks (focus header +
 # rendered conversation in the reusable per-pane view); pf.7 pane-anchors that
@@ -253,7 +258,7 @@ assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
 # and no patch file in this repo anymore.
 assert_contains "nix-darwin/herdr-remote.nix" 'owner = "PannenetsF"'
 assert_contains "nix-darwin/herdr-remote.nix" 'repo = "herdr-remote"'
-assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.21"
+assert_contains "nix-darwin/herdr-remote.nix" "v0.8.1-pf.22"
 assert_not_contains "nix-darwin/herdr-remote.nix" "runCommandLocal"
 assert_not_contains "nix-darwin/herdr-remote.nix" "patches/herdr-remote"
 [[ ! -e "${repo_root}/patches/herdr-remote-telegram-notifications.patch" ]] \
