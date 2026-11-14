@@ -541,7 +541,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.22`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.23`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -572,6 +572,14 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   到达，All panes 保留全部 pane。（pf.21 的初版投影曾允许 human/stalled thread
   成为独立行，线上 95 个 agent 里 75 个 thread 直接淹没了 Projects，pf.22 用
   13 个 primary 行取代。）
+  **pf.23 起 Projects 改为 project-first 手风琴**：不再用全局
+  Needs/Working/Recent 分段把同一个 project 拆到屏幕各处，而是每个
+  (host, hp_project) 一行紧凑列表，点击就地展开该 project 的
+  coordinator/session；展开状态按浏览器持久化，需关注（含首行）默认展开、
+  平静项默认收起，push 深链会先展开所属分组再开 pane。主标题是完整 slug
+  （不再截断成 hpc-*），host 仅在分组层以单个 chip 标注远端、不在每个成员上
+  重复；红色只用于 follow-ups/blocked、绿色 active、灰色 idle/recent。
+  pf.22 的严格 primary-only 过滤完全不变，All panes 仍是未过滤的完整 triage。
   **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里
   `enabled` 的机器作为 SSH 轮询目标（45s 缓存、读失败保留上一次集合的
   fail-sticky 语义、跳过会 SSH 回本机的自环项），与

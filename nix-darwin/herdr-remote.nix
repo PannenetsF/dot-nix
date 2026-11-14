@@ -40,7 +40,11 @@ let
   # "N thread follow-ups" badge (one push, one chime, one timeline entry) on
   # the earliest live coordinator in the same (host, project), with All panes
   # keeping every live pane; a project with no live coordinator gets no card,
-  # badge or alert;
+  # badge or alert; pf.23 replaces the global status sections with a
+  # project-first accordion -- one compact row per (host, hp_project) that
+  # expands inline into its coordinator/session panes, with the pf.22 strict
+  # primary-only filter unchanged; expansion persists per browser and push
+  # deep links expand the owning group;
   # maintained on the fork branch
   # pf/v0.8.1, tagged v0.8.1-pf.N -- same
   # scheme as the other herdr-* forks. To ship a new change: commit it on
@@ -48,12 +52,12 @@ let
   # semantics are documented in AGENTS.md and asserted in
   # tests/darwin_herdr_config_test.sh.
   relayVersion = "v0.8.1";
-  relayPfTag = "v0.8.1-pf.22";
+  relayPfTag = "v0.8.1-pf.23";
   relaySource = pkgs.fetchFromGitHub {
     owner = "PannenetsF";
     repo = "herdr-remote";
     rev = relayPfTag;
-    sha256 = "sha256-80GJaQkaYko4+keQsqAuIOukZPixBKKGzHmNOJQmK9w=";
+    sha256 = "sha256-e52h3Dhum8LRgL+JWI3spBrZu10GAWT2n5Y8lGi/kMY=";
   };
   relaySrc = "${relaySource}/relay";
 
