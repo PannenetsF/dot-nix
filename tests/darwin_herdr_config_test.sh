@@ -347,8 +347,8 @@ assert_contains "config/herdr/herdr-popup-lib.sh" "coordinator adopt"
 assert_contains "config/herdr/new-coordinator.sh" "hp_adopt \"\$hp_bin\""
 assert_contains "config/herdr/focus-coordinator.sh" "herdr agent focus"
 assert_contains "config/herdr/focus-coordinator.sh" ".state/coordinator.json"
-# The fork pin for the plugin is pf.12 in the shared activation body.
-assert_contains "$body" "v0.2.34-pf.12"
+# The fork pin for the plugin is pf.13 in the shared activation body.
+assert_contains "$body" "v0.2.34-pf.13"
 
 # Repo paths containing @ are rejected before reaching the plugin (they break
 # TOML/shell handling); both scripts that accept repo paths must guard them.
@@ -386,7 +386,7 @@ assert_contains "$body" "diff -u"
 # The fork pin is permanent (project+threads/ticker model vs 1.2 task board);
 # activation must unregister a present 1.2 plugin, signal only its four orphan
 # helper daemons by argv (never the 0.2 ticker), then install the 0.2 fork.
-assert_contains "$body" "v0.2.34-pf.12"
+assert_contains "$body" "v0.2.34-pf.13"
 assert_contains "$body" "eliasstravik/herdr-projects@"
 assert_contains "$body" "plugin uninstall herdr-projects"
 assert_contains "$body" "(keeper|keeper-work|voice helper|serve)"
