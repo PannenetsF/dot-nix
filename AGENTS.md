@@ -541,7 +541,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 `nix-darwin/herdr-remote.nix` / `config/homebrew/Casks/herdi.rb`（herdr-remote 套件：relay / Telegram bot / Herdi.app，事件源 herdr-push 见 install-herdr-plugins.sh）
 
 - **relay 守护**：`nix-darwin/herdr-remote.nix` 用 `fetchFromGitHub` 固定
-  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.23`**（= 上游
+  本仓库 fork **`PannenetsF/herdr-remote` tag `v0.8.1-pf.24`**（= 上游
   dcolinmorgan/herdr-remote v0.8.1 + 下文 telegram/relay 定制，分支
   `pf/v0.8.1`），以 `uv run --script`（PEP 723 内联依赖，
   nixpkgs 的 uv/python3，首次启动联网装 uv cache）跑 `relay/herdr_relay.py`，
@@ -580,6 +580,17 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   （不再截断成 hpc-*），host 仅在分组层以单个 chip 标注远端、不在每个成员上
   重复；红色只用于 follow-ups/blocked、绿色 active、灰色 idle/recent。
   pf.22 的严格 primary-only 过滤完全不变，All panes 仍是未过滤的完整 triage。
+  **pf.24 起终端头部有 Chat 链接**：pane 级对话框不是 herdr-remote 实现的，而是
+  `devswha.herdr-web-ui` 插件原生（`Chat | Terminal` 分段切换、审批/提问渲染成
+  可点卡片），所以两层分工——herdr-remote 当看板（Projects 投影），点进去用
+  插件的原生 Chat。链接只对 `host=local` 的 pane 出现（当前可达实例只服务 boe
+  本机 herdr），shell pane 不出现；浏览器可用 `herdr_webui_url` 覆盖端址。
+  部署侧：boe `herdr-web-ui.service`（`bun server/managed.ts`，127.0.0.1:7317，
+  token 在插件 config dir 的 `env`）+ `herdr-webui-ec2-tunnel.service` 反隧道到
+  ec2 127.0.0.1:8378；ec2 Caddy 增开 `:8080` 站点复用同一个 forward_auth sidecar
+  并注入 Bearer。插件前端用根绝对路径（`/api`、`/ws`、`/assets`），因此无法与
+  `:80` 共用 origin 的子路径，只能独立端口。sidecar 会话 cookie 按 host 而非
+  port 生效，一次登录同时覆盖 `:80` 与 `:8080`。
   **远程机器来源（pf.9 起）**：relay 自动发现本地 `herdr machine list` 里
   `enabled` 的机器作为 SSH 轮询目标（45s 缓存、读失败保留上一次集合的
   fail-sticky 语义、跳过会 SSH 回本机的自环项），与
