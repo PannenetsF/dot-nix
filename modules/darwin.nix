@@ -1,5 +1,11 @@
-{ config, pkgs, pkgsUnstable, lib, ... }: {
+{ config, pkgs, pkgsUnstable, lib, herdrPkg, ... }: {
   home.emptyActivationPath = false;
+
+  # The personal TRAE-enabled Herdr as a Nix package. The Home Manager profile
+  # bin dir is forced to the front of PATH (see modules/common.nix), so this
+  # shadows the Homebrew core herdr without removing the Homebrew keg; the
+  # nix-darwin postActivation pins the same binary via HERDR_CLI.
+  home.packages = [ herdrPkg ];
 
   home.file = {
     ".skhdrc" = {

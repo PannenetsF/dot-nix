@@ -256,6 +256,30 @@ for plugin in devswha.herdr-web-ui herdr-portal herdr.push; do
   fi
 done
 
+# The personal TRAE-enabled Herdr must be the Nix package, not the Homebrew
+# core formula: the resolved binary lives in the Nix profile and exposes the
+# traex/traecli agent surface (a version string alone does not prove the fork).
+herdr_path="$(command -v herdr 2>/dev/null || true)"
+if [[ "$herdr_path" == /etc/profiles/per-user/*/bin/herdr || "$herdr_path" == /run/current-system/sw/bin/herdr || "$herdr_path" == "$HOME"/.nix-profile/bin/herdr ]]; then
+  pass "herdr resolves to the Nix profile binary: $herdr_path"
+else
+  fail "herdr must resolve to the Nix profile, got: '${herdr_path:-not found}'"
+fi
+if [[ "$herdr_path" == /opt/homebrew/* ]]; then
+  fail "herdr must not resolve to the Homebrew prefix: $herdr_path"
+fi
+if herdr agent start --help 2>/dev/null | grep -q traex \
+  && herdr integration install --help 2>/dev/null | grep -q traex; then
+  pass "herdr binary includes the traex/traecli agent integration"
+else
+  fail "herdr binary is missing the traex/traecli CLI surface (not the personal fork?)"
+fi
+if herdr --version 2>/dev/null | grep -Eq '^herdr [0-9]+\.[0-9]+\.[0-9]+'; then
+  pass "herdr version: $(herdr --version 2>/dev/null)"
+else
+  fail "herdr --version did not report a version line"
+fi
+
 # Agent session integrations: activation ensures these via
 # `herdr integration install`; status reports "current" (never "outdated" or
 # "not installed") on machines where the agent itself is present.

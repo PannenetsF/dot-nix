@@ -274,7 +274,12 @@ in {
       # otherwise falls back to polling with a startup message.
       "fswatch"
       "gromgit/fuse/sshfs-mac"
-      "herdr"
+      # herdr is intentionally NOT a Homebrew formula here: the personal
+      # TRAE-enabled build ships as a Nix package (pkgs/herdr, wired in
+      # nix-darwin/herdr.nix + modules/darwin.nix) and its profile bin dir
+      # shadows Homebrew on PATH. The core formula keg left on disk is
+      # harmless; do not re-add "herdr" or brew bundle could swap the binary
+      # back to upstream on activation.
       # Terminal client for keybr.com typing practice (PannenetsF fork).
       "pannenetsf/tap/keybr-tui"
       # Native backend for Doom's :input chinese +rime (liberime links

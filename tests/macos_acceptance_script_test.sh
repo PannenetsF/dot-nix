@@ -57,6 +57,12 @@ assert_contains "herdr-portal" "expected herdr-portal plugin check"
 assert_contains "herdr integration status" "expected agent integration status checks"
 assert_contains "herdr codex integration current" "expected codex integration acceptance check"
 assert_contains "herdr claude integration current" "expected claude integration acceptance check"
+# The personal TRAE-enabled Herdr is a Nix package, so acceptance must verify
+# the resolved binary is the Nix profile one (never Homebrew) and exposes traex.
+assert_contains 'herdr resolves to the Nix profile binary' "expected Nix-profile herdr resolution check"
+assert_contains 'herdr must not resolve to the Homebrew prefix' "expected Homebrew herdr rejection check"
+assert_contains 'traex/traecli agent integration' "expected traex CLI surface check"
+assert_contains 'herdr agent start --help' "expected the agent help probe for traex"
 assert_contains 'brew list --cask --versions herdi' "expected Herdi cask version check"
 assert_contains '/etc/dot-nix/window-manager' "expected acceptance to detect the activated WM, not the current Git branch"
 assert_contains 'check_app OmniWM' "expected OmniWM app check"

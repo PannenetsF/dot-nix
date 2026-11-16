@@ -1,4 +1,4 @@
-{ config, lib, pkgs, homeDir, username, ... }:
+{ config, lib, pkgs, homeDir, username, herdrPkg, ... }:
 let
   # Python relay for herdr-remote (https://github.com/dcolinmorgan/herdr-remote):
   # accepts the herdr-push plugin's status events on 127.0.0.1:8375 and serves
@@ -84,11 +84,18 @@ let
     export HERDR_RELAY_HOST="''${HERDR_RELAY_HOST:-127.0.0.1}"
     export HERDR_RELAY_PORT="''${HERDR_RELAY_PORT:-8375}"
 
+    # Absolute pin to the personal Herdr binary. The relay prefers HERDR_BIN
+    # over a PATH lookup, so this survives any later Homebrew/PATH drift and
+    # matches the hand-managed Linux relay units, which set HERDR_BIN too.
+    export HERDR_BIN="${herdrPkg}/bin/herdr"
+
     # uv resolves the script's inline dependencies into the user uv cache on
     # first start (network needed once). The nixpkgs interpreter is passed
-    # explicitly so uv does not download a CPython toolchain; Homebrew's bin
-    # supplies the `herdr` CLI the relay polls for live pane state.
-    export PATH="${pkgs.uv}/bin:${pkgs.python3}/bin:${config.homebrew.brewPrefix}:/usr/bin:/bin"
+    # explicitly so uv does not download a CPython toolchain; the personal
+    # TRAE-enabled Herdr Nix package supplies the `herdr` CLI the relay polls
+    # for live pane state (pinned before Homebrew so the core formula can
+    # never be the polled binary).
+    export PATH="${herdrPkg}/bin:${pkgs.uv}/bin:${pkgs.python3}/bin:${config.homebrew.brewPrefix}:/usr/bin:/bin"
     exec uv run --python "${pkgs.python3}/bin/python3" \
       --script "${relaySrc}/herdr_relay.py"
   '';

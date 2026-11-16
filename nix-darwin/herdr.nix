@@ -1,18 +1,23 @@
-{ config, lib, homeDir, username, ... }:
+{ config, lib, homeDir, username, herdrPkg, ... }:
 let
   # Shared, platform-independent body. The same script is run directly (no
   # privilege crossing) by modules/herdr.nix under Home Manager on Linux.
   herdrPluginScript = ../install-herdr-plugins.sh;
   herdrConfig = ../config/herdr/config.toml;
-  herdrCli = "${config.homebrew.brewPrefix}/herdr";
+  # The personal TRAE-enabled Herdr ships as a Nix package (pkgs/herdr), never
+  # as the Homebrew core formula: pin the activation to the Nix binary so a
+  # Homebrew upgrade/unlink cannot silently swap in upstream Herdr.
+  herdrCli = "${herdrPkg}/bin/herdr";
   # sudo's env_reset hands the executed command a bare secure_path with none
   # of the Home Manager / nix-darwin profile directories, so the bare `node`
   # herdr spawns for Node plugin build hooks and actions fails to start (the
   # Rust plugins are self-contained binaries and never hit this). Re-prepend
-  # the profile and Homebrew bin directories via env(1). ~/.cargo/bin is
-  # needed because the pinned herdr-projects fork ships no release assets:
-  # `plugin install` builds it with the user's per-user rustup toolchain.
+  # the personal Herdr package, the profile and Homebrew bin directories via
+  # env(1). ~/.cargo/bin is needed because the pinned herdr-projects fork
+  # ships no release assets: `plugin install` builds it with the user's
+  # per-user rustup toolchain.
   pluginPath = lib.concatStringsSep ":" [
+    "${herdrPkg}/bin"
     "/etc/profiles/per-user/${username}/bin"
     "${homeDir}/.nix-profile/bin"
     "/run/current-system/sw/bin"
@@ -39,8 +44,12 @@ in {
       HERDR_SIDEBAR_INSTALLER="${../config/herdr/install-sidebar-policy.cjs}" \
       HERDR_SIDEBAR_POLICY="${../config/herdr/sidebar-policy.cjs}" \
       HERDR_PORTAL_POLICY="${../config/herdr/portal-policy.py}" \
-      HERDR_REPO_LIST_INSTALLER="${../config/herdr/install-projects-repo-list.cjs}" \
-      HERDR_REPO_LIST_PATCH="${../patches/herdr-projects-multiline-repos.patch}" \
+      HERDR_REPO_LIST_INSTALLER="${
+        ../config/herdr/install-projects-repo-list.cjs
+      }" \
+      HERDR_REPO_LIST_PATCH="${
+        ../patches/herdr-projects-multiline-repos.patch
+      }" \
       HERDR_CLI="${herdrCli}" \
       HERDR_AGENT_INTEGRATIONS="claude codex" \
       HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375" \

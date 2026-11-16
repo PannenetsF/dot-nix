@@ -1,4 +1,4 @@
-{ pkgsUnstable, system, username, homeDir, ... }: {
+{ pkgsUnstable, system, username, homeDir, herdrPkg, ... }: {
   imports = [
     ./app-defaults.nix
     ./gui-apps.nix
@@ -63,7 +63,7 @@
     useUserPackages = true;
     backupFileExtension = "backup";
     extraSpecialArgs = {
-      inherit pkgsUnstable system username homeDir;
+      inherit pkgsUnstable system username homeDir herdrPkg;
       isHost = true;
       isDocker = false;
     };

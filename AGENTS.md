@@ -325,15 +325,43 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   配置目录不存在时自门控 rc=1，所以放在 server 版本门**之外**、每次激活都跑，
   修复被其他工具重写 settings 后丢失的 hook）。脚本里**禁止**出现平台专有关键词
   （`launchctl`/`chown`/`homebrew`，有测试断言）。两个 nix 模块只是薄封装：
+  - **herdr 本体是 Nix 包 `pkgs/herdr`（个人 TRAE-enabled fork
+    `PannenetsF/herdr`），见 `pkgs/herdr/`**：`pin.nix` 单一 pin（tag、
+    srcHash、cargoHash、zigDepsHash、按系统的 `releaseAssets`），
+    `default.nix` 按系统在 `binary.nix`（已发布的 per-platform release
+    裸二进制，固定 hash，Linux 是 musl 静态）与 `source.nix`（Nix 源码构建，
+    照 nixpkgs 官方 herdr 配方，需要 `zig_0_16.fetchDeps`；installCheck 同时
+    断言版本行与 `traex` CLI 面，版本字符串单独不能证明 fork 在二进制里）
+    之间选择。
+    **当前 pin `v0.9.5-traex.6` 的系统分流**：`aarch64-darwin`、
+    `x86_64-linux`、`aarch64-linux` 三个系统有 release 资产、走 `binary.nix`；
+    `x86_64-darwin` 没有 release 资产、走源码构建。包集选择（`flake.nix` 的
+    `mkHerdr`）因此按系统分叉：除 `x86_64-darwin` 外用 `nixpkgs-unstable`；
+    **`x86_64-darwin` 用独立 flake input `nixpkgs-26_05`（nixos-26.05）**——
+    nixpkgs 26.11/unstable 已彻底删除 x86_64-apple-darwin bootstrap，Darwin
+    stdenv 对该 target 无条件 `throw "Unsupported platform for the Darwin
+    stdenv"`（`allowUnsupportedSystem` 也救不回来，不是普通 unsupported
+    gate），而 26.05 是最后一个仍带 Intel Darwin stdenv 且有 `zig_0_16` 的
+    release（其 rustc 1.95 略旧于工程工具链 1.96.1；无 Intel Mac 可实跑，
+    只能在 aarch64-darwin 上用同一 26.05 包集源码构建作可编译代理验证）。
+    26.05 没有 top-level `installAgentSkills` attr，故把该 setup hook 原样
+    vendor 进 `pkgs/herdr/install-agent-skills/`（herdr 源里带一个
+    `skills/herdr/SKILL.md`，hook 负责装进 `share/skills`），让 `source.nix`
+    对两个包集都可构建。**不要把 herdr 加回 Homebrew 或依赖官方 per-user
+    安装**。
   - `nix-darwin/herdr.nix`：postActivation 以 root 跑，用一次
     `launchctl asuser … sudo -u … --set-home env PATH=… bash <脚本>` 越权到用户，
-    `HERDR_CLI` 指向 Homebrew prefix 的 herdr；
+    `HERDR_CLI` 显式指向 `${herdrPkg}/bin/herdr`，PATH 把该包 bin 前置；
   - `modules/herdr.nix`（Home Manager，仅 Linux 且 `isHost && !isDocker`，由
-    `home.nix` 在非 docker 的 host 层导入）：`home.activation.herdrPlugins`
-    直接以用户身份 `bash <脚本>`，无需越权，PATH 前置 HM profile 与
-    `~/.local/bin`。herdr 本体**刻意不进 nix 包**——Linux 保持官方 per-user 安装
-    （与 macOS 的 Homebrew cask 对称），缺二进制时脚本只落模板、跳过插件。
-  `modules/darwin.nix` 不再为 config.toml 建 `home.file` 软链。
+    `home.nix` 在非 docker 的 host 层导入）：`home.packages = [ herdrPkg ]`
+    把个人 herdr 放进 HM profile（登录 shell 里排在
+    `~/.local/bin` 前面，遮蔽但不删除旧的官方 per-user 二进制），
+    `home.activation.herdrPlugins` 直接以用户身份 `bash <脚本>`，无需越权，
+    `HERDR_CLI` 同样显式指向该包。缺二进制时脚本只落模板、跳过插件。
+  `modules/darwin.nix` 不建 config.toml 软链，但通过
+  `home.packages = [ herdrPkg ]` 让 HM profile bin 在 PATH 上遮蔽 Homebrew
+  core 的 herdr（core keg 留在磁盘上无害；`homebrew.nix` 不再声明
+  `herdr` formula，激活后 `brew bundle cleanup` 会把它收敛掉）。
 - 键位是 nvim 习惯迁移（prefix `ctrl+b`＋ctrl+alt 直连和弦，裸 Option 归 OmniWM
   所有），速查表见 `docs/herdr-keybindings.md`，改动后同步两边。`P Space` 的
   which-key 浮层是手动安装的社区插件（`herdr plugin install
@@ -602,8 +630,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   每个远程 tick 静默死亡；新代码按展开后长度预算（默认短路径
   `~/.ssh/herdr-remote-%C`），且某 host 的 master 首次失败后对该 host
   自动降级为无 multiplexing。排查用启动日志 `Polling: local, ...`。
-  wrapper 的 PATH 用 `config.homebrew.brewPrefix`（该值已含 `/bin`，不要再拼
-  `/bin`），让 relay 能轮询本机 brew 版 `herdr`。两个 wrapper source
+  wrapper 的 PATH 把个人 herdr Nix 包 bin 放在最前，再是 nix uv/python、
+  `config.homebrew.brewPrefix`（该值已含 `/bin`，不要再拼 `/bin`）与系统
+  `/usr/bin:/bin`；同时**显式 `export HERDR_BIN=${herdrPkg}/bin/herdr`**
+  （relay 优先用该环境变量而非 PATH 查找，见 `relay/herdr_relay.py`），
+  保证轮询的永远是个人 TRAE-enabled herdr，不会因 Homebrew/PATH 漂移退回
+  官方二进制。两个 wrapper source
   config/secrets 都必须 `set -a`：plain `.` 只建 shell 变量，uv/python 子进程
   看到空环境（telegram 曾因此一直报 `Set HERDR_TG_TOKEN`）。
   **2026-11-14 起公网后端迁到 boe-fyq，Mac relay 仅本地 loopback。** 背景：Mac 的
@@ -1074,6 +1106,15 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   claude/codex agent 集成（`herdr integration status` 必须 current）和
   cask 验收在 `macos_acceptance.sh`（静态断言在
   `macos_acceptance_script_test.sh`）。
+- 个人 TRAE-enabled herdr Nix 包与跨平台接线（不构建，只 `nix eval` + 静态
+  断言）：`bash tests/herdr_package_test.sh`（校验 `pkgs/herdr/` pin/
+  source/binary 选择、四个支持系统都能求值出 `herdr-0.9.5-traex.*`、
+  三系统走 prebuilt 而 `x86_64-darwin` 走源码（其 `drvPath` 必须能实例化，
+  证明 26.05 Intel Darwin stdenv gate 通过）、vendor 的
+  install-agent-skills hook、macOS/Linux host 层 `home.packages` 含该包而
+  docker 层不含、`HERDR_CLI`/`HERDR_BIN` 显式指向该包、Homebrew 不再声明
+  core formula、`x86_64-darwin` 的 `allowDeprecatedx86_64Darwin = "force"`
+  与 `nixpkgs-26_05` 分流）。
 - herdr project/coordinator 选择器 e2e（真实 herdr-projects **0.2.x**
   二进制——只接受 `--version` 报 0.2.* 者，发现路径含 github/ 与
   github-installations/ 两处 cargo target/release——+
