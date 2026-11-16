@@ -4,9 +4,11 @@
 # before receiving their brief. Like the Claude shim, it seeds the physical
 # cwd, the repository root, and the main checkout of a linked worktree.
 #
-# Only projects["<root>"].trust_level is set. Command approvals, the sandbox,
-# and hook trust are unchanged; this is NOT --dangerously-bypass-approvals-and-
-# sandbox or --dangerously-bypass-hook-trust.
+# Only projects["<root>"].trust_level is persisted. Interactive sessions started
+# by herdr additionally get -c bypass_hook_trust=true: enabled hooks still run,
+# but their review prompt is skipped for that invocation only. No hooks.state is
+# written. Command approvals and the sandbox are unchanged; this is NOT
+# --dangerously-bypass-approvals-and-sandbox.
 #
 # Installed at ~/.local/bin/codex-shim/codex and prepended to PATH by
 # modules/common.nix. CODEX_HOME and non-interactive invocations are respected.
@@ -30,7 +32,12 @@ if [ -z "$real_codex" ]; then
 fi
 
 # ---- preseed directory trust (interactive sessions only; best effort) ------
-if [ -t 0 ] && [ -t 1 ] && command -v python3 >/dev/null 2>&1; then
+interactive=0
+if [ -t 0 ] && [ -t 1 ]; then
+  interactive=1
+fi
+
+if [ "$interactive" -eq 1 ] && command -v python3 >/dev/null 2>&1; then
   roots="$(pwd -P)"
   if git_root="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -n "$git_root" ]; then
     roots="$roots
@@ -97,4 +104,8 @@ PY
 fi
 
 # ---- hand off to the real binary --------------------------------------------
+# Codex 0.164.0 accepts this global override before both the TUI and `resume`.
+if [ "$interactive" -eq 1 ] && [ "${HERDR_ENV:-}" = 1 ]; then
+  set -- -c bypass_hook_trust=true "$@"
+fi
 exec -a codex "$real_codex" "$@"

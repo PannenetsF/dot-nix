@@ -77,9 +77,11 @@ let
     # per-folder "Do you trust the files in this folder?" dialog (no official
     # switch exists; acceptance is a flag in ~/.claude.json), so agent sessions
     # started by herdr-projects in brand-new folders never stall on an
-    # interactive prompt. Codex gets the same directory-only preseeding through
-    # ~/.local/bin/codex-shim/codex; approvals, sandbox and hook trust remain
-    # unchanged. Both must sit ahead of Homebrew and $HOME/.local/bin.
+    # interactive prompt. Codex gets the same directory preseeding through
+    # ~/.local/bin/codex-shim/codex. Interactive herdr sessions also bypass the
+    # hook-review prompt per invocation, without persisting hook trust or
+    # changing approvals and the sandbox. Both shims must sit ahead of Homebrew
+    # and $HOME/.local/bin.
     case ":$PATH:" in
       *":$HOME/.local/bin/claude-shim:"*) ;;
       *) export PATH="$HOME/.local/bin/claude-shim:$PATH" ;;

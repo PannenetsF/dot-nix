@@ -43,6 +43,9 @@ run_shim() { # cwd [args...]
   local dir="$1"; shift
   local envs=(env -i HOME="$work" CODEX_HOME="$codex_home" CODEX_TEST_MARKER="$marker"
     PATH="$test_path" TERM="${TERM:-xterm}")
+  if [ "${RUN_SHIM_HERDR:-0}" = 1 ]; then
+    envs+=(HERDR_ENV=1)
+  fi
   if [ "$(uname -s)" = Darwin ]; then
     script -q /dev/null "${envs[@]}" \
       bash -c 'cd "$1" && shift && exec "$@"' _ "$dir" "$tmp/shimdir/codex" "$@" \
@@ -147,7 +150,30 @@ printf anything | env -i HOME="$work" CODEX_HOME="$codex_home" CODEX_TEST_MARKER
   bash -c 'cd "$1" && "$2"' _ "$nt" "$tmp/shimdir/codex" >/dev/null 2>&1
 check "non-tty: no trust write" absent "$(trusted "$(cd "$nt" && pwd -P)")"
 
-# 8) no real codex on PATH is a visible 127.
+# 9) herdr interactive sessions bypass hook review for this invocation only.
+cat > "$config" <<'EOF'
+# preserve hook state
+[hooks.state."demo:event:0:0"]
+trusted_hash = "keep"
+EOF
+RUN_SHIM_HERDR=1 run_shim "$plain" resume 'session id' --model 'two words' >/dev/null
+check "herdr: global override precedes original arguments" \
+  $'-c\nbypass_hook_trust=true\nresume\nsession id\n--model\ntwo words' "$(cat "$marker")"
+check "herdr: existing hook trust is untouched" keep "$(python3 -I -c 'import sys,tomllib; print(tomllib.load(open(sys.argv[1],"rb"))["hooks"]["state"]["demo:event:0:0"]["trusted_hash"])' "$config")"
+check "herdr: no new hook trust" 1 "$(python3 -I -c 'import sys,tomllib; print(len(tomllib.load(open(sys.argv[1],"rb"))["hooks"]["state"]))' "$config")"
+
+# 10) a manual interactive session keeps hook review enabled.
+run_shim "$plain" --model 'two words' >/dev/null
+check "manual pty: no hook override" $'--model\ntwo words' "$(cat "$marker")"
+
+# 11) non-interactive herdr invocations never inject the override.
+: > "$marker"
+printf anything | env -i HOME="$work" CODEX_HOME="$codex_home" CODEX_TEST_MARKER="$marker" \
+  HERDR_ENV=1 PATH="$test_path" \
+  bash -c 'cd "$1" && shift && "$@"' _ "$nt" "$tmp/shimdir/codex" exec --help >/dev/null 2>&1
+check "herdr non-tty: no hook override" $'exec\n--help' "$(cat "$marker")"
+
+# 12) no real codex on PATH is a visible 127.
 if env -i HOME="$work" PATH="$tmp/shimdir:/usr/bin:/bin" \
     "$tmp/shimdir/codex" >/dev/null 2>&1; then
   result=0
