@@ -54,6 +54,166 @@ else
   done
 fi
 
+# Resolve a path the way `readlink -f` would (macOS /bin/readlink has no -f),
+# without touching the filesystem target itself.
+hp_realpath() {
+  python3 -c 'import os,sys; sys.stdout.write(os.path.realpath(sys.argv[1]))' "$1"
+}
+
+# Point $hp_bin at the binary of the ACTIVE herdr-projects install (the one
+# `herdr plugin list` names), then print that binary's absolute path. This has
+# to run between `plugin install` and `configure`: the plugin relinks its
+# ~/.local/bin command only at server startup and on `doctor --fix`, so after a
+# pf.N -> pf.N+1 reinstall into a fresh checkout the old link still names the
+# previous generation and configure would silently run the old binary.
+#
+# Discovery order:
+#   1. `herdr plugin list --json` plugin_root / source.managed_path — the
+#      server's own answer, correct for both github-installations/<id>/<n>-0
+#      and the legacy plugins/github/<id> layouts.
+#   2. A filesystem scan of both layouts when JSON is unavailable (older
+#      herdr): trust the existing link's target when it is one of the
+#      candidates, else the newest build.
+# Link safety mirrors the plugin's own command_link.rs: only a missing entry or
+# a link into Herdr's plugin tree is (re)written, atomically via a temp link +
+# rename. A regular file or a link to anywhere outside the plugin tree is left
+# untouched; the active binary is still printed so configure can run it
+# directly. Prints nothing and returns 1 when no trustworthy binary exists.
+refresh_projects_command() {
+  local link="$hp_bin"
+  local plugins_root="$config_dir/plugins"
+  local root="" binary="" bin_abs="" current="" tmp="" in_plugin_tree
+  local -a candidates=()
+  local cand resolved
+
+  root="$("$herdr_cli" plugin list --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+plugins = []
+if isinstance(data, dict):
+    result = data.get("result")
+    if isinstance(result, dict) and isinstance(result.get("plugins"), list):
+        plugins = result["plugins"]
+    elif isinstance(data.get("plugins"), list):
+        plugins = data["plugins"]
+for plugin in plugins:
+    if not isinstance(plugin, dict) or plugin.get("plugin_id") != "herdr-projects":
+        continue
+    source = plugin.get("source") or {}
+    # Only the pinned PannenetsF 0.2 fork is supported; the rolled-off
+    # eliasstravik 1.2.x plugin shares the id and must never be linked here.
+    if source.get("owner") != "PannenetsF" or source.get("repo") != "herdr-projects":
+        continue
+    root = plugin.get("plugin_root") or source.get("managed_path")
+    if root:
+        print(root)
+        break
+' 2>/dev/null || true)"
+
+  if [ -n "$root" ]; then
+    binary="$root/target/release/herdr-projects"
+  elif [ -d "$plugins_root" ]; then
+    # JSON unavailable: scan every known install layout. The unexpanded
+    # globs fail the -x test, so no nullglob is needed.
+    for cand in \
+      "$plugins_root"/github-installations/herdr-projects-*/*/checkout/target/release/herdr-projects \
+      "$plugins_root"/github/herdr-projects-*/target/release/herdr-projects; do
+      [ -x "$cand" ] && candidates+=("$cand")
+    done
+    case "${#candidates[@]}" in
+      0) binary="" ;;
+      1) binary="${candidates[0]}" ;;
+      *)
+        # Prefer the build the existing link already names; the server's
+        # startup relink keeps that current whenever it has run.
+        if [ -L "$link" ]; then
+          resolved="$(hp_realpath "$link")"
+          for cand in "${candidates[@]}"; do
+            if [ "$resolved" = "$(hp_realpath "$cand")" ]; then
+              binary="$cand"
+              break
+            fi
+          done
+        fi
+        if [ -z "$binary" ]; then
+          # Last resort: the freshest build (reinstalls get fresh numbered
+          # dirs). NUL-delimited so spaces in $HOME survive.
+          binary="$(printf '%s\0' "${candidates[@]}" | python3 -c '
+import os, sys
+paths = [p for p in sys.stdin.buffer.read().decode().split("\0") if p]
+if paths:
+    print(max(paths, key=lambda p: os.path.getmtime(p)))')"
+          echo >&2 "herdr-projects: plugin list JSON unavailable; chose newest build $binary"
+        fi
+        ;;
+    esac
+  fi
+
+  if [ -z "$binary" ] || [ ! -x "$binary" ]; then
+    echo >&2 "herdr-projects: active plugin binary not found; leaving $link alone"
+    return 1
+  fi
+  bin_abs="$(hp_realpath "$binary")"
+
+  if [ -L "$link" ]; then
+    current="$(hp_realpath "$link")"
+    if [ "$current" = "$bin_abs" ]; then
+      printf '%s\n' "$binary"
+      return 0
+    fi
+    plugins_abs="$(hp_realpath "$plugins_root")"
+    if [ ! -e "$link" ]; then
+      # Dangling link: safe to replace no matter where it pointed (same rule
+      # the plugin's own command_link.rs uses for State::Stale).
+      echo >&2 "herdr-projects: replacing dangling link $link -> $(readlink "$link")"
+    else
+      in_plugin_tree=0
+      case "$current/" in
+        "$plugins_abs"/*) in_plugin_tree=1 ;;
+      esac
+      if [ "$in_plugin_tree" = 1 ]; then
+        # A working link into Herdr's plugin tree naming another generation:
+        # plugin-owned, safe to move onto the active build.
+        echo >&2 "herdr-projects: relinking $link (was $current) -> $binary"
+      else
+        # A link to the user's own checkout/elsewhere is a deliberate
+        # override: never rewrite it, but still configure the active build.
+        echo >&2 "herdr-projects: leaving foreign link $link -> $(readlink "$link") untouched"
+        printf '%s\n' "$binary"
+        return 0
+      fi
+    fi
+  elif [ -e "$link" ]; then
+    echo >&2 "herdr-projects: $link is a regular file, not a link; leaving it untouched"
+    printf '%s\n' "$binary"
+    return 0
+  else
+    echo >&2 "herdr-projects: linking $link -> $binary"
+  fi
+
+  # Atomic swap in the same directory: no moment without the command, and a
+  # failed symlink never leaves a broken entry behind.
+  if ! mkdir -p "$(dirname "$link")"; then
+    echo >&2 "herdr-projects: cannot create $(dirname "$link")"
+    return 1
+  fi
+  tmp="$(dirname "$link")/.herdr-projects.$$"
+  if ! ln -s "$binary" "$tmp"; then
+    rm -f "$tmp"
+    echo >&2 "herdr-projects: could not create temp link $tmp"
+    return 1
+  fi
+  if ! mv -f "$tmp" "$link"; then
+    rm -f "$tmp"
+    echo >&2 "herdr-projects: could not replace $link"
+    return 1
+  fi
+  printf '%s\n' "$binary"
+}
+
 # herdr rewrites this file itself (settings UI, theme selection), so it is
 # installed as a writable regular file like the AeroSpace config, not as a
 # read-only Home Manager symlink into the Nix store. Activation overwrites the
@@ -315,14 +475,21 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
       "$herdr_cli" plugin install -y --ref v0.2.34-pf.14 \
         PannenetsF/herdr-projects || true
     fi
-    # configure merges the sidebar/tab-bar blocks into radar's marker blocks
-    # (radar configure ran above). On a fresh install the $hp_bin link can be
-    # dangling (older link-command.sh hard-codes the legacy plugins/github
-    # layout; >= 0.9.5 installs under github-installations), so fall back to
-    # invoking configure through the plugin action API.
-    if [ -x "$hp_bin" ] && "$hp_bin" configure >/dev/null 2>&1; then
-      :
+    # Refresh the command link BEFORE configure so the new checkout's binary
+    # runs it: the plugin self-relinks only at startup / `doctor --fix`, so an
+    # upgrade install would otherwise leave $hp_bin at the previous generation
+    # and silently configure with old code. refresh_projects_command prints the
+    # active build's path even when the link itself is deliberately left alone
+    # (regular file / foreign link); only a missing active build falls back to
+    # the plugin action API, which dispatches server-side to the active plugin.
+    projects_bin=""
+    if projects_bin="$(refresh_projects_command)"; then
+      if ! "$projects_bin" configure >/dev/null 2>&1; then
+        "$herdr_cli" plugin action invoke configure \
+          --plugin herdr-projects >/dev/null 2>&1 || true
+      fi
     else
+      echo >&2 "herdr-projects: configure via plugin action API (active binary not locatable)"
       "$herdr_cli" plugin action invoke configure \
         --plugin herdr-projects >/dev/null 2>&1 || true
     fi

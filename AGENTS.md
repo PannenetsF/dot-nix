@@ -419,9 +419,22 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     configure；模板里**不发** `P a` 键位（configure 下发）。
   - fork 没有 release 资产，`plugin install` 走本机 cargo 构建，因此
     `nix-darwin/herdr.nix` 与 `modules/herdr.nix` 的激活 PATH 都前置
-    `~/.cargo/bin`。configure 优先 `$hp_bin configure`
-    （`HERDR_PROJECTS_BIN` 默认 `~/.local/bin/herdr-projects`），首装链接
-    悬空时回退 `herdr plugin action invoke configure --plugin herdr-projects`。
+    `~/.cargo/bin`。**插件自身只在 `startup` 和 `doctor --fix` 里 relink
+    `~/.local/bin/herdr-projects`，`configure` 不 relink**——pf.N→pf.N+1
+    重装进新 checkout 后，旧链接仍指向上一代，直接 `$hp_bin configure` 会
+    静默跑旧二进制。所以激活脚本在 install 之后、configure 之前显式执行
+    `refresh_projects_command`：首选 `herdr plugin list --json` 的
+    `plugin_root`/`managed_path` 定位当前 PannenetsF 0.2 fork（同时覆盖
+    `github-installations/<id>/<n>-0/checkout` 与旧 `plugins/github/<id>`
+    两种布局，并拒绝同 id 的 eliasstravik 1.2.x）；JSON 不可用时再文件系统
+    扫描两种布局（多候选时优先现有链接目标，否则取最新构建）。链接策略镜像
+    插件的 `command_link.rs`：只替换「不存在」或「指向 Herdr 插件树的链接/
+    悬空链接」，临时链接 + rename 原子切换；普通文件与指向插件树之外的链接
+    一律不碰，只输出诊断，但仍用解析出的新二进制绝对路径执行 configure。
+    只有新二进制确实无法定位时才回退
+    `herdr plugin action invoke configure --plugin herdr-projects`（action API
+    不接受额外参数，故无法经它跑 `doctor --fix`）。`HERDR_PROJECTS_BIN`
+    默认 `~/.local/bin/herdr-projects`。
   - 一次性回退窗口：检测到 `eliasstravik/herdr-projects@` 已注册时，脚本先
     `plugin uninstall herdr-projects`，再以平台中立 argv 正则
     `herdr-projects-[a-z0-9._-]+ (keeper|keeper-work|voice helper|serve)`
@@ -1097,6 +1110,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   configure 之后）、检测到 1.2.x 已装时先 uninstall 再 pkill 四类孤儿
   守护（keeper/keeper-work/voice helper/serve，正则不命中 ticker）的回退
   case、configure action 回退、
+  **configure 前 `refresh_projects_command` 强制 relink**（pf.N→pf.N+1 旧链接
+  换到 JSON 指定的新 checkout 且 configure 跑新二进制、已当前时幂等、活动构建
+  缺失/普通文件/插件树外链接/悬空链接的安全行为、JSON 不可用时两种布局扫描
+  与多候选消歧、拒绝 eliasstravik 1.2.x 同 id 插件）、
   五个 popup launcher 的单一来源模块、`P a`（configure 合并，不在模板）、
   `P C-f` coordinator.json 聚焦/hpc- 名字族 adopt 回退、
   web-ui v0.4.11、herdr-portal fork tag pin v1.3.0-pf.4（unknown 卡并入执行中列 + attention 列读 0.2 thread 状态 + pf.3 restart 后重试 focus + pf.4 seen-gate/internal 过滤/SSH 机器聚合，只安装、不自动 invoke）、

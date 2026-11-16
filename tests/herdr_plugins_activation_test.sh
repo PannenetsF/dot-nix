@@ -30,9 +30,22 @@ case "$1" in
   plugin)
     case "$2" in
       list)
+        if [ "$3" = "--json" ]; then
+          # STUB_NO_JSON=1 simulates a pre-JSON herdr that cannot name the
+          # active install; the activation must then fall back to scanning the
+          # known plugin directory layouts itself.
+          if [ "${STUB_NO_JSON:-}" = 1 ]; then
+            echo 'plugin list: unknown option'
+          elif [ -n "${STUB_PROJECTS_ROOT:-}" ]; then
+            owner="${STUB_PROJECTS_OWNER:-PannenetsF}"
+            printf '{"type":"plugin_list","result":{"plugins":[{"plugin_id":"herdr-projects","plugin_root":"%s","source":{"kind":"github","owner":"%s","repo":"herdr-projects","managed_path":"%s"}}]}}\n' \
+              "$STUB_PROJECTS_ROOT" "$owner" "$STUB_PROJECTS_ROOT"
+          else
+            echo '{"type":"plugin_list","result":{"plugins":[]}}'
+          fi
         # STUB_PROJECTS_PIN simulates an already-registered projects plugin,
         # e.g. eliasstravik/herdr-projects@v1.2.13 for the rolloff case.
-        if [ -n "${STUB_PROJECTS_PIN:-}" ]; then
+        elif [ -n "${STUB_PROJECTS_PIN:-}" ]; then
           printf -- '- herdr-projects (Projects) enabled [github:%s]\n' "$STUB_PROJECTS_PIN"
         else
           echo '[]'
@@ -318,5 +331,224 @@ home9b="$tmp/home9b"; mkdir -p "$home9b"
 )
 grep -q "integration install" "$home9b/calls.log" \
   && fail "no integration may be ensured without HERDR_AGENT_INTEGRATIONS" || true
+
+# --- Cases 10-17: herdr-projects command relink before configure -------------
+# The plugin relinks ~/.local/bin/herdr-projects only at startup / doctor
+# --fix, so after a pf.N -> pf.N+1 reinstall activation must point the link at
+# the checkout `herdr plugin list --json` names BEFORE running configure, and
+# configure has to execute that exact binary rather than whatever the old link
+# named. Fake builds log their own path on every invocation so the binary that
+# ran configure is observable.
+make_projects_build() {
+  local home="$1" rel="$2" marker="$3"
+  local dir="$home/.config/herdr/$rel/target/release"
+  mkdir -p "$dir"
+  cat >"$dir/herdr-projects" <<SH
+#!/usr/bin/env bash
+printf '%s %s\n' '$marker' "\$*" >>"\$HOME/hp-binary.log"
+exit 0
+SH
+  chmod +x "$dir/herdr-projects"
+  printf '%s\n' "$dir/herdr-projects"
+}
+
+run_relink_case() {
+  local home="$1"; shift
+  mkdir -p "$home"
+  (
+    export HOME="$home"
+    export STUB_LOG="$home/calls.log"
+    export HERDR_TEMPLATE="$template"
+    export HERDR_CONFIG_DIR="$home/.config/herdr"
+    export HERDR_PROJECTS_BIN="$home/.local/bin/herdr-projects"
+    export HERDR_ROADBOARD_SRC="$home/no-roadboard"
+    export HERDR_AGENT_INTEGRATIONS="claude codex"
+    export STUB_MODE=ok STUB_VERSION=0.9.5
+    "$@" 2>"$home/stderr.log"
+  )
+}
+
+# Case 10: upgrade pf.N -> pf.N+1. The old link names the previous generation
+# (still present on disk, as in the real pf.13 -> pf.14 incident); the JSON
+# names the new checkout. The link must be swapped and configure must run on
+# the NEW binary, never the old one and never via the action API fallback.
+stub10="$tmp/stub10"; make_stub "$stub10"; home10="$tmp/home10"
+old10="$(make_projects_build "$home10" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/11111-0/checkout" OLD)"
+new10="$(make_projects_build "$home10" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/22222-0/checkout" NEW)"
+mkdir -p "$home10/.local/bin"
+ln -s "$old10" "$home10/.local/bin/herdr-projects"
+run_relink_case "$home10" env PATH="$stub10/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$home10/.config/herdr/plugins/github-installations/herdr-projects-b1278ffb803c/22222-0/checkout" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ -L "$home10/.local/bin/herdr-projects" ] || fail "10: link must be a symlink"
+[ "$(readlink "$home10/.local/bin/herdr-projects")" = "$new10" ] \
+  || fail "10: link should target the new checkout, got $(readlink "$home10/.local/bin/herdr-projects")"
+grep -q '^NEW configure$' "$home10/hp-binary.log" \
+  || fail "10: configure must run on the new binary; log: $(cat "$home10/hp-binary.log" 2>/dev/null)"
+grep -q '^OLD ' "$home10/hp-binary.log" \
+  && fail "10: the old generation binary must never be invoked" || true
+grep -q "action invoke configure --plugin herdr-projects" "$home10/calls.log" \
+  && fail "10: action API fallback must not be used with a locatable new binary" || true
+grep -q "relinking" "$home10/stderr.log" \
+  || fail "10: a relink diagnostic must be emitted on upgrade"
+
+# Case 11: idempotent when the link already names the active checkout — the
+# link is untouched and configure still runs on that binary.
+stub11="$tmp/stub11"; make_stub "$stub11"; home11="$tmp/home11"
+bin11="$(make_projects_build "$home11" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/11595-0/checkout" CUR)"
+mkdir -p "$home11/.local/bin"
+ln -s "$bin11" "$home11/.local/bin/herdr-projects"
+run_relink_case "$home11" env PATH="$stub11/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$home11/.config/herdr/plugins/github-installations/herdr-projects-b1278ffb803c/11595-0/checkout" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home11/.local/bin/herdr-projects")" = "$bin11" ] \
+  || fail "11: current link must be left untouched"
+grep -q '^CUR configure$' "$home11/hp-binary.log" \
+  || fail "11: configure must run on the current binary"
+grep -q "relinking" "$home11/stderr.log" \
+  && fail "11: no relink diagnostic expected when already current" || true
+
+# Case 12: the active checkout has no built binary (build failed). Nothing may
+# be linked or replaced, and configure goes through the action API, which
+# dispatches server-side to whatever the server actually has enabled.
+stub12="$tmp/stub12"; make_stub "$stub12"; home12="$tmp/home12"
+root12="$home12/.config/herdr/plugins/github-installations/herdr-projects-b1278ffb803c/33333-0/checkout"
+mkdir -p "$root12"
+old12="$(make_projects_build "$home12" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/44444-0/checkout" OLD12)"
+mkdir -p "$home12/.local/bin"
+ln -s "$old12" "$home12/.local/bin/herdr-projects"
+run_relink_case "$home12" env PATH="$stub12/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$root12" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home12/.local/bin/herdr-projects")" = "$old12" ] \
+  || fail "12: existing link must be preserved when the active binary is missing"
+[ ! -e "$home12/hp-binary.log" ] || fail "12: no plugin binary may be invoked"
+grep -q "active plugin binary not found" "$home12/stderr.log" \
+  || fail "12: missing-binary diagnostic expected"
+grep -q "action invoke configure --plugin herdr-projects" "$home12/calls.log" \
+  || fail "12: configure must fall back to the action API"
+
+# Case 13: a regular file at the link path is never overwritten; configure
+# still runs on the located active binary via its absolute path.
+stub13="$tmp/stub13"; make_stub "$stub13"; home13="$tmp/home13"
+make_projects_build "$home13" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/55555-0/checkout" F13 >/dev/null
+mkdir -p "$home13/.local/bin"
+printf 'hand-managed\n' >"$home13/.local/bin/herdr-projects"
+run_relink_case "$home13" env PATH="$stub13/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$home13/.config/herdr/plugins/github-installations/herdr-projects-b1278ffb803c/55555-0/checkout" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ -f "$home13/.local/bin/herdr-projects" ] && [ ! -L "$home13/.local/bin/herdr-projects" ] \
+  || fail "13: regular file must not be replaced by a symlink"
+grep -Fxq "hand-managed" "$home13/.local/bin/herdr-projects" \
+  || fail "13: regular file contents must be preserved"
+grep -q '^F13 configure$' "$home13/hp-binary.log" \
+  || fail "13: configure must run on the active binary despite the file"
+grep -q "action invoke configure --plugin herdr-projects" "$home13/calls.log" \
+  && fail "13: action API fallback unnecessary when the binary is locatable" || true
+
+# Case 14: a working symlink to a path OUTSIDE Herdr's plugin tree (the user's
+# own checkout) is a deliberate override and must be left alone; configure
+# still uses the active install's binary directly.
+stub14="$tmp/stub14"; make_stub "$stub14"; home14="$tmp/home14"
+make_projects_build "$home14" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/66666-0/checkout" F14 >/dev/null
+own14="$home14/dev/herdr-projects/target/release/herdr-projects"
+mkdir -p "$(dirname "$own14")"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$own14"; chmod +x "$own14"
+mkdir -p "$home14/.local/bin"
+ln -s "$own14" "$home14/.local/bin/herdr-projects"
+run_relink_case "$home14" env PATH="$stub14/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$home14/.config/herdr/plugins/github-installations/herdr-projects-b1278ffb803c/66666-0/checkout" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home14/.local/bin/herdr-projects")" = "$own14" ] \
+  || fail "14: foreign link must be preserved"
+grep -q '^F14 configure$' "$home14/hp-binary.log" \
+  || fail "14: configure must run on the active install's binary"
+
+# Case 15: JSON unavailable (older herdr) — the filesystem scan must resolve
+# the active build from both install layouts. 15a: the existing link names one
+# of several builds, so that one wins regardless of mtime. 15b: no link, the
+# newest build wins. 15c: the legacy plugins/github layout is supported.
+stub15="$tmp/stub15"; make_stub "$stub15"; home15="$tmp/home15a"
+a15="$(make_projects_build "$home15" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/77777-0/checkout" A15)"
+b15="$(make_projects_build "$home15" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/88888-0/checkout" B15)"
+# A is made first; force B's mtime newer so the test does not depend on the
+# sub-second creation order, then prove the existing-link preference beats it.
+touch -t 202001010000 "$a15"
+touch -t 202101010000 "$b15"
+mkdir -p "$home15/.local/bin"
+ln -s "$a15" "$home15/.local/bin/herdr-projects"
+run_relink_case "$home15" env PATH="$stub15/bin:/usr/bin:/bin" STUB_NO_JSON=1 \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home15/.local/bin/herdr-projects")" = "$a15" ] \
+  || fail "15a: existing link's target must be preferred over newer builds"
+grep -q '^A15 configure$' "$home15/hp-binary.log" \
+  || fail "15a: configure must run on the link-named binary"
+
+home15b="$tmp/home15b"
+a15b="$(make_projects_build "$home15b" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/77777-0/checkout" A15B)"
+b15b="$(make_projects_build "$home15b" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/88888-0/checkout" B15B)"
+touch -t 202001010000 "$a15b"
+touch -t 202101010000 "$b15b"
+run_relink_case "$home15b" env PATH="$stub15/bin:/usr/bin:/bin" STUB_NO_JSON=1 \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home15b/.local/bin/herdr-projects")" = "$b15b" ] \
+  || fail "15b: without a link, the newest build must be chosen"
+grep -q '^B15B configure$' "$home15b/hp-binary.log" \
+  || fail "15b: configure must run on the newest binary"
+
+home15c="$tmp/home15c"
+legacy15="$(make_projects_build "$home15c" \
+  "plugins/github/herdr-projects-b1278ffb803c" LEGACY15)"
+run_relink_case "$home15c" env PATH="$stub15/bin:/usr/bin:/bin" STUB_NO_JSON=1 \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home15c/.local/bin/herdr-projects")" = "$legacy15" ] \
+  || fail "15c: legacy plugins/github layout must be discovered"
+grep -q '^LEGACY15 configure$' "$home15c/hp-binary.log" \
+  || fail "15c: configure must run on the legacy-layout binary"
+
+# Case 16: a JSON entry owned by eliasstravik (the rolled-off 1.2.x plugin)
+# must never be linked as the fork's command; with no fork build on disk the
+# activation keeps its hands off and uses the action API.
+stub16="$tmp/stub16"; make_stub "$stub16"; home16="$tmp/home16"
+bad16="$home16/.config/herdr/plugins/github-installations/herdr-projects-000000000000/99999-0/checkout"
+make_projects_build "$home16" \
+  "plugins/github-installations/herdr-projects-000000000000/99999-0/checkout" BAD16 >/dev/null
+# Rename it onto the 1.2 slug so the fork-pattern globs cannot match it.
+mv "$home16/.config/herdr/plugins/github-installations/herdr-projects-000000000000" \
+  "$home16/.config/herdr/plugins/github-installations/evil-1-2"
+run_relink_case "$home16" env PATH="$stub16/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$bad16" STUB_PROJECTS_OWNER="eliasstravik" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ ! -e "$home16/.local/bin/herdr-projects" ] \
+  || fail "16: no link may be created for the upstream 1.2.x plugin"
+[ ! -e "$home16/hp-binary.log" ] || fail "16: the 1.2.x binary must not be invoked"
+grep -q "action invoke configure --plugin herdr-projects" "$home16/calls.log" \
+  || fail "16: configure must fall back to the action API"
+
+# Case 17: a dangling link (a removed previous generation) is replaced even
+# though its literal target string sits outside the current plugins path.
+stub17="$tmp/stub17"; make_stub "$stub17"; home17="$tmp/home17"
+bin17="$(make_projects_build "$home17" \
+  "plugins/github-installations/herdr-projects-b1278ffb803c/12121-0/checkout" F17)"
+mkdir -p "$home17/.local/bin"
+ln -s "$home17/gone-generation/target/release/herdr-projects" \
+  "$home17/.local/bin/herdr-projects"
+run_relink_case "$home17" env PATH="$stub17/bin:/usr/bin:/bin" \
+  STUB_PROJECTS_ROOT="$home17/.config/herdr/plugins/github-installations/herdr-projects-b1278ffb803c/12121-0/checkout" \
+  bash "$repo_root/install-herdr-plugins.sh"
+[ "$(readlink "$home17/.local/bin/herdr-projects")" = "$bin17" ] \
+  || fail "17: dangling link must be replaced by the active binary"
+grep -q '^F17 configure$' "$home17/hp-binary.log" \
+  || fail "17: configure must run on the active binary"
 
 echo "all herdr plugin activation cases passed"
