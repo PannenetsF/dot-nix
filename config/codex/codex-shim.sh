@@ -116,6 +116,20 @@ fi
 # silently ignored as an unrecognized setting. Keep the interactive gate: this
 # flag is likewise accepted by non-tty `codex exec`, which must stay reviewed.
 if [ "$interactive" -eq 1 ] && [ "${HERDR_ENV:-}" = 1 ]; then
-  set -- --dangerously-bypass-hook-trust "$@"
+  # Codex 0.164.0 rejects a repeated flag (exit 2), so inject it only when the
+  # caller did not already pass the exact token. An exact match is required:
+  # --dangerously-bypass-hook-trust=true is not equivalent, Codex rejects that
+  # value syntax, and matching it would wrongly skip the valid flag below.
+  already_present=0
+  for _arg in "$@"; do
+    if [ "$_arg" = "--dangerously-bypass-hook-trust" ]; then
+      already_present=1
+      break
+    fi
+  done
+  unset _arg
+  if [ "$already_present" -eq 0 ]; then
+    set -- --dangerously-bypass-hook-trust "$@"
+  fi
 fi
 exec -a codex "$real_codex" "$@"

@@ -162,18 +162,31 @@ check "herdr: hook-bypass flag precedes original arguments" \
 check "herdr: existing hook trust is untouched" keep "$(python3 -I -c 'import sys,tomllib; print(tomllib.load(open(sys.argv[1],"rb"))["hooks"]["state"]["demo:event:0:0"]["trusted_hash"])' "$config")"
 check "herdr: no new hook trust" 1 "$(python3 -I -c 'import sys,tomllib; print(len(tomllib.load(open(sys.argv[1],"rb"))["hooks"]["state"]))' "$config")"
 
-# 9) a manual interactive session keeps hook review enabled.
+# 9) a herdr invocation already passing the flag keeps it exactly once and in
+# place; Codex 0.164.0 rejects a repeated flag with exit 2.
+RUN_SHIM_HERDR=1 run_shim "$plain" resume --dangerously-bypass-hook-trust 'session id' --model 'two words' >/dev/null
+check "herdr: caller-supplied flag is not duplicated" 1 "$(grep -c '^--dangerously-bypass-hook-trust$' "$marker")"
+check "herdr: caller argv order and boundaries preserved" \
+  $'resume\n--dangerously-bypass-hook-trust\nsession id\n--model\ntwo words' "$(cat "$marker")"
+
+# 10) the =true value spelling is not an equivalent token: it fails exact
+# matching, so the valid flag is still prepended rather than trusting that form.
+RUN_SHIM_HERDR=1 run_shim "$plain" --dangerously-bypass-hook-trust=true resume 'session id' >/dev/null
+check "herdr: =true spelling is not treated as the flag" \
+  $'--dangerously-bypass-hook-trust\n--dangerously-bypass-hook-trust=true\nresume\nsession id' "$(cat "$marker")"
+
+# 11) a manual interactive session keeps hook review enabled.
 run_shim "$plain" --model 'two words' >/dev/null
 check "manual pty: no hook override" $'--model\ntwo words' "$(cat "$marker")"
 
-# 10) non-interactive herdr invocations never inject the override.
+# 12) non-interactive herdr invocations never inject the override.
 : > "$marker"
 printf anything | env -i HOME="$work" CODEX_HOME="$codex_home" CODEX_TEST_MARKER="$marker" \
   HERDR_ENV=1 PATH="$test_path" \
   bash -c 'cd "$1" && shift && "$@"' _ "$nt" "$tmp/shimdir/codex" exec --help >/dev/null 2>&1
 check "herdr non-tty: no hook override" $'exec\n--help' "$(cat "$marker")"
 
-# 11) no real codex on PATH is a visible 127.
+# 13) no real codex on PATH is a visible 127.
 if env -i HOME="$work" PATH="$tmp/shimdir:/usr/bin:/bin" \
     "$tmp/shimdir/codex" >/dev/null 2>&1; then
   result=0
@@ -182,7 +195,7 @@ else
 fi
 check "missing real binary exits 127" 127 "$result"
 
-# 12) real-binary gate: the installed codex must recognize the dedicated flag.
+# 14) real-binary gate: the installed codex must recognize the dedicated flag.
 # Look for a codex outside any codex-shim directory; skip if none is present so
 # the suite still passes on hosts without Homebrew/codex.
 real_codex_bin=""
