@@ -5,10 +5,16 @@
 # cwd, the repository root, and the main checkout of a linked worktree.
 #
 # Only projects["<root>"].trust_level is persisted. Interactive sessions started
-# by herdr additionally get -c bypass_hook_trust=true: enabled hooks still run,
-# but their review prompt is skipped for that invocation only. No hooks.state is
-# written. Command approvals and the sandbox are unchanged; this is NOT
-# --dangerously-bypass-approvals-and-sandbox.
+# by herdr additionally pass the explicit CLI flag --dangerously-bypass-hook-
+# trust: enabled hooks still run, but their review prompt is skipped for that
+# invocation only. No hooks.state is written. Command approvals and the sandbox
+# are unchanged; this is NOT --dangerously-bypass-approvals-and-sandbox.
+#
+# HERDR_ENV=1 is the sole environment gate for that flag. It is forgeable by any
+# process running as this user, but that matches the existing trust boundary of
+# the automatic folder-trust preseeding below; it grants no new privileges. The
+# tty check is a second, mandatory gate because the flag is also accepted by the
+# non-interactive `codex exec` path, which must keep normal hook review.
 #
 # Installed at ~/.local/bin/codex-shim/codex and prepended to PATH by
 # modules/common.nix. CODEX_HOME and non-interactive invocations are respected.
@@ -104,8 +110,12 @@ PY
 fi
 
 # ---- hand off to the real binary --------------------------------------------
-# Codex 0.164.0 accepts this global override before both the TUI and `resume`.
+# Codex 0.164.0 honors hook bypass only through this dedicated session flag.
+# bypass_hook_trust is a clap flag rather than a config field, so a `-c
+# bypass_hook_trust=...` override (or the same key in config.toml) is parsed and
+# silently ignored as an unrecognized setting. Keep the interactive gate: this
+# flag is likewise accepted by non-tty `codex exec`, which must stay reviewed.
 if [ "$interactive" -eq 1 ] && [ "${HERDR_ENV:-}" = 1 ]; then
-  set -- -c bypass_hook_trust=true "$@"
+  set -- --dangerously-bypass-hook-trust "$@"
 fi
 exec -a codex "$real_codex" "$@"

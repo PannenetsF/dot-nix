@@ -78,10 +78,11 @@ let
     # switch exists; acceptance is a flag in ~/.claude.json), so agent sessions
     # started by herdr-projects in brand-new folders never stall on an
     # interactive prompt. Codex gets the same directory preseeding through
-    # ~/.local/bin/codex-shim/codex. Interactive herdr sessions also bypass the
-    # hook-review prompt per invocation, without persisting hook trust or
-    # changing approvals and the sandbox. Both shims must sit ahead of Homebrew
-    # and $HOME/.local/bin.
+    # ~/.local/bin/codex-shim/codex. Interactive herdr sessions additionally pass
+    # the dedicated --dangerously-bypass-hook-trust flag so the per-invocation
+    # hook-review prompt is skipped (hooks still run) without persisting hook
+    # trust or changing approvals and the sandbox. Both shims must sit ahead of
+    # Homebrew and $HOME/.local/bin.
     case ":$PATH:" in
       *":$HOME/.local/bin/claude-shim:"*) ;;
       *) export PATH="$HOME/.local/bin/claude-shim:$PATH" ;;

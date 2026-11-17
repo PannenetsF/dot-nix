@@ -150,30 +150,30 @@ printf anything | env -i HOME="$work" CODEX_HOME="$codex_home" CODEX_TEST_MARKER
   bash -c 'cd "$1" && "$2"' _ "$nt" "$tmp/shimdir/codex" >/dev/null 2>&1
 check "non-tty: no trust write" absent "$(trusted "$(cd "$nt" && pwd -P)")"
 
-# 9) herdr interactive sessions bypass hook review for this invocation only.
+# 8) herdr interactive sessions bypass hook review for this invocation only.
 cat > "$config" <<'EOF'
 # preserve hook state
 [hooks.state."demo:event:0:0"]
 trusted_hash = "keep"
 EOF
 RUN_SHIM_HERDR=1 run_shim "$plain" resume 'session id' --model 'two words' >/dev/null
-check "herdr: global override precedes original arguments" \
-  $'-c\nbypass_hook_trust=true\nresume\nsession id\n--model\ntwo words' "$(cat "$marker")"
+check "herdr: hook-bypass flag precedes original arguments" \
+  $'--dangerously-bypass-hook-trust\nresume\nsession id\n--model\ntwo words' "$(cat "$marker")"
 check "herdr: existing hook trust is untouched" keep "$(python3 -I -c 'import sys,tomllib; print(tomllib.load(open(sys.argv[1],"rb"))["hooks"]["state"]["demo:event:0:0"]["trusted_hash"])' "$config")"
 check "herdr: no new hook trust" 1 "$(python3 -I -c 'import sys,tomllib; print(len(tomllib.load(open(sys.argv[1],"rb"))["hooks"]["state"]))' "$config")"
 
-# 10) a manual interactive session keeps hook review enabled.
+# 9) a manual interactive session keeps hook review enabled.
 run_shim "$plain" --model 'two words' >/dev/null
 check "manual pty: no hook override" $'--model\ntwo words' "$(cat "$marker")"
 
-# 11) non-interactive herdr invocations never inject the override.
+# 10) non-interactive herdr invocations never inject the override.
 : > "$marker"
 printf anything | env -i HOME="$work" CODEX_HOME="$codex_home" CODEX_TEST_MARKER="$marker" \
   HERDR_ENV=1 PATH="$test_path" \
   bash -c 'cd "$1" && shift && "$@"' _ "$nt" "$tmp/shimdir/codex" exec --help >/dev/null 2>&1
 check "herdr non-tty: no hook override" $'exec\n--help' "$(cat "$marker")"
 
-# 12) no real codex on PATH is a visible 127.
+# 11) no real codex on PATH is a visible 127.
 if env -i HOME="$work" PATH="$tmp/shimdir:/usr/bin:/bin" \
     "$tmp/shimdir/codex" >/dev/null 2>&1; then
   result=0
@@ -181,6 +181,35 @@ else
   result=$?
 fi
 check "missing real binary exits 127" 127 "$result"
+
+# 12) real-binary gate: the installed codex must recognize the dedicated flag.
+# Look for a codex outside any codex-shim directory; skip if none is present so
+# the suite still passes on hosts without Homebrew/codex.
+real_codex_bin=""
+for cand in /opt/homebrew/bin/codex /usr/local/bin/codex; do
+  [ -x "$cand" ] && { real_codex_bin="$cand"; break; }
+done
+if [ -z "$real_codex_bin" ]; then
+  while IFS= read -r _d; do
+    [ -n "$_d" ] || continue
+    case "$_d" in
+      */codex-shim|*/codex-shim/) continue ;;
+      "$tmp/shimdir") continue ;;
+    esac
+    [ -x "$_d/codex" ] && { real_codex_bin="$_d/codex"; break; }
+  done <<< "${PATH//:/$'\n'}"
+fi
+unset _d
+if [ -n "$real_codex_bin" ]; then
+  if "$real_codex_bin" --help 2>/dev/null | grep -q -- '--dangerously-bypass-hook-trust'; then
+    echo "ok: real codex recognizes --dangerously-bypass-hook-trust"
+  else
+    echo "FAIL: real codex does not list --dangerously-bypass-hook-trust"
+    failures=$((failures + 1))
+  fi
+else
+  echo "skip: no real codex binary found (checked /opt/homebrew/bin, /usr/local/bin, PATH minus codex-shim)"
+fi
 
 if [ "$failures" -ne 0 ]; then
   echo "$failures test(s) failed"
