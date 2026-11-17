@@ -120,7 +120,7 @@ echo "$log1" | grep -q "integration install codex" \
 echo "$log1" | grep -q "furkankly/zoetrope/herdr-plugin" || fail "zoetrope not installed"
 echo "$log1" | grep -q "plugin install -y --ref be4cd1fecf9bf0684a0fe0f2dd1c2316bf819389 to4iki/herdr-unread-jump" \
   || fail "herdr-unread-jump not installed at the pinned ref"
-echo "$log1" | grep -q "plugin install -y --ref v1.4.9-pf.2 PannenetsF/herdr-radar" \
+echo "$log1" | grep -q "plugin install -y --ref v1.4.9-pf.3 PannenetsF/herdr-radar" \
   || fail "radar not installed at the pinned fork ref"
 echo "$log1" | grep -q "PannenetsF/herdr-projects" || fail "projects not installed"
 echo "$log1" | grep -q "server reload-config" || fail "server config not reloaded"

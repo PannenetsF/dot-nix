@@ -328,7 +328,7 @@ except Exception:
   # plugin's exact font codepoint-map block — otherwise the build hook
   # hard-fails writing through the read-only Nix-store symlink (its setup.js
   # is not EACCES-safe).
-  # Fork pin v1.4.9-pf.2 on top of upstream 1.4.9: (1) the static ws_key —
+  # Fork pin v1.4.9-pf.3 on top of upstream 1.4.9: (1) the static ws_key —
   # per-pane group keys must not carry a recency component, or N panes'
   # independent async metadata writes skew the key between retries and
   # headers land mid-group; (2) herdr-projects coexistence — Herdr holds ONE
@@ -342,11 +342,11 @@ except Exception:
   # into radar's marker-fenced blocks, so the two must be called in this
   # order: radar first, projects second.
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.9-pf.2"; then
+      | grep -q "hhdebb.herdr-radar.*PannenetsF/herdr-radar@v1.4.9-pf.3"; then
     # Never let one plugin's install failure abort the activation: the
     # configure/state-start and projects steps below are independently guarded
     # and harmless on a partial install.
-    "$herdr_cli" plugin install -y --ref v1.4.9-pf.2 \
+    "$herdr_cli" plugin install -y --ref v1.4.9-pf.3 \
       PannenetsF/herdr-radar || true
   fi
   "$herdr_cli" plugin action invoke configure \

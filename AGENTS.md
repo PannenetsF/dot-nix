@@ -462,7 +462,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `plugins/github-installations/herdr-projects-*/*/checkout/target/release/`
   两处 cargo 构建产物，且只接受 `--version` 报 `herdr-projects 0.2.*` 的
   二进制（1.2 二进制显式排除）。
-- herdr-radar（pinned fork `v1.4.9-pf.2`，PannenetsF/herdr-radar，基于上游
+- herdr-radar（pinned fork `v1.4.9-pf.3`，PannenetsF/herdr-radar，基于上游
   hhdebb/herdr-radar v1.4.9）是首个 Node
   插件：运行时 `node` 由 `modules/host.nix` 的 `nodejs_22` 提供，所以 Linux 侧
   herdr 激活也 gate 在 host 层（zoetrope/herdr-projects 是 Rust 单文件二进制，
@@ -1117,7 +1117,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   五个 popup launcher 的单一来源模块、`P a`（configure 合并，不在模板）、
   `P C-f` coordinator.json 聚焦/hpc- 名字族 adopt 回退、
   web-ui v0.4.11、herdr-portal fork tag pin v1.3.0-pf.4（unknown 卡并入执行中列 + attention 列读 0.2 thread 状态 + pf.3 restart 后重试 focus + pf.4 seen-gate/internal 过滤/SSH 机器聚合，只安装、不自动 invoke）、
-  radar fork pin v1.4.9-pf.2（hp_role filter/hp_group 排序镜像 projects）、
+  radar fork pin v1.4.9-pf.3（hp_role filter/hp_group 排序镜像 projects）、
   herdr-push pin + .env seed-once、relay launchd 模块和
   Herdi 本地 tap cask）；真实激活后的 relay/web-ui HTTP、launchd、插件、
   claude/codex agent 集成（`herdr integration status` 必须 current）和

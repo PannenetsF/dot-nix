@@ -146,7 +146,7 @@ braille spinner、完成绿勾保留到你看过为止、提问红色脉动、�
 变淡；herdr-projects 启用时按 PROJECT 分组（跨 worktree workspace 聚合同
 项目的 coordinator 与全部 threads，guest/无关 pane 隐藏），未启用时按
 项目/仓库分组（worktree 挂在仓库下）、按活跃度排序。插件由共享激活
-脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.9-pf.2`，
+脚本 `install-herdr-plugins.sh` 安装（pinned fork `v1.4.9-pf.3`，
 PannenetsF/herdr-radar，基于上游 v1.4.9，fork 含静态 ws_key 竞态修复与
 herdr-projects 单 view 共存：projects 启用时镜像其 hp_role 隐藏 filter 与
 hp_group 排序、按 PROJECT.md 显示名钉每项目一个 header；macOS 经 `nix-darwin/herdr.nix` postActivation、
