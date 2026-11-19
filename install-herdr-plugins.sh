@@ -360,7 +360,7 @@ except Exception:
   # herdr-projects: project + thread model with a persistent ticker daemon.
   # Requires server >= 0.9.5; plugin install talks to the running server and
   # fails hard against a stale one, so skip until the server is restarted.
-  # Pinned to fork v0.2.34-pf.14 (PannenetsF/herdr-projects): registered
+  # Pinned to fork v0.2.34-pf.15 (PannenetsF/herdr-projects): registered
   # coordinator identity (`hpc-<slug>` family names), adoption of
   # hand-started sessions, context registration gate, session-sticky nudges
   # and the untracked-pane claim for a second harness in a tracked project
@@ -431,6 +431,11 @@ except Exception:
   # one-shot thread schedules: a thread prompt can be scheduled once (with
   # recovery that hardens delivery across restarts) instead of requiring a
   # later human nudge.
+  # pf.15 routes proven worker messages only to their current thread owner,
+  # never to the primary coordinator as a fallback, and labels agent reports.
+  # A coordinator cannot assign another owner's thread to itself or anyone
+  # else: only owner handoff, unassigned self-claim, or human rescue is allowed.
+  # Owner-bound delivery is serialized with reassignment.
   # The 0.2 model uses project slugs with per-project
   # home directories (`~/.herdr-projects/<slug>/`); the ticker is its ONLY
   # bell source — herdr notification show --sound request/done when threads
@@ -448,10 +453,10 @@ except Exception:
 v = sys.argv[1].split("-", 1)[0].split("+", 1)[0]
 t = tuple(int(x) for x in v.split(".") if x != "")
 sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
-    # Fork pin v0.2.34-pf.14 (see block comment above).
+    # Fork pin v0.2.34-pf.15 (see block comment above).
     installed_projects="$("$herdr_cli" plugin list 2>/dev/null || true)"
     if ! printf '%s' "$installed_projects" \
-        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.14"; then
+        | grep -q "PannenetsF/herdr-projects@v0.2.34-pf.15"; then
       # One-time rolloff window from the incompatible upstream 1.2.x
       # task-board plugin: the plugin id must be free before the 0.2 fork can
       # register, and 1.2 leaves four orphan daemons running forever
@@ -472,7 +477,7 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
       # No release assets on the fork: the server builds from source with the
       # user's cargo (darwin wrapper and modules/herdr.nix both prepend
       # ~/.cargo/bin). A build failure must not abort activation.
-      "$herdr_cli" plugin install -y --ref v0.2.34-pf.14 \
+      "$herdr_cli" plugin install -y --ref v0.2.34-pf.15 \
         PannenetsF/herdr-projects || true
     fi
     # Refresh the command link BEFORE configure so the new checkout's binary
@@ -494,7 +499,7 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
         --plugin herdr-projects >/dev/null 2>&1 || true
     fi
   else
-    echo >&2 "herdr server is older than 0.9.5; restart herdr to install herdr-projects pf.14"
+    echo >&2 "herdr server is older than 0.9.5; restart herdr to install herdr-projects pf.15"
   fi
 
   # herdr-web-ui: browser/PWA client over the herdr socket API (workspaces,

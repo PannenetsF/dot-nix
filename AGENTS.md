@@ -370,7 +370,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
   pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.5
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
-  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.14`**
+  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.15`**
   （project + threads 模型），**不要升级到上游 `eliasstravik/herdr-projects`
   1.2.x**：1.2 是另一套不兼容模型（单位是任务 `repo/123`、`data/repos.json`、
   keeper/voice 守护、`sw-coordinator-<repo>`），没有 0.2 的 thread 状态机，
@@ -412,6 +412,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     一律 fail-closed，coordinator 用 `agent prompt` 驱动这种 tab 同样
     拿不到人的权限）。残留边界：同 uid 起真 herdr rogue session、用服务端
     `agent rename` 自封 hpc 名、完全 double-fork 的孤儿，client 无法判别。
+  - **pf.15 收紧 thread 所有权拓扑**：已证明身份的 worker 经
+    `coordinator prompt` 只向 thread 当前 owner 投递，owner 不可用时不回退到
+    primary；agent 消息带来源标记，不是人的新任务或授权。coordinator 只能
+    自领未分配 thread 或交接自己拥有的 thread，不能接管其他 owner 的工作
+    （owner 离线也不例外）；人可从 Herdr 外的终端恢复分配。owner 绑定的
+    消息投递与重新分配共用锁，防止交接期间串投。
   - 安装顺序固定为 radar install → radar `configure` → `state-start` →
     projects（门 ≥0.9.5）→ web-ui → portal → push。projects 的 `configure`
     把全局 agents 分组行、tab-bar 项和 **`P a` overview popup** 合并进 radar
@@ -1106,7 +1112,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `HERDR_AGENT_INTEGRATIONS="claude codex"` 经两个薄封装下发、共享脚本对每个
   名字跑 `herdr integration install`（本地幂等、agent 缺失时自门控 rc=1、
   在 server 版本门之外、名单只能来自环境变量不许在脚本里写死）、
-  herdr-projects fork pin v0.2.34-pf.14 + 0.9.5 版本门（configure 在 radar
+  herdr-projects fork pin v0.2.34-pf.15 + 0.9.5 版本门（configure 在 radar
   configure 之后）、检测到 1.2.x 已装时先 uninstall 再 pkill 四类孤儿
   守护（keeper/keeper-work/voice helper/serve，正则不命中 ticker）的回退
   case、configure action 回退、
