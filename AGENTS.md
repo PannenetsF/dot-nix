@@ -370,7 +370,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
   pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.5
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
-  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.15`**
+  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.16`**
   （project + threads 模型），**不要升级到上游 `eliasstravik/herdr-projects`
   1.2.x**：1.2 是另一套不兼容模型（单位是任务 `repo/123`、`data/repos.json`、
   keeper/voice 守护、`sw-coordinator-<repo>`），没有 0.2 的 thread 状态机，
@@ -418,6 +418,11 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     自领未分配 thread 或交接自己拥有的 thread，不能接管其他 owner 的工作
     （owner 离线也不例外）；人可从 Herdr 外的终端恢复分配。owner 绑定的
     消息投递与重新分配共用锁，防止交接期间串投。
+  - **pf.16 隔离 coordinator 工作上下文**：默认 TASKS/MEMORY 位于
+    `coordinators/<注册名>/`，不回退到根目录旧文档；根目录共享内容须显式
+    选择，自动 context 有总量上限。已有文档和 thread owner 不自动迁移，
+    看不到某条 thread 不能推断它完成。生命周期控制、adopt 与自动通知在
+    投递锁内重查当前归属；身份发现失败不再退化为人的权限。
   - 安装顺序固定为 radar install → radar `configure` → `state-start` →
     projects（门 ≥0.9.5）→ web-ui → portal → push。projects 的 `configure`
     把全局 agents 分组行、tab-bar 项和 **`P a` overview popup** 合并进 radar

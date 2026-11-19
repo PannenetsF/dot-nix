@@ -4,6 +4,9 @@
 # records its argv; nothing here touches the real config or server.
 set -euo pipefail
 
+# Never inherit a real CLI override into the stubbed activation cases.
+unset HERDR_CLI
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -127,7 +130,7 @@ echo "$log1" | grep -q "server reload-config" || fail "server config not reloade
 
 # radar configure must precede projects install (marker-block ownership order).
 radar_cfg=$(echo "$log1" | grep -n "action invoke configure" | head -1 | cut -d: -f1)
-proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.15" | head -1 | cut -d: -f1)
+proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.16" | head -1 | cut -d: -f1)
 [ -n "$radar_cfg" ] && [ -n "$proj_inst" ] && [ "$radar_cfg" -lt "$proj_inst" ] \
   || fail "radar configure ($radar_cfg) must run before projects install ($proj_inst)"
 
@@ -172,8 +175,19 @@ perm1="$(stat -c '%a' "$push_env1" 2>/dev/null || stat -f '%Lp' "$push_env1")"
 
 # --- Case 2: no herdr binary -> template lands, plugins skipped, exit 0 -----
 home2="$tmp/home2"; mkdir -p "$home2"
-run_case "$home2" env PATH="/usr/bin:/bin" \
-  bash "$repo_root/install-herdr-plugins.sh"
+(
+  # PATH alone does not hide the installer's /usr/local/bin fallback.
+  # Stub discovery too, so this case cannot invoke an installed real daemon.
+  command() {
+    if [ "${1:-}" = -v ] && [ "${2##*/}" = herdr ]; then
+      return 1
+    fi
+    builtin command "$@"
+  }
+  export -f command
+  run_case "$home2" env PATH="/usr/bin:/bin" \
+    bash "$repo_root/install-herdr-plugins.sh"
+)
 [ -f "$home2/.config/herdr/config.toml" ] || fail "template should land without herdr"
 [ ! -e "$home2/calls.log" ] || fail "no herdr calls expected when binary absent"
 
@@ -269,7 +283,7 @@ STUB_MODE=ok STUB_VERSION=0.9.5 \
 log7="$(cat "$home7/calls.log")"
 uninst=$(echo "$log7" | grep -n "plugin uninstall herdr-projects" | head -1 | cut -d: -f1)
 kill_line=$(echo "$log7" | grep -n "pkill" | head -1 | cut -d: -f1)
-proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.15" | head -1 | cut -d: -f1)
+proj_inst7=$(echo "$log7" | grep -n "plugin install -y --ref v0.2.34-pf.16" | head -1 | cut -d: -f1)
 [ -n "$uninst" ] || fail "upstream 1.2 plugin must be uninstalled before the fork installs"
 [ -n "$kill_line" ] || fail "orphan 1.2 daemons must be signalled after uninstall"
 [ -n "$proj_inst7" ] || fail "0.2 fork must be installed in the same activation"
@@ -291,7 +305,7 @@ echo "$pkill_log" | grep -q 'ticker' \
 # --- Case 8: 0.2 fork already pinned -> no uninstall, no pkill, no reinstall -
 stub8="$tmp/stub8"; make_stub "$stub8"; home8="$tmp/home8"
 STUB_MODE=ok STUB_VERSION=0.9.5 \
-  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.15" \
+  STUB_PROJECTS_PIN="PannenetsF/herdr-projects@v0.2.34-pf.16" \
   run_case "$home8" env PATH="$stub8/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log8="$(cat "$home8/calls.log")"
@@ -299,7 +313,7 @@ echo "$log8" | grep -q "plugin uninstall" \
   && fail "must not uninstall when the pinned fork is already registered" || true
 echo "$log8" | grep -q "pkill" \
   && fail "must not signal daemons when the pinned fork is already registered" || true
-echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.15" \
+echo "$log8" | grep -q "plugin install -y --ref v0.2.34-pf.16" \
   && fail "fork must not be reinstalled when already at the pinned ref" || true
 echo "$log8" | grep -q "action invoke configure --plugin herdr-projects" \
   || fail "configure must still run (idempotent repair) when the fork is present"
