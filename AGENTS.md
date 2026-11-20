@@ -370,7 +370,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - zoetrope、herdr-projects 与 herdr-radar 插件由 `install-herdr-plugins.sh`
   pinned ref 安装（macOS/Linux 同一套）；herdr-projects 要求 server ≥ 0.9.5
   （装到运行中的旧 server 会硬失败，脚本按 `herdr status --json` 版本守卫跳过）。
-  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.16`**
+  herdr-projects **永久 pin fork `PannenetsF/herdr-projects@v0.2.34-pf.17`**
   （project + threads 模型），**不要升级到上游 `eliasstravik/herdr-projects`
   1.2.x**：1.2 是另一套不兼容模型（单位是任务 `repo/123`、`data/repos.json`、
   keeper/voice 守护、`sw-coordinator-<repo>`），没有 0.2 的 thread 状态机，
@@ -423,6 +423,13 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
     选择，自动 context 有总量上限。已有文档和 thread owner 不自动迁移，
     看不到某条 thread 不能推断它完成。生命周期控制、adopt 与自动通知在
     投递锁内重查当前归属；身份发现失败不再退化为人的权限。
+  - **pf.17 将 Project 工作流改为显式选择**：普通问答、查询、权限申请、
+    编码和测试默认在当前会话完成，不以 context、adopt 或 report 为前置。
+    仅用户明确要求 threads/委派，或既有明确授权工作流覆盖的任务才新建线程；
+    coordinator 身份、复杂度、`start_threads=auto` 和 yolo 不构成委派授权。
+    Project 拒绝只阻断该 Project 操作，不阻断无关授权任务；进度提醒仅在
+    当前 turn 显式 report 后启用，新 prompt 会关闭提醒。身份与 owner 门不放宽，
+    不自动取消或迁移已有线程。
   - 安装顺序固定为 radar install → radar `configure` → `state-start` →
     projects（门 ≥0.9.5）→ web-ui → portal → push。projects 的 `configure`
     把全局 agents 分组行、tab-bar 项和 **`P a` overview popup** 合并进 radar
@@ -1117,7 +1124,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `HERDR_AGENT_INTEGRATIONS="claude codex"` 经两个薄封装下发、共享脚本对每个
   名字跑 `herdr integration install`（本地幂等、agent 缺失时自门控 rc=1、
   在 server 版本门之外、名单只能来自环境变量不许在脚本里写死）、
-  herdr-projects fork pin v0.2.34-pf.15 + 0.9.5 版本门（configure 在 radar
+  herdr-projects fork pin v0.2.34-pf.17 + 0.9.5 版本门（configure 在 radar
   configure 之后）、检测到 1.2.x 已装时先 uninstall 再 pkill 四类孤儿
   守护（keeper/keeper-work/voice helper/serve，正则不命中 ticker）的回退
   case、configure action 回退、
