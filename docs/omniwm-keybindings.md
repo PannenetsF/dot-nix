@@ -51,7 +51,7 @@ OmniWM 自己生成完整可写配置 `~/.config/omniwm/settings.toml`。改键�
 
 仓库的 `config/omniwm/apply-hotkey-overrides.sh` 在 nix-darwin postActivation
 以用户身份运行，把下面这套**机器无关**的键位改写进 OmniWM 自有的
-settings.toml（只动固定 action id 的 `binding` 和固定表标量，不碰显示器路由 /
+settings.toml（只动固定 action id 的 `binding` 和固定表配置项，不碰显示器路由 /
 workspace 身份等机器本地段）。每个 revision 只 seed 一次并写
 `~/.config/omniwm/.hotkey-overrides.rev`，之后 GUI 改键不会被激活覆盖；
 `OMNIWM_HOTKEY_FORCE=1` 可强制重跑，脚本也可单独手动执行。首次激活时 OmniWM
@@ -65,18 +65,20 @@ workspace 身份等机器本地段）。每个 revision 只 seed 一次并写
 | 顺序切下/上一个工作区（niri 卷轴） | 未绑定 | `⌥.` / `⌥,` |
 | 带窗口去上/下个工作区 | `⌃⌥⇧↑/↓` | `⌥⇧,` / `⌥⇧.` |
 | 带列去上/下个工作区（Niri） | `⌃⌥⇧PgUp/PgDn` | `⌃⌥⇧,` / `⌃⌥⇧.` |
-| 列宽尺寸循环（占用了 `⌥.`，让键） | `⌥.` / `⌥,` | `⌥R`（反向循环解绑） |
+| 列宽尺寸循环（占用了 `⌥.`，让键） | `⌥.` / `⌥,` | `⌥R`（1/2 → 2/3 → 全宽；反向循环解绑） |
 | 列扩展到全部可用宽度（Niri 高级动作） | `⌃⌥F` | **解绑**（REV 2；`⌃⌥` 字母层归 herdr，`⌃⌥F` 是全局 goto） |
 | Niri ↔ Dwindle 切换（给 `⌥⇧L` 让路） | `⌥⇧L` | `⌥⇧/` |
 | System Hyper Trigger | 首次启动曾误得 Left Option | `None`（Hyper 归 Karabiner） |
 
 ### 固化的 GUI 偏好（REV 3 起）
 
-同脚本也 seed 一组机器无关的界面偏好（带类型的表标量；schema 里缺键的 nil
-默认值会在对应表段末尾补写）。这些原本是在 Settings 里手调的，入库存档防丢：
+同脚本也 seed 一组机器无关的界面偏好（带类型的表配置项；schema 里缺键的 nil
+默认值会在对应表段末尾补写）。REV 4 加入 Niri 列宽预设，让 `⌥R` 也能循环到
+全宽；这改变的是列宽，不是 macOS 原生全屏。这些偏好入库存档防丢：
 
 | 段.键 | 默认 | 固化值 |
 | --- | --- | --- |
+| `[niri] containerPrimarySpanPresets` | `[1/3, 1/2, 2/3]` | `[0.5, 0.6666666666666666, 1.0]`（REV 4） |
 | `[focus] moveMouseToFocusedWindow` | `false` | `true`（聚焦时把指针带进窗口） |
 | `[workspaceBar] height` | `24` | `26` |
 | `[workspaceBar] hideEmptyWorkspaces` | `false` | `true` |

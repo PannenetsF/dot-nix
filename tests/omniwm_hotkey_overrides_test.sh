@@ -42,6 +42,10 @@ transparentBackground = false
 [gestures]
 scrollEnabled = true
 
+[niri]
+containerPrimarySpanPresets = [0.3333333333333333, 0.5, 0.6666666666666666]
+edgeGaps = true
+
 [[hotkeys]]
 binding = "Option+Left Arrow"
 id = "focus.left"
@@ -164,6 +168,9 @@ assert wb["notchActiveZoneWidth"] == 100.0
 assert wb["notchMode"] == "splitActiveLeft"
 assert wb["showItemBackgrounds"] is False
 assert wb["transparentBackground"] is True
+# REV 4 cycles half-width, two-thirds, and full-width, preserving other options.
+assert cfg["niri"]["containerPrimarySpanPresets"] == [0.5, 0.6666666666666666, 1.0]
+assert cfg["niri"]["edgeGaps"] is True
 # Unrelated [general] scalars and root tables must survive untouched.
 assert cfg["general"]["hotkeysEnabled"] is True
 assert cfg["general"]["hyperKeyModifiers"] == "Control+Option+Shift+Command"
@@ -214,7 +221,7 @@ PY
 
 OMNIWM_CONFIG_DIR="$config_dir" bash "$script" >"$tmp/out" 2>&1
 cat "$tmp/out"
-[[ "$(cat "$stamp")" == "3" ]]
+[[ "$(cat "$stamp")" == "4" ]]
 check_expected
 ls "$settings".bak-* >/dev/null
 
@@ -232,17 +239,22 @@ s = s.replace(
     'binding = "Option+H"\nid = "focus.left"',
     'binding = "Option+Left Arrow"\nid = "focus.left"',
 )
+s = s.replace(
+    'containerPrimarySpanPresets = [0.5, 0.6666666666666666, 1.0]',
+    'containerPrimarySpanPresets = [0.4, 0.8]',
+)
 open(p, "w", encoding="utf-8").write(s)
 PY
 OMNIWM_CONFIG_DIR="$config_dir" bash "$script" >/dev/null 2>&1
 grep -B1 'id = "focus.left"' "$settings" | grep -q 'Option+Left Arrow'
+grep -Fxq 'containerPrimarySpanPresets = [0.4, 0.8]' "$settings"
 
 # ... until the revision is forced.
 OMNIWM_HOTKEY_FORCE=1 OMNIWM_CONFIG_DIR="$config_dir" bash "$script" >/dev/null 2>&1
 check_expected
 
 # --- old revision stamp re-applies the new curated map -----------------------
-printf '0\n' >"$stamp"
+printf '3\n' >"$stamp"
 python3 - <<PY
 p = "$settings"
 s = open(p, encoding="utf-8").read()
@@ -250,9 +262,24 @@ s = s.replace(
     'binding = "Option+H"\nid = "focus.left"',
     'binding = "Option+Left Arrow"\nid = "focus.left"',
 )
+s = s.replace(
+    'containerPrimarySpanPresets = [0.5, 0.6666666666666666, 1.0]',
+    'containerPrimarySpanPresets = [0.3333333333333333, 0.5, 0.6666666666666666]',
+)
 open(p, "w", encoding="utf-8").write(s)
 PY
 OMNIWM_CONFIG_DIR="$config_dir" bash "$script" >/dev/null 2>&1
+[[ "$(cat "$stamp")" == "4" ]]
+check_expected
+
+# --- missing presets are appended within the existing niri table ------------
+python3 - <<PY
+p = "$settings"
+s = open(p, encoding="utf-8").read()
+s = s.replace('containerPrimarySpanPresets = [0.5, 0.6666666666666666, 1.0]\n', '')
+open(p, "w", encoding="utf-8").write(s)
+PY
+OMNIWM_HOTKEY_FORCE=1 OMNIWM_CONFIG_DIR="$config_dir" bash "$script" >/dev/null 2>&1
 check_expected
 
 # --- schema drift: a missing id warns but does not fail ----------------------

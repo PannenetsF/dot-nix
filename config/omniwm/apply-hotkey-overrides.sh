@@ -15,20 +15,21 @@
 # module is the thin wrapper that invokes it as the target user.
 set -uo pipefail
 
-REV="3"
+REV="4"
 STAMP_NAME=".hotkey-overrides.rev"
 LOG_PREFIX="[omniwm-hotkeys]"
 
 log() { printf '%s %s\n' "$LOG_PREFIX" "$*" >&2; }
 
-# Scalar overrides as "table.key:type:value" specs (type is string, bool or
-# float). These are machine-independent GUI preferences folded into the seed
+# Table-value overrides as "table.key:type:value" specs (type is string, bool,
+# float or float-array). These machine-independent GUI preferences join the seed
 # (not machine-local sections like routing/workspace identities): the Hyper
 # trigger pitfall, focus-follows-mouse pointer placement, and the curated
 # workspace-bar look (height, hidden empty slots, notch split, transparent).
 SCALAR_SPECS=(
   "general.systemHyperTrigger:string:None"
   "focus.moveMouseToFocusedWindow:bool:true"
+  "niri.containerPrimarySpanPresets:float-array:0.5, 0.6666666666666666, 1.0"
   "workspaceBar.height:float:26.0"
   "workspaceBar.hideEmptyWorkspaces:bool:true"
   "workspaceBar.inactiveIconOpacity:float:0.85"
@@ -142,6 +143,10 @@ for spec in "${SCALAR_SPECS[@]}"; do
     float)
       [[ "$value" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || { log "internal error: unsafe float scalar '$spec'"; exit 1; }
       rendered="$value"
+      ;;
+    float-array)
+      [[ "$value" =~ ^[0-9]+(\.[0-9]+)?(,\ [0-9]+(\.[0-9]+)?)*$ ]] || { log "internal error: unsafe float array '$spec'"; exit 1; }
+      rendered="[$value]"
       ;;
     *)
       log "internal error: unknown scalar type '$type'"; exit 1
