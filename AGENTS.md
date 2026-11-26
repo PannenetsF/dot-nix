@@ -690,183 +690,22 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   switch` 会把当前手工替换的 relay plist 收敛到同一 store 路径，无 drift。
   boe-fyq 上无关的 devswha/herdr-web-ui（:7317）不得改动。回滚：Mac 上
   `launchctl enable` + kickstart 旧 tunnel 并在 boe-fyq 停 `herdr-ec2-tunnel`。
-- **Telegram bot 守护**：同一 fetchFromGitHub source 的
+- **Telegram bot：2026-11-16 移除。** 它曾是同一 fetchFromGitHub source 的
   `relay/herdr_telegram.py`，第二个 `launchd.user.agents.herdrTelegram`
-  （label `org.nix-community.home.herdr-telegram`，日志
-  `telegram.{out,err}.log`，同样 postActivation kickstart）。它是 loopback
-  relay 的纯 WebSocket **客户端**：long-poll `api.telegram.org` 收命令、推送
-  blocked/done 通知，所以只需要出站 HTTPS，**无公网 IP、无端口转发、无
-  cloudflared 也能工作**；国内网络若直连不到 Telegram，在 config.env 加
-  `HTTPS_PROXY`（launchd 不继承 shell 代理环境）。凭据放机器本地
-  `~/.config/herdr-remote/secrets.env`（0600，绝不进 git）：
-  `HERDR_TG_TOKEN`（BotFather）与 `HERDR_TG_CHAT_ID`（白名单 chat，bot 忽略
-  其他所有人；chat id 用 `getUpdates` 发现，私聊正数、群为负数）。**wrapper
-  在 token 缺失时 `exit 0` 休眠**，配合 `KeepAlive.SuccessfulExit=false` 不会
-  重启空转——未配置的机器上该 agent 是无害占位。bot 支持
-  `/start /agents /dashboard /switch /project /find /unfocus /read /reply /send /trust /interrupt /digest`（`/project` pf.13 起注册：弹出与 📁 项目栏键相同的项目列表两级下钻），
-  审批按钮发的是真实数字按键（`send_keys`）而非粘贴文本。
-  **Telegram 定制随 fork tag 发布**（2026-10 起不再是仓库内 build-time
-  patch；代码只在 `PannenetsF/herdr-remote` 的 `pf/v0.8.1` 分支，tag
-  `v0.8.1-pf.N`，`herdr-remote.nix` 直接 `fetchFromGitHub` 该 tag，无
-  `runCommandLocal`/`patch` 步骤，仓库里也没有 patch 文件。发布流程：在
-  `pf/v0.8.1` 上提交 → 打 `v0.8.1-pf.<N+1>` → 改 `relayPfTag` 与
-  sha256 → 同步本条目与 `tests/darwin_herdr_config_test.sh`）：
-  1. **通知头身份**：上游 v0.8.1 的 blocked/finished 通知头只有
-     `"<harness> blocked in <basename cwd>"`，herdr-projects 主机上几十个
-     pane 全是 `agent=claude`、thread pane 的 cwd basename 还都是 `t-NNNN`，
-     完全无法区分。改成
-     `project > pane(terminal title + pane_id) > 注册 session 名` 三段：
-     project 从 `…/<slug>/threads/t-N` 与 worktree 目录名 `hp-<slug>-t-N-…`
-     反推 slug（不能直接用 relay 给的 basename）；session 用
-     `herdr agent list` 的 `name`（`hp-<slug>-t-N` / `hpc-<slug>`），缺失才
-     退回 harness 名（claude/codex/…）。
-  2. **正文走 transcript，不转终端画面**：`/read`、`/reply` 选 pane 后的预览、
-     pane 卡片正文，全部经 relay 的 `get_history` WS（`relay/transcript.py`
-     解析 Claude/Codex/Pi/Kimi JSONL，去 sidechain / thinking / ANSI / tool
-     turn）取结构化对话，再由 fork 内的 **Markdown→
-     Telegram HTML 渲染器**（`md_to_html`，stdlib re，无新依赖）排版：bold /
-     italic / 删除线 / inline code / 链接 / 列表 / 标题 / blockquote / 代码块
-     （`<pre><code class="language-…">`）映射到 Telegram HTML 子集，标签始终
-     配平；长度按 UTF-16 code unit 计（每 turn 2600、整条 3700，Telegram 上限
-     4096），超长按整 block/turn 丢弃保尾，单个畸形巨块降级成 `<pre>` 纯文本
-     尾段。**Telegram 没有 Markdown 表格**，表格由 `_render_table` 展平成
-     「每行：首格 + `表头: 值` 度量行（`｜` 分隔）」，CJK 不需要等宽对齐、
-     手机上可读；代码 span 先 stash 再替换其他标记，`**kwargs`、`snake_case`、
-     `__dunder__` 不会被误格式化。最近 6 轮，角色行 `<b>you/agent/note</b>`。
-     raw pane capture 只在 transcript 不可用（unknown pane / 超时 / 空）时
-     作为兜底，套斜体说明前缀 + `<pre>` 逃逸——这样 TUI 装饰
-     （`Update available!`、spinner、输入框、权限 footer）永远不会被转发到
-     Telegram。`/read` 视图、reply 预览、pane 卡片正文全部
-     `parse_mode="HTML"`；blocked 审批提示仍用旧 Markdown（内容是原始 prompt
-     文本，不是对话）。
-  3. **（pf.2，pf.14 改为 token 权威）人类受众过滤**：herdr-projects 主机上
-     几十个 pane 多数是 thread worker，bot 只面向人。**pf.14 起判定权威来源是
-     relay 从 `herdr agent list` 转发的 tokens**（`hp_role` / `hp_project` /
-     `hp_audience` / `hp_group`，与 radar/sidebar 同源）：只显示
-     `hp_role ∈ {coordinator, session}`，`thread/guest/other` 一律过滤——精确
-     镜像侧边栏默认 agents view 的 `not(in hp_role [guest,other])` 再加 thread
-     排除；项目分组也以 `hp_project` 注册 slug 为准，不再用 cwd basename 猜
-     （修掉了 `/project` 里凭空出现的 "workspace" 项目：一个 cwd 在
-     `~/Documents/workspace` 的 `hp_role=other` pane）。无 tokens 的旧 server /
-     纯远端才回退 pf.2 的名字/cwd 启发式：`hpc-<slug>` coordinator → 人；
-     `hp-<slug>-t-N` thread 名、cwd 落在 `…/<slug>/threads/t-N` 或 worktree
-     `…/worktrees/hp-<slug>-t-N-…`、bare `t-NNNN` project → 过滤；仍无标记
-     fail-open（普通 session 不因缺标记消失）。
-     快照、通知、`/agents`、blocked 按钮全部走同一过滤；`hp_audience=stalled`
-     的卡住 thread 仍算人（token 与启发式两条路径都保留该例外）。上游 poll 的
-     stray `update:true`（没有已投递卡片时）直接忽略，不发幽灵卡。
-  4. **（pf.2）单条 live dashboard + 每 pane 卡片复用**：每个被阻塞的 human
-     pane 第一次 block 才发卡，之后 blocked→working→idle/done 全程
-     `editMessage` 同一条消息（恢复行 → ✅ 一行完成摘要 + Read/Reply 按钮），
-     **完成不再主动推全文、不响铃**，全文只通过卡片上的 Read（或 dashboard
-     的 Read 按钮）按需取。另有一条按 project 分组的 dashboard 消息
-     （working/blocked/idle 计数、阻塞 pane 的 Read 按钮、📋 All panes 分页），
-     1s tick 合并编辑、内容签名去重（时钟变化不触发 edit）、断线不主动发，
-     `/start` 原地强制刷新单例；dashboard 消息被用户删掉后自动
-     重发，完成行 TTL 30min。**pf.11 起手动 `/dashboard`（及 📊 bar 键）
-     语义改为「换新」**：自动快照刷新始终只静默原地 edit，而手动命令先
-     best-effort 删除旧单例、再在聊天底部重发一条（删除失败不阻断，旧条
-     冻结、后续 edit 只跟踪新条），方便用户找到并置顶；命令本身不另发
-     回执，新 dashboard 就是聊天里最后一条。pane→message id 等状态持久化在
-     `HERDR_TG_STATE`（默认 `~/.config/herdr-remote/telegram-state.json`，
-     0600、原子写、只存 id/时间戳不存内容与密钥），重启不重复发卡。
-  5. **（pf.3）sticky focus + 常驻底部 session bar + /switch 选择器 + 发送回执**：
-     私聊里维护**一个 sticky focus pane**（`active_pane` + MRU 最近 8 个，
-     均持久化进 state 文件），之后直接打字就发往该 pane，不再需要 reply
-     卡片；reply 某张卡片、点审批按钮、从选择器挑中都会顺带重设 focus。
-     Telegram 的 ReplyKeyboard（输入框上方、独立于任何消息存在）是唯一能
-     常驻的控件，做成持久底部 bar：🎯 当前 pane、🔄 最多 3 个最近 pane、
-     以及「📋 切换 session / 📊 Dashboard / ✖ 取消聚焦」静态键；bar 靠
-     发一条不可见占位消息（实测 Bot API 只接受 U+2060 WORD JOINER，
-     U+200B/U+2800/U+1160/U+3164/nbsp/ZWNJ 单独成消息都被判空拒绝）再立刻
-     删除来静默换键盘（键盘随消息保留），按内容签名 + 1s 节流，快照抖动
-     不会刷屏，输入框 placeholder 显示当前目标的完整 identity。重名 `project › session` 自动补 pane id 后缀；死亡 pane
-     与 thread worker 永不上 bar。`/switch [query]`（别名 `/find`）弹出按
-     project 相邻排序的内联选择器（all/blocked/working/idle 过滤、搜索、分页、
-     callback data ≤64 字节），`/unfocus` 清空目标；没有 focus（或 focus
-     已死亡）时打字会**弹选择器而不是被静默吞掉**。每次私聊发送后回一条
-     identity 回执（`✅ 已发送 → project > pane > session · HH:MM`，带
-     Read / 🔀 切换按钮）；群聊保持旧契约（只有 reply 才发送、回 `"Sent"`、
-     不弹 bar）。
-  6. **（pf.4/pf.5/pf.8）/switch 按钮：两行式 + coord 缩写 + 手机显示宽度预算**：
-     注册名 `hpc-<slug>[-N]`（含 names.rs 的 24/22 截断）缩写成
-     `coord`/`coord-N`（底部 bar 的 `project › session` 标签同规则）。
-     **宽度按显示 cell（CJK/emoji=2）而非 UTF-16 code unit 计**——u16 预算
-     会让 CJK 标题按两倍按钮宽度渲染（pf.4 实测只剩一个汉字）；每行上限
-     `SWITCH_LABEL_CELLS=40`（实测 iPhone inline button 单行容量），预算是
-     **按行**计（Telegram 自己截溢出的每一行）。pf.4/pf.5 曾用单行
-     `glyph project›title (pane_id)·session@host`、每页每 project 只给第一个
-     pane 打 project 标签，但固定尾部（pane id+session）吃掉近半行后 title
-     只剩 ~11 cell，真正用于分辨的中段全被截掉（截图实证 `DeepSeek……`），
-     且 herdr 自带省略号标题与本地截断叠成 `……`。**pf.8 起每个按钮两行**：
-     第 1 行 `glyph <title>`（标题独占整行，无 title 才放 project）；第 2 行
-     `<project> › <pane_id> · <session>[ @host]`，project 是唯一可缩部分
-     （先截短、剩不足 4 cell 就整段丢掉），pane id/session 尾部永不被截；
-     title-less pane 第 2 行省略 project 不重复打印。**pf.12** 把同一两行式
-     应用到 dashboard「📋 All panes」以及 read/trust 等菜单的
-     `build_agent_keyboard`（此前它还是无标题的旧单行 `[STATUS] project
-     (agent) [pane]`，同项目多个手开 session 完全分不清），并让超长 pane
-     id 改走 `_pane_id_label` **中部省略、保留区分度所在的尾部**
-     （`…-2606`/`…-3604`；头部截断会让重复长 id 渲染成同一个）。
-     `_cell_truncate` 对源串
-     尾部已有的 `…` 去重，杜绝双省略号。不能改成 Markdown 超链接按钮：
-     URL 按钮只能带 URL、带不了 switch 所需的 callback_data，交互选择必须
-     保留 callback button。过滤键两字中文、不带 emoji：
-     `全部 / 待办 / 运行 / 空闲`（emoji+三字实测截成 `O…理`）。
-  7. **（pf.6/pf.7，pf.18 修订打开手势）选 session 必带对话预览 + pane 锚点头**：从 `/switch` 行或
-     底部 bar 的 🔄 recent 键选定 pane 后，不只发"已聚焦"一行，而是复用 📖 Read
-     的视图（`show_pane_view`/`read_views` 每 pane 只追踪一条）：
-     `🎯 头 · 已聚焦` + `get_history` 渲染的最近对话（无 transcript 才回退终端
-     画面）+ 聚焦 footer。**pf.18 起「打开」与「刷新」分开**：显式打开（选择器点选、
-     🔄 recent、卡片 Read 按钮）一律在聊天底部**新发一条**并重新追踪——旧版任何打开都
-     原地 edit，该 pane 旧预览被埋在历史里时点击看起来像按钮失灵（2026-11 实测「卡死」）；
-     只有 bar 的 🎯 当前 pane 键（打开同一预览、不改聚焦）和 `/read` 保留原地刷新
-     （reuse=True，消息没了仍回退新发）。pf.3 引入 sticky focus 时把预览丢成了纯 one-liner，
-     pf.6 补回；不再发 ForceReply（输入框提示由常驻 ReplyKeyboard 的 placeholder
-     承担）。**pf.7 把头从三段 `project > pane > session` 改成 pane 锚定的
-     `<title> (<pane_id>) · <short session>`**：实测一群 pane 多数同 project
-     （曾同时 6 个 lagrange-system coordinator），slug 几乎无区分度，`hpc-<slug>`
-     又重复一遍 slug；pane title 才是 1:1 的对话主题，pane id 是 title 变化时的
-     稳定键，short session（coord/coord-N/claude/codex）留作运行时小尾巴。project
-     只在 title 缺失（唯一可读线索）时保留。blocked/finished 通知卡仍用完整三段
-     `agent_identity`。
-  8. **（pf.10）命令菜单 + 底部栏两个新入口 + /agents 分页**：`post_init` 对
-     授权私聊 `set_my_commands`（输入 `/` 即见中文命令提示，注册失败只告警不
-     阻启动；手动 app.start 生命周期不跑 builder 的 post_init，main 里显式
-     再调一次）。常驻 ReplyKeyboard 新增独立一行 **`🚫 待办`**（等价 Portal
-     待办列：直接弹 blocked 过滤的 /switch 选择器，选中走同一 focus + pf.6
-     预览；无 blocked 人类 pane 时回「当前没有待办。」）与 **`📁 项目`**
-     两级下钻（第一级只列含 ≥1 人类 pane 的 project，按 blocked 数排序、
-     按钮带 `🚫n ▶️n` 计数；第二级该 project 的人类 session，复用 pf.8
-     两行按钮与分页，带「‹ 返回项目列表」；选中走 focus + 预览。slug 走
-     64 字节 callback_data，超长改 12 字符 hash token、点击时按实时快照
-     重解析，过期 slug 重弹新列表）。**pf.15 起项目行按 `(host, slug)` 机器
-     命名空间分组**：同名 project 同时跑在本机与 boe-fyq 时是两个按钮
-     （远端渲染 `📁 slug @host`，callback 带 `h`，hash token 按 host+slug
-     分别计算），第二级只列该机器的 session——镜像 sidebar 的机器命名空间
-     分组与 Portal 的 `[machine]` 卡，避免远端项目被本机同名项吞掉。
-     **pf.16 把 `@host` 机器标记铺到所有跨机界面**：统一 `_host_suffix()`
-     一处出标记——`agent_identity`（通知头、`/agents`、发送回执、bar
-     placeholder）、focus 预览头、底部 bar 的 `project › session`、
-     dashboard 的 blocked 按钮；dashboard 分组也改 `(host, slug)`、渲染
-     `project @host` 段头（/switch 行尾与 pane 描述原本已带 @host）。
-     双机撞同一 pane id 时 pane token 解析 fail-closed（不动作），不会
-     跨机误操作。
-     **pf.17 让自由文本能回答 Claude Code 单选问题菜单**：菜单以
-     `N. Type something.`（omp 叫 `Other (type your own)`）自定义回答行收尾，
-     relay 必须同时检出该行与不可变菜单 footer（`…to navigate…`）才认定为
-     真菜单——agent 自己输出里的 1./2./3. markdown 列表（2026-10 实测
-     refusal：文档五步列表被检出 5 个编号项）没有 footer，仍然拒绝，绝不
-     往无关程序发方向键。投递方式：读当前光标行，发方向键走到自定义行、
-     Enter 打开内联输入框、轮询到 `ctrl+g to edit in` footer 出现后 send-text
-     正文再 Enter（数字快捷键在单选菜单上只会直接选中该选项，不能输入）。
-     输入框已开时走原有纯 text 路由直接打字。bot 侧 `handle_text` 只在快照
-     `status == blocked` 时才用缓存 prompt_id 走 `respond`；问题已消失但
-     `blocked_prompt_ids` 残留（快照滞后）时，新指令改走 `agent prompt`，
-     不再被 relay 的 "no question detected" 门吞掉。
-     **所有计数/列表仍只含人类 pane，
-     thread worker 不出现也不计数。** `/agents` 不再单条 4096 字符硬截断：
-     按段分文本页 + inline 翻页器（新页重发段标题），每一行也有兜底截断。
+  （label `org.nix-community.home.herdr-telegram`），作为 loopback relay 的纯
+  WebSocket 客户端 long-poll `api.telegram.org`，提供
+  `/read /reply /send /switch /interrupt /trust /agents /project /dashboard`
+  等遥控命令。移除原因：**公司出口封 `api.telegram.org`**——boe-fyq 的代理对
+  该域返回 504，同一个代理下 `google.com`、`github.com` 均 200；ovis 自带的
+  Telegram 告警 webhook 又是**单向**的（只 `sendMessage`，从不读回），无法承载
+  上面那套双向遥控。让通知走 ovis、遥控留在 herdr-remote 等于长期维护两条
+  通道，故整条通知+遥控线一并放弃。fork 里 `relay/herdr_telegram.py` 及其
+  pf.8–pf.22 补丁仍在（tag 不变），只是不再有任何东西启动它；
+  `~/.config/herdr-remote/secrets.env` 里的 `HERDR_TG_TOKEN` /
+  `HERDR_TG_CHAT_ID` 保留未删，便于将来恢复。**relay 本身不受影响**
+  （`launchd.user.agents.herdrRemote` 仍在跑，web 前端、Herdi.app、手机端
+  照旧）。恢复方法：把上面那个 launchd agent 加回本文件，重启 switch。
+  注意 `tests/darwin_herdr_config_test.sh` 现在断言该 agent **不存在**。
 - **Herdi.app**：菜单栏客户端，上游只发 GitHub DMG、无 brew cask，故以 tracked
   `config/homebrew/Casks/herdi.rb` 走本地 tap（preActivation `install` 进 local
   tap，cask 清单写 `dot-nix/local/herdi`；停用的 aerospace-patched cask 曾用同一

@@ -174,25 +174,24 @@ assert_contains "nix-darwin/herdr-remote.nix" ".config/herdr-remote/config.env"
 assert_contains "nix-darwin/herdr-remote.nix" "Library/Logs/herdr-remote"
 # The relay restarts unconditionally: its graceful SIGTERM handler exits 0,
 # and SuccessfulExit=false then parked the job after every kickstart -k/bootout
-# (30h "Relay disconnected" outage, 2026-10-30). The telegram job keeps the
-# SuccessfulExit=false gate because exit 0 there means "no token, stay dormant".
+# (30h "Relay disconnected" outage, 2026-10-30). It is the only herdr-remote
+# agent left, now that the Telegram job is gone.
 assert_contains "nix-darwin/herdr-remote.nix" "KeepAlive = true;"
-assert_contains "nix-darwin/herdr-remote.nix" "KeepAlive = { SuccessfulExit = false; };"
+assert_not_contains "nix-darwin/herdr-remote.nix" "SuccessfulExit = false"
 
-# herdr-remote Telegram bot: second launchd user agent running relay/herdr_telegram.py
-# as a WebSocket client of the loopback relay. Credentials come from machine-local
-# secrets.env (never the repo); without HERDR_TG_TOKEN the wrapper exits 0 (dormant),
-# so KeepAlive must not retry-loop. It needs only outbound HTTPS (long polling).
-assert_contains "nix-darwin/herdr-remote.nix" "launchd.user.agents.herdrTelegram"
-assert_contains "nix-darwin/herdr-remote.nix" "org.nix-community.home.herdr-telegram"
-assert_contains "nix-darwin/herdr-remote.nix" "herdr_telegram.py"
-assert_contains "nix-darwin/herdr-remote.nix" "secrets.env"
-assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_TOKEN"
-assert_contains "nix-darwin/herdr-remote.nix" "HERDR_TG_CHAT_ID"
-assert_contains "nix-darwin/herdr-remote.nix" "ws://127.0.0.1:8375"
-assert_contains "nix-darwin/herdr-remote.nix" "staying dormant"
+# herdr-remote Telegram bot: REMOVED 2026-11-16. The company egress refuses
+# api.telegram.org (boe-fyq's proxy answers 504 for it while letting google.com
+# and github.com through), so the bot could not run on both hosts, and Ovis' own
+# one-way Telegram alert webhook cannot carry its /read, /reply, /switch or
+# /interrupt. The fork still carries relay/herdr_telegram.py and its pf patches;
+# only the launchd agent here is gone. The relay itself stays.
+assert_not_contains "nix-darwin/herdr-remote.nix" "launchd.user.agents.herdrTelegram"
+assert_not_contains "nix-darwin/herdr-remote.nix" "org.nix-community.home.herdr-telegram"
+assert_contains "nix-darwin/herdr-remote.nix" "launchd.user.agents.herdrRemote"
 
-# The telegram bot's out-of-tree behavior (1. blocked/done headers identify a
+# History of the fork's Telegram bot patches, kept for the record even though the
+# bot is no longer started (see the removal note above); the code still lives in
+# the pinned fork tag. Original scope: 1. blocked/done headers identify a
 # pane as "project > pane(title+pane id) > session"; 2. /read, /reply and the
 # finished card come from the agent transcript via get_history instead of a
 # raw pane capture, so TUI chrome never reaches telegram; 3. transcript markdown

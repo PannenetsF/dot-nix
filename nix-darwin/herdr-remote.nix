@@ -2,9 +2,12 @@
 let
   # Python relay for herdr-remote (https://github.com/dcolinmorgan/herdr-remote):
   # accepts the herdr-push plugin's status events on 127.0.0.1:8375 and serves
-  # the Herdi menu-bar app / phone / Telegram clients. Pinned with
+  # the Herdi menu-bar app / phone / web clients. Pinned with
   # fetchFromGitHub and run through `uv run --script` (PEP 723 inline deps);
   # the herdr-push plugin itself is installed by install-herdr-plugins.sh.
+  # The Telegram bot client is no longer run (see the note further down):
+  # the fork still carries relay/herdr_telegram.py and the pf.8-pf.22 patches
+  # to it, they are simply unstarted.
   # Upstream dcolinmorgan/herdr-remote v0.8.1 plus the nix-hm telegram patch
   # set (identity headers, transcript-based reads, markdown -> Telegram HTML,
   # human-audience filter, live dashboard, reusable pane cards, sticky focus
@@ -100,74 +103,36 @@ let
       --script "${relaySrc}/herdr_relay.py"
   '';
 
-  # Telegram bot client for the relay (relay/herdr_telegram.py, v0.8.1). It is
-  # a pure WebSocket *client* of the loopback relay: long-polling api.telegram.org
-  # for commands and pushing blocked/done notifications, so the Mac needs only
-  # outbound HTTPS -- no public IP, port forward, or Cloudflare tunnel. Credentials
-  # live machine-locally in ~/.config/herdr-remote/secrets.env (0600, never in
-  # the repo): HERDR_TG_TOKEN (BotFather) and HERDR_TG_CHAT_ID (the whitelisted
-  # chat; bot ignores everyone else). config.env may additionally set HERDR_RELAY
-  # (default ws://127.0.0.1:8375), HERDR_RELAY_TOKEN, or HTTPS_PROXY for networks
-  # that cannot reach Telegram directly.
-  startHerdrTelegram = pkgs.writeShellScript "start-herdr-telegram" ''
-    set -euo pipefail
-
-    config_dir="$HOME/.config/herdr-remote"
-    # set -a: sourced assignments (HERDR_TG_TOKEN, HERDR_TG_CHAT_ID, optional
-    # HTTPS_PROXY/HERDR_RELAY overrides) must be exported, or the uv/python
-    # child starts with an empty token and exits immediately.
-    set -a
-    [ -f "$config_dir/config.env" ] && . "$config_dir/config.env"
-    [ -f "$config_dir/secrets.env" ] && . "$config_dir/secrets.env"
-    set +a
-
-    # Dormant until the user opts in: exit 0 so KeepAlive (SuccessfulExit=false)
-    # does not retry-loop on machines without a bot configured.
-    if [ -z "''${HERDR_TG_TOKEN:-}" ]; then
-      echo "herdr-telegram: HERDR_TG_TOKEN missing in $config_dir/secrets.env, staying dormant" >&2
-      exit 0
-    fi
-
-    export HERDR_RELAY="''${HERDR_RELAY:-ws://127.0.0.1:8375}"
-    if [ -n "''${HERDR_RELAY_TOKEN:-}" ] && [[ "$HERDR_RELAY" != *"token="* ]]; then
-      export HERDR_RELAY="$HERDR_RELAY?token=$HERDR_RELAY_TOKEN"
-    fi
-
-    export PATH="${pkgs.uv}/bin:${pkgs.python3}/bin:/usr/bin:/bin"
-    exec uv run --python "${pkgs.python3}/bin/python3" \
-      --script "${relaySrc}/herdr_telegram.py"
-  '';
+  # The Telegram bot client was removed on 2026-11-16. It was a WebSocket client
+  # of the loopback relay, long-polling api.telegram.org. The company egress
+  # refuses that domain (boe-fyq's proxy answers 504 for api.telegram.org while
+  # letting google.com and github.com through), and Ovis' own one-way Telegram
+  # alert webhook cannot carry the bot's /read, /reply, /switch or /interrupt, so
+  # the whole notification-and-control line was dropped rather than split across
+  # two transports. relay/herdr_telegram.py stays in the fork checkout; nothing
+  # here starts it. To bring it back, restore this agent and re-add the
+  # credentials to ~/.config/herdr-remote/secrets.env.
 in {
   system.activationScripts.herdrRemote.text = lib.mkAfter ''
     echo >&2 "herdr-remote relay..."
     install -d -o ${username} -g staff "${homeDir}/.config/herdr-remote"
     install -d -o ${username} -g staff "${homeDir}/Library/Logs/herdr-remote"
     launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.herdr-remote" 2>/dev/null || true
-    launchctl kickstart -k "gui/$(id -u ${username})/org.nix-community.home.herdr-telegram" 2>/dev/null || true
   '';
 
   launchd.user.agents.herdrRemote.serviceConfig = {
     Label = "org.nix-community.home.herdr-remote";
     Program = "${startHerdrRelay}";
-    # Unconditional restart: unlike the telegram job below, the relay has no
-    # dormant state. Its SIGINT/SIGTERM handlers shut down gracefully with
-    # exit code 0, so `SuccessfulExit = false` parked the job forever after
-    # ANY SIGTERM -- a `kickstart -k` from a mid-switch (even one that later
-    # fails before the activation kickstart), bootout, or a manual kill --
-    # and every client then sat on "Relay disconnected" until the next
-    # successful darwin switch (measured: 30h outage, 2026-10-30).
+    # Unconditional restart: the relay has no dormant state. Its SIGINT/SIGTERM
+    # handlers shut down gracefully with exit code 0, so a cleaner that treats a
+    # successful exit as final parked the job forever after ANY SIGTERM -- a
+    # `kickstart -k` from a mid-switch (even one that later fails before the
+    # activation kickstart), bootout, or a manual kill -- and every client then
+    # sat on "Relay disconnected" until the next successful darwin switch
+    # (measured: 30h outage, 2026-10-30).
     KeepAlive = true;
     RunAtLoad = true;
     StandardOutPath = "${homeDir}/Library/Logs/herdr-remote/launchd.out.log";
     StandardErrorPath = "${homeDir}/Library/Logs/herdr-remote/launchd.err.log";
-  };
-
-  launchd.user.agents.herdrTelegram.serviceConfig = {
-    Label = "org.nix-community.home.herdr-telegram";
-    Program = "${startHerdrTelegram}";
-    KeepAlive = { SuccessfulExit = false; };
-    RunAtLoad = true;
-    StandardOutPath = "${homeDir}/Library/Logs/herdr-remote/telegram.out.log";
-    StandardErrorPath = "${homeDir}/Library/Logs/herdr-remote/telegram.err.log";
   };
 }
