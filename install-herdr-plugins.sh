@@ -15,7 +15,7 @@
 #                        install locations. Plugin work is skipped when absent.
 #   HERDR_CONFIG_DIR     Default: $HOME/.config/herdr.
 #   HERDR_PROJECTS_BIN   Default: $HOME/.local/bin/herdr-projects.
-#   HERDR_ROADBOARD_SRC  Default: $HOME/Documents/workspace/roadboard.
+#   HERDR_ROADBOARD_BIN  Default: $HOME/.local/bin/roadboard.
 #   HERDR_AGENT_INTEGRATIONS
 #                        Space-separated list of built-in agent integrations
 #                        (e.g. "claude codex") ensured on every activation via
@@ -38,7 +38,7 @@ set -euo pipefail
 
 config_dir="${HERDR_CONFIG_DIR:-$HOME/.config/herdr}"
 hp_bin="${HERDR_PROJECTS_BIN:-$HOME/.local/bin/herdr-projects}"
-roadboard_src="${HERDR_ROADBOARD_SRC:-$HOME/Documents/workspace/roadboard}"
+rb_bin="${HERDR_ROADBOARD_BIN:-$HOME/.local/bin/roadboard}"
 
 if [ -n "${HERDR_CLI:-}" ] && [ -x "$HERDR_CLI" ]; then
   herdr_cli="$HERDR_CLI"
@@ -209,6 +209,140 @@ if paths:
   if ! mv -f "$tmp" "$link"; then
     rm -f "$tmp"
     echo >&2 "herdr-projects: could not replace $link"
+    return 1
+  fi
+  printf '%s\n' "$binary"
+}
+
+# Point $rb_bin at the binary of the ACTIVE PannenetsF/roadboard install (from
+# `herdr plugin list --json`, with filesystem scan fallback), then print that
+# binary's absolute path. Same safety model as refresh_projects_command: only a
+# missing entry, a dangling link, a link inside Herdr's plugin tree, or (during
+# local-to-remote migration) a link inside the just-unlinked local checkout $1
+# is replaced atomically. Regular files and unrelated foreign links are left
+# untouched while still printing the active binary path.
+refresh_roadboard_command() {
+  local migrated_local="${1:-}"
+  local link="$rb_bin"
+  local plugins_root="$config_dir/plugins"
+  local root="" binary="" bin_abs="" current="" tmp="" owned
+  local plugins_abs="" migrated_abs=""
+  local -a candidates=()
+  local cand resolved
+
+  root="$("$herdr_cli" plugin list --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+plugins = []
+if isinstance(data, dict):
+    result = data.get("result")
+    if isinstance(result, dict) and isinstance(result.get("plugins"), list):
+        plugins = result["plugins"]
+    elif isinstance(data.get("plugins"), list):
+        plugins = data["plugins"]
+for plugin in plugins:
+    if not isinstance(plugin, dict) or plugin.get("plugin_id") != "roadboard":
+        continue
+    source = plugin.get("source") or {}
+    if source.get("owner") != "PannenetsF" or source.get("repo") != "roadboard":
+        continue
+    root = plugin.get("plugin_root") or source.get("managed_path")
+    if root:
+        print(root)
+        break
+' 2>/dev/null || true)"
+
+  if [ -n "$root" ]; then
+    binary="$root/target/release/roadboard"
+  elif [ -d "$plugins_root" ]; then
+    for cand in \
+      "$plugins_root"/github-installations/roadboard-*/*/checkout/target/release/roadboard \
+      "$plugins_root"/github/roadboard-*/target/release/roadboard; do
+      [ -x "$cand" ] && candidates+=("$cand")
+    done
+    case "${#candidates[@]}" in
+      0) binary="" ;;
+      1) binary="${candidates[0]}" ;;
+      *)
+        if [ -L "$link" ]; then
+          resolved="$(hp_realpath "$link")"
+          for cand in "${candidates[@]}"; do
+            if [ "$resolved" = "$(hp_realpath "$cand")" ]; then
+              binary="$cand"
+              break
+            fi
+          done
+        fi
+        if [ -z "$binary" ]; then
+          binary="$(printf '%s\0' "${candidates[@]}" | python3 -c '
+import os, sys
+paths = [p for p in sys.stdin.buffer.read().decode().split("\0") if p]
+if paths:
+    print(max(paths, key=lambda p: os.path.getmtime(p)))')"
+        fi
+        ;;
+    esac
+  fi
+
+  if [ -z "$binary" ] || [ ! -x "$binary" ]; then
+    return 1
+  fi
+  bin_abs="$(hp_realpath "$binary")"
+
+  if [ -L "$link" ]; then
+    current="$(hp_realpath "$link")"
+    if [ "$current" = "$bin_abs" ]; then
+      printf '%s\n' "$binary"
+      return 0
+    fi
+    plugins_abs="$(hp_realpath "$plugins_root")"
+    if [ -n "$migrated_local" ]; then
+      migrated_abs="$(hp_realpath "$migrated_local")"
+    fi
+    if [ ! -e "$link" ]; then
+      echo >&2 "roadboard: replacing dangling link $link -> $(readlink "$link")"
+    else
+      owned=0
+      case "$current/" in
+        "$plugins_abs"/*) owned=1 ;;
+      esac
+      if [ "$owned" = 0 ] && [ -n "$migrated_abs" ]; then
+        case "$current/" in
+          "$migrated_abs"/*) owned=1 ;;
+        esac
+      fi
+      if [ "$owned" = 1 ]; then
+        echo >&2 "roadboard: relinking $link (was $current) -> $binary"
+      else
+        echo >&2 "roadboard: leaving foreign link $link -> $(readlink "$link") untouched"
+        printf '%s\n' "$binary"
+        return 0
+      fi
+    fi
+  elif [ -e "$link" ]; then
+    echo >&2 "roadboard: $link is a regular file, not a link; leaving it untouched"
+    printf '%s\n' "$binary"
+    return 0
+  else
+    echo >&2 "roadboard: linking $link -> $binary"
+  fi
+
+  if ! mkdir -p "$(dirname "$link")"; then
+    echo >&2 "roadboard: cannot create $(dirname "$link")"
+    return 1
+  fi
+  tmp="$(dirname "$link")/.roadboard.$$"
+  if ! ln -s "$binary" "$tmp"; then
+    rm -f "$tmp"
+    echo >&2 "roadboard: could not create temp link $tmp"
+    return 1
+  fi
+  if ! mv -f "$tmp" "$link"; then
+    rm -f "$tmp"
+    echo >&2 "roadboard: could not replace $link"
     return 1
   fi
   printf '%s\n' "$binary"
@@ -509,24 +643,79 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
       "$herdr_cli" plugin action invoke configure \
         --plugin herdr-projects >/dev/null 2>&1 || true
     fi
+
+    # roadboard: 7-state Obsidian roadmap tree (Rust plugin, min herdr 0.9.5).
+    # Pinned remote fork (replaces the old local-checkout `plugin link`).
+    # Its manifest [[build]] runs `sh scripts/install.sh` (which adds
+    # $HOME/.cargo/bin to PATH and builds target/release/roadboard), and
+    # [[startup]] runs `target/release/roadboard daemon kick`. We also refresh
+    # ~/.local/bin/roadboard here because Herdr 0.9.5 installs into
+    # plugins/github-installations/<id>/<gen>/checkout (which roadboard's
+    # link-command.sh does not rewrite) and restart the daemon on install/upgrade
+    # so the live WS/Unix server immediately runs the new binary.
+    roadboard_local_root=""
+    roadboard_list_line="$("$herdr_cli" plugin list 2>/dev/null | grep -m1 '^- roadboard .*\[local:' || true)"
+    if [ -n "$roadboard_list_line" ]; then
+      roadboard_local_root="${roadboard_list_line#*\[local:}"
+      roadboard_local_root="${roadboard_local_root%%\]*}"
+      "$herdr_cli" plugin unlink roadboard >/dev/null 2>&1 || true
+    fi
+    roadboard_installed=0
+    if ! "$herdr_cli" plugin list 2>/dev/null \
+        | grep -q '^- roadboard .*\[github:PannenetsF/roadboard@v0\.1\.0-pf\.1\]'; then
+      if "$herdr_cli" plugin install -y --ref v0.1.0-pf.1 \
+          PannenetsF/roadboard; then
+        roadboard_installed=1
+      fi
+    fi
+    roadboard_bin=""
+    if roadboard_bin="$(refresh_roadboard_command "$roadboard_local_root")"; then
+      if [ "$roadboard_installed" = 1 ]; then
+        "$roadboard_bin" daemon stop >/dev/null 2>&1 || true
+      fi
+      "$roadboard_bin" daemon kick >/dev/null 2>&1 || true
+    fi
   else
-    echo >&2 "herdr server is older than 0.9.5; restart herdr to install herdr-projects pf.17"
+    echo >&2 "herdr server is older than 0.9.5; restart herdr to install herdr-projects pf.17 and roadboard"
   fi
 
-  # herdr-web-ui: browser/PWA client over the herdr socket API (workspaces,
-  # tabs, panes, chat and live terminal at http://127.0.0.1:7317). Bun plugin
-  # whose build hook needs bun >= 1.4 and node >= 18 on PATH (both in the host
-  # package set); it defaults to loopback only. Its startup hook brings the
-  # bridge up when the herdr server starts — invoke its start action here as
-  # well so a freshly installed plugin works without a herdr restart (same
-  # rationale as radar's state-start).
+  # ovis (devswha.ovis, successor to devswha.herdr-web-ui): browser/PWA client
+  # over the herdr socket API (workspaces, tabs, panes, chat and live terminal
+  # at http://127.0.0.1:7317). Bun plugin whose build hook needs bun >= 1.4 and
+  # node >= 18 on PATH (both in the host package set); it defaults to loopback
+  # only. Migrate away from legacy devswha.herdr-web-ui and any local-checkout
+  # link first. OVIS_FROM_SOURCE=1 is required because upstream
+  # scripts/plugin-launch.ts otherwise looks up signed upstream devswha/ovis
+  # release binaries instead of building our fork's source. Its startup hook
+  # brings the bridge up when the herdr server starts — invoke its start action
+  # here as well so a freshly installed plugin works without a herdr restart
+  # (same rationale as radar's state-start).
+  if "$herdr_cli" plugin list 2>/dev/null | grep -q '^- devswha\.herdr-web-ui '; then
+    "$herdr_cli" plugin action invoke stop \
+      --plugin devswha.herdr-web-ui >/dev/null 2>&1 || true
+    "$herdr_cli" plugin uninstall devswha.herdr-web-ui >/dev/null 2>&1 || true
+  fi
+  if "$herdr_cli" plugin list 2>/dev/null | grep -q '^- devswha\.ovis .*\[local:'; then
+    "$herdr_cli" plugin unlink devswha.ovis >/dev/null 2>&1 || true
+  fi
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q "devswha.herdr-web-ui.*@v0.4.11"; then
-    "$herdr_cli" plugin install -y --ref v0.4.11 \
-      devswha/herdr-web-ui || true
+      | grep -q '^- devswha\.ovis .*\[github:PannenetsF/ovis@pf/0\.5\.9-2\]'; then
+    if OVIS_FROM_SOURCE=1 "$herdr_cli" plugin install -y --ref pf/0.5.9-2 \
+        PannenetsF/ovis; then
+      # Restart any bridge still running from an old local link or earlier ref:
+      # Ovis's `start` is a no-op while an older server still answers on :7317.
+      # `action invoke stop` returns asynchronously, so allow a brief settle
+      # before `start` runs. Only stop after install succeeds so a transient
+      # install failure leaves an existing bridge alive; idempotent runs skip.
+      "$herdr_cli" plugin action invoke stop \
+        --plugin devswha.ovis >/dev/null 2>&1 || true
+      if [ "${HERDR_OVIS_RESTART_DELAY:-2}" != 0 ]; then
+        sleep "${HERDR_OVIS_RESTART_DELAY:-2}"
+      fi
+    fi
   fi
   "$herdr_cli" plugin action invoke start \
-    --plugin devswha.herdr-web-ui >/dev/null 2>&1 || true
+    --plugin devswha.ovis >/dev/null 2>&1 || true
 
   # herdr-portal: global read-mostly agent board. Pure-stdlib Python curses
   # TUI opened on demand as an overlay pane (prefix+shift+o), plus a stdlib
@@ -595,15 +784,6 @@ else
     echo >&2 "herdr server version unavailable (is herdr running?); skipping plugin install/configure this run"
   else
     echo >&2 "herdr server is older than 0.9.0; restart herdr to install pinned plugins"
-  fi
-fi
-
-# roadboard: local development plugin (7-state Obsidian roadmap tree). Linked
-# from a local checkout, not a remote GitHub pin; only ensure the link exists
-# when the repo is present, and never fail activation on it.
-if [ -d "$roadboard_src" ] && [ -f "$roadboard_src/herdr-plugin.toml" ]; then
-  if ! "$herdr_cli" plugin list 2>/dev/null | grep -q '"plugin_id":"roadboard"'; then
-    "$herdr_cli" plugin link "$roadboard_src" >/dev/null 2>&1 || true
   fi
 fi
 

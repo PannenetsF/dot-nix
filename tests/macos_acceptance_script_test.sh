@@ -44,14 +44,15 @@ assert_contains ".config/kitty/kitty.conf" "expected kitty config check"
 assert_contains ".config/kitty/theme.conf" "expected kitty theme check"
 assert_contains "org.nix-community.home.skhd" "expected skhd LaunchAgent check"
 
-# herdr-remote relay + web-ui: launchd agent, loopback HTTP services, pinned
+# herdr-remote relay + ovis: launchd agent, loopback HTTP services, pinned
 # plugins and the Herdi cask must all be acceptance-checked.
 assert_contains '"Herdi"' "expected Herdi app check"
 assert_contains "org.nix-community.home.herdr-remote" "expected herdr-remote relay LaunchAgent check"
 assert_contains 'http://127.0.0.1:8375/' "expected herdr-remote relay HTTP check"
 assert_contains 'check_relay_http_200 "http://127.0.0.1:8375/"' "expected relay check to send the machine-local token"
-assert_contains 'http://127.0.0.1:7317/' "expected herdr-web-ui HTTP check"
-assert_contains "devswha.herdr-web-ui" "expected herdr-web-ui plugin check"
+assert_contains 'http://127.0.0.1:7317/' "expected ovis HTTP check"
+assert_contains "devswha.ovis" "expected ovis plugin check"
+assert_contains "roadboard" "expected roadboard plugin check"
 assert_contains "herdr.push" "expected herdr-push plugin check"
 assert_contains "herdr-portal" "expected herdr-portal plugin check"
 assert_contains "herdr integration status" "expected agent integration status checks"

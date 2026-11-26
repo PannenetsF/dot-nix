@@ -319,7 +319,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   自己会通过设置界面写它，不能是只读 nix store 软链；覆盖前备份/diff/留 5 份），
   随后 `herdr server reload-config` 热加载。脚本以**目标用户身份**运行，通过
   环境变量参数化：`HERDR_TEMPLATE`（必填）、`HERDR_CLI`、`HERDR_CONFIG_DIR`、
-  `HERDR_PROJECTS_BIN`、`HERDR_ROADBOARD_SRC`、`HERDR_AGENT_INTEGRATIONS`
+  `HERDR_PROJECTS_BIN`、`HERDR_ROADBOARD_BIN`、`HERDR_AGENT_INTEGRATIONS`
   （空格分隔的内置 agent 集成名单，两个薄封装都传 `"claude codex"`；脚本对每个
   名字跑 `herdr integration install <name>`，把 session 上报 hook 合并进该
   agent 自己的配置目录——`~/.claude/hooks/`、`~/.codex/`，pane→agent session
@@ -523,12 +523,26 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   fail-sticky：`plugin list` spawn 失败时保持上次答案、5s 后重试，绝不因
   一次抖动刷回无 filter 的 view。
 
-- herdr-web-ui（pinned `v0.4.11`，devswha/herdr-web-ui）是 Bun 插件：浏览器/PWA
-  客户端，经 herdr socket API 呈现 workspace/tab/pane、聊天和实时终端，默认只监听
-  `127.0.0.1:7317`（loopback；手机访问需用户自己加 Tailscale 并跑插件的
-  `tailscale serve`，仓库不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`
-  （需 ≥1.4，node 22 已由 radar 引入）；激活安装后显式 invoke 一次
+- ovis（`devswha.ovis`，接替旧版 `devswha.herdr-web-ui`；pinned fork
+  `PannenetsF/ovis@pf/0.5.9-2`）是 Bun 插件：浏览器/PWA 客户端，经 herdr socket
+  API 呈现 workspace/tab/pane、聊天和实时终端，默认只监听 `127.0.0.1:7317`
+  （loopback；手机访问需用户自己加 Tailscale 并跑插件的 `tailscale serve`，仓库
+  不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`（需 ≥1.4，node 22 已由
+  radar 引入）。激活在 ≥ 0.9.0 门控内先迁移清理旧版 `devswha.herdr-web-ui`
+  （`action invoke stop` 后 `plugin uninstall`，不带 `-y`）及本地 link
+  （`devswha.ovis [local:...]` 时 `plugin unlink`），再以 `OVIS_FROM_SOURCE=1`
+  安装远端 pin（不设该变量时上游 `scripts/plugin-launch.ts` 会去拉签名上游
+  `devswha/ovis` release 二进制而非从本 fork 源码构建），最后显式 invoke 一次
   `start` action，不必重启 herdr 即拉起 bridge。
+- roadboard（`roadboard`，pinned remote `PannenetsF/roadboard@v0.1.0-pf.1`，min
+  herdr 0.9.5）是 Rust 插件（7 态 Obsidian 路线图树），在 ≥ 0.9.5 门控内与
+  herdr-projects 并列从远端 GitHub 安装，不再使用本地 checkout 的 `plugin link`
+  （已移除 `HERDR_ROADBOARD_SRC`）。若检测到旧的 `[local:...]` link，激活时先
+  `herdr plugin unlink roadboard` 再安装远端 pin；其 manifest `[[build]]` 跑
+  `sh scripts/install.sh`（自动把 `~/.cargo/bin` 加入 PATH 并构建
+  `target/release/roadboard`），激活脚本同时通过 `refresh_roadboard_command`
+  原子同步 `~/.local/bin/roadboard` 到当前远端插件构建产物，并在安装/升级后
+  执行 `daemon stop` + `daemon kick` 让常驻 daemon 切到新二进制。
 - herdr-portal（pinned fork tag `v1.3.0-pf.4`，PannenetsF/herdr-portal，
   基于上游 loofare/herdr-portal 未打 tag 的 1.3.0 release commit `ba47b65`）
   是纯 Python stdlib（curses）看板插件，把全部 workspace/tab/pane 的 agent

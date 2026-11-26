@@ -176,11 +176,13 @@ Node 插件，node 由 `modules/host.nix` 的 `nodejs_22` 提供）。
 
 ## 可选：roadboard 路线图看板
 
-`roadboard` 是本地插件（Rust），把 Obsidian 里的 `roadmap.md` 渲染成可执行的
-7 态嵌套任务树，并能把节点派给 herdr agent。插件源码在
-`~/Documents/workspace/roadboard`，由共享激活脚本 `install-herdr-plugins.sh`
-在仓库存在时 `herdr plugin link`（macOS/Linux 两个薄封装都会调它；本机本地
-checkout，不是远端 pin；缺失也不让 activation 失败）。
+`roadboard` 是 Rust 插件（min herdr 0.9.5），把 Obsidian 里的 `roadmap.md` 渲染成
+可执行的 7 态嵌套任务树，并能把节点派给 herdr agent。由共享激活脚本
+`install-herdr-plugins.sh` 在 server ≥ 0.9.5 门控内从远端 GitHub pin
+`PannenetsF/roadboard@v0.1.0-pf.1` 安装（macOS/Linux 两个薄封装都会调用；若曾
+经由本地 checkout `herdr plugin link` 安装，激活时会先自动 `plugin unlink` 再切
+到远端 pin；`[[build]]` 跑 `sh scripts/install.sh` 构建并链接
+`~/.local/bin/roadboard`）。
 
 - `P S-r`：切换 roadboard popup 看板（`type = "plugin_action"` →
   `roadboard.open`，打开注册的 `board` popup pane；看板聚焦时再按一次关闭）

@@ -241,14 +241,14 @@ check_default com.apple.finder ShowPathbar 1
 check_default com.raycast.macos raycastPreferredWindowMode compact
 check_plist_value "${HOME}/Library/Preferences/org.p0deje.Maccy.plist" historySize 200
 
-# herdr-remote relay (launchd agent) and herdr-web-ui bridge: both local
+# herdr-remote relay (launchd agent) and ovis (devswha.ovis) bridge: both local
 # loopback HTTP services, independent of herdr app UI state.
 check_launch_agent org.nix-community.home.herdr-remote
 check_relay_http_200 "http://127.0.0.1:8375/"
 check_http_200 "http://127.0.0.1:7317/"
 
 herdr_plugins="$(herdr plugin list 2>/dev/null || true)"
-for plugin in devswha.herdr-web-ui herdr-portal herdr.push; do
+for plugin in devswha.ovis herdr-portal herdr.push roadboard; do
   if grep -Fq "$plugin" <<<"$herdr_plugins"; then
     pass "herdr plugin installed: $plugin"
   else

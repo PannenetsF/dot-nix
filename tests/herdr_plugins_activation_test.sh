@@ -20,6 +20,9 @@ make_stub() {
   mkdir -p "$dir/bin"
   cat >"$dir/bin/herdr" <<'SH'
 #!/usr/bin/env bash
+if [ -n "${OVIS_FROM_SOURCE:-}" ]; then
+  printf 'OVIS_FROM_SOURCE=%s ' "$OVIS_FROM_SOURCE" >>"$STUB_LOG"
+fi
 printf '%q ' "$@" >>"$STUB_LOG"
 printf '\n' >>"$STUB_LOG"
 case "$1" in
@@ -33,25 +36,44 @@ case "$1" in
   plugin)
     case "$2" in
       list)
-        if [ "$3" = "--json" ]; then
+        if [ "${3:-}" = "--json" ]; then
           # STUB_NO_JSON=1 simulates a pre-JSON herdr that cannot name the
           # active install; the activation must then fall back to scanning the
           # known plugin directory layouts itself.
           if [ "${STUB_NO_JSON:-}" = 1 ]; then
             echo 'plugin list: unknown option'
-          elif [ -n "${STUB_PROJECTS_ROOT:-}" ]; then
-            owner="${STUB_PROJECTS_OWNER:-PannenetsF}"
-            printf '{"type":"plugin_list","result":{"plugins":[{"plugin_id":"herdr-projects","plugin_root":"%s","source":{"kind":"github","owner":"%s","repo":"herdr-projects","managed_path":"%s"}}]}}\n' \
-              "$STUB_PROJECTS_ROOT" "$owner" "$STUB_PROJECTS_ROOT"
+          elif [ -n "${STUB_PROJECTS_ROOT:-}" ] || [ -n "${STUB_ROADBOARD_ROOT:-}" ]; then
+            entries=()
+            if [ -n "${STUB_PROJECTS_ROOT:-}" ]; then
+              owner="${STUB_PROJECTS_OWNER:-PannenetsF}"
+              entries+=("$(printf '{"plugin_id":"herdr-projects","plugin_root":"%s","source":{"kind":"github","owner":"%s","repo":"herdr-projects","managed_path":"%s"}}' \
+                "$STUB_PROJECTS_ROOT" "$owner" "$STUB_PROJECTS_ROOT")")
+            fi
+            if [ -n "${STUB_ROADBOARD_ROOT:-}" ]; then
+              rb_owner="${STUB_ROADBOARD_OWNER:-PannenetsF}"
+              entries+=("$(printf '{"plugin_id":"roadboard","plugin_root":"%s","source":{"kind":"github","owner":"%s","repo":"roadboard","managed_path":"%s"}}' \
+                "$STUB_ROADBOARD_ROOT" "$rb_owner" "$STUB_ROADBOARD_ROOT")")
+            fi
+            joined="$(IFS=,; printf '%s' "${entries[*]}")"
+            printf '{"type":"plugin_list","result":{"plugins":[%s]}}\n' "$joined"
           else
             echo '{"type":"plugin_list","result":{"plugins":[]}}'
           fi
+        # STUB_PLUGIN_LIST lets a test supply arbitrary multi-line `plugin list`
+        # output (e.g. legacy web-ui, local links, or already-pinned plugins).
+        elif [ -n "${STUB_PLUGIN_LIST:-}" ]; then
+          printf '%s\n' "$STUB_PLUGIN_LIST"
         # STUB_PROJECTS_PIN simulates an already-registered projects plugin,
         # e.g. eliasstravik/herdr-projects@v1.2.13 for the rolloff case.
         elif [ -n "${STUB_PROJECTS_PIN:-}" ]; then
           printf -- '- herdr-projects (Projects) enabled [github:%s]\n' "$STUB_PROJECTS_PIN"
         else
           echo '[]'
+        fi
+        ;;
+      install)
+        if [ -n "${STUB_FAIL_INSTALL_REPO:-}" ] && printf '%s\n' "$@" | grep -Fqx "$STUB_FAIL_INSTALL_REPO"; then
+          exit 1
         fi
         ;;
       config-dir)
@@ -94,7 +116,8 @@ run_case() {
     export HERDR_TEMPLATE="$template"
     export HERDR_CONFIG_DIR="$home/.config/herdr"
     export HERDR_PROJECTS_BIN="$home/nonexistent-herdr-projects"
-    export HERDR_ROADBOARD_SRC="$home/no-roadboard"
+    export HERDR_ROADBOARD_BIN="$home/nonexistent-roadboard"
+    export HERDR_OVIS_RESTART_DELAY=0
     # Wrappers pass the full desired agent-integration list on every platform;
     # the installer self-gates when an agent directory is absent.
     export HERDR_AGENT_INTEGRATIONS="claude codex"
@@ -137,12 +160,18 @@ proj_inst=$(echo "$log1" | grep -n "plugin install -y --ref v0.2.34-pf.17" | hea
 # state-start is invoked so the glyph daemon comes up without a server restart.
 echo "$log1" | grep -q "action invoke state-start" || fail "radar state-start missing"
 
-# web-ui: pinned install + immediate bridge start (startup hooks only fire on
-# server start).
-echo "$log1" | grep -q "plugin install -y --ref v0.4.11 devswha/herdr-web-ui" \
-  || fail "web-ui not installed at the pinned ref"
-echo "$log1" | grep -q "action invoke start --plugin devswha.herdr-web-ui" \
-  || fail "web-ui start action missing"
+# ovis (devswha.ovis): pinned fork install from source + immediate bridge start
+# (startup hooks only fire on server start).
+echo "$log1" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" \
+  || fail "ovis not installed at the pinned fork ref with OVIS_FROM_SOURCE=1"
+echo "$log1" | grep -q "action invoke start --plugin devswha.ovis" \
+  || fail "ovis start action missing"
+
+# roadboard: pinned remote GitHub install inside the >= 0.9.5 gate.
+echo "$log1" | grep -q "plugin install -y --ref v0.1.0-pf.1 PannenetsF/roadboard" \
+  || fail "roadboard not installed at the pinned remote ref"
+echo "$log1" | grep -q "plugin link" \
+  && fail "roadboard must not use local plugin link" || true
 
 # herdr-portal: forked pinned tag. pf.1 keeps agent_status=unknown panes
 # visible (upstream gives them no column bucket); pf.2 adds the attention
@@ -208,14 +237,15 @@ echo "$log3" | grep -q "integration install codex" \
   || fail "agent integrations must install outside the server-version gate"
 echo "$log3" | grep -q "PannenetsF/herdr-radar" && fail "radar needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-projects" && fail "projects needs a reachable >=0.9.5 server" || true
-echo "$log3" | grep -q "devswha/herdr-web-ui" && fail "web-ui needs a reachable >=0.9.0 server" || true
+echo "$log3" | grep -q "PannenetsF/roadboard" && fail "roadboard needs a reachable >=0.9.5 server" || true
+echo "$log3" | grep -q "PannenetsF/ovis" && fail "ovis needs a reachable >=0.9.0 server" || true
 echo "$log3" | grep -q "PannenetsF/herdr-portal" && fail "portal installs inside the version gate" || true
 echo "$log3" | grep -q "dcolinmorgan/herdr-push" && fail "push must wait for a reachable server" || true
 [ ! -e "$home3/.config/herdr/plugins/config/herdr.push/.env" ] \
   || fail "push .env must not be seeded when the plugin did not install"
 echo "$log3" | grep -q "server reload-config" || fail "reload-config should still run"
 
-# --- Case 4: server 0.9.0 -> radar allowed, projects gated out ---------------
+# --- Case 4: server 0.9.0 -> radar/ovis allowed, projects/roadboard gated out
 stub4="$tmp/stub4"; make_stub "$stub4"; home4="$tmp/home4"
 STUB_MODE=ok STUB_VERSION=0.9.0 \
   run_case "$home4" env PATH="$stub4/bin:/usr/bin:/bin" \
@@ -223,7 +253,9 @@ STUB_MODE=ok STUB_VERSION=0.9.0 \
 log4="$(cat "$home4/calls.log")"
 echo "$log4" | grep -q "PannenetsF/herdr-radar" || fail "radar allowed on 0.9.0"
 echo "$log4" | grep -q "PannenetsF/herdr-projects" && fail "projects needs >= 0.9.5" || true
-echo "$log4" | grep -q "devswha/herdr-web-ui" || fail "web-ui allowed on 0.9.0 (min_herdr_version)"
+echo "$log4" | grep -q "PannenetsF/roadboard" && fail "roadboard needs >= 0.9.5" || true
+echo "$log4" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" \
+  || fail "ovis allowed on 0.9.0 (min_herdr_version)"
 # No HERDR_PUSH_RELAY_URL in this run (Linux wrapper style): push never installs.
 echo "$log4" | grep -q "dcolinmorgan/herdr-push" && fail "push must be skipped without a relay URL" || true
 [ ! -e "$home4/.config/herdr/plugins/config/herdr.push/.env" ] \
@@ -241,7 +273,6 @@ echo 'user-edited = true' >"$home5/.config/herdr/config.toml"
   export HERDR_TEMPLATE="$template"
   export HERDR_CONFIG_DIR="$home5/.config/herdr"
   export HERDR_PROJECTS_BIN="$home5/nonexistent-herdr-projects"
-  export HERDR_ROADBOARD_SRC="$home5/no-roadboard"
   export STUB_MODE=ok STUB_VERSION=0.9.5
   env PATH="$stub5/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
 )
@@ -259,7 +290,6 @@ echo 'HERDR_RELAY=https://tunnel.example.invalid' >"$push_env6/.env"
   export HERDR_TEMPLATE="$template"
   export HERDR_CONFIG_DIR="$home6/.config/herdr"
   export HERDR_PROJECTS_BIN="$home6/nonexistent-herdr-projects"
-  export HERDR_ROADBOARD_SRC="$home6/no-roadboard"
   export HERDR_PUSH_RELAY_URL="http://127.0.0.1:8375"
   export STUB_MODE=ok STUB_VERSION=0.9.5
   env PATH="$stub6/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
@@ -355,7 +385,6 @@ home9b="$tmp/home9b"; mkdir -p "$home9b"
   export HERDR_TEMPLATE="$template"
   export HERDR_CONFIG_DIR="$home9b/.config/herdr"
   export HERDR_PROJECTS_BIN="$home9b/nonexistent-herdr-projects"
-  export HERDR_ROADBOARD_SRC="$home9b/no-roadboard"
   export STUB_MODE=ok STUB_VERSION=0.9.5
   env PATH="$stub9/bin:/usr/bin:/bin" bash "$repo_root/install-herdr-plugins.sh"
 )
@@ -391,7 +420,6 @@ run_relink_case() {
     export HERDR_TEMPLATE="$template"
     export HERDR_CONFIG_DIR="$home/.config/herdr"
     export HERDR_PROJECTS_BIN="$home/.local/bin/herdr-projects"
-    export HERDR_ROADBOARD_SRC="$home/no-roadboard"
     export HERDR_AGENT_INTEGRATIONS="claude codex"
     export STUB_MODE=ok STUB_VERSION=0.9.5
     "$@" 2>"$home/stderr.log"
@@ -580,5 +608,165 @@ run_relink_case "$home17" env PATH="$stub17/bin:/usr/bin:/bin" \
   || fail "17: dangling link must be replaced by the active binary"
 grep -q '^F17 configure$' "$home17/hp-binary.log" \
   || fail "17: configure must run on the active binary"
+
+# --- Case 18: migrate legacy web-ui + local ovis + local roadboard -----------
+# Simulates a machine transitioning from legacy devswha.herdr-web-ui and local
+# plugin links for devswha.ovis and roadboard to the pinned remote GitHub forks.
+stub18="$tmp/stub18"; make_stub "$stub18"; home18="$tmp/home18"
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PLUGIN_LIST=$'- devswha.herdr-web-ui (herdr web ui) enabled [github:devswha/herdr-web-ui@v0.4.11]\n- devswha.ovis (Ovis) enabled [local:/Users/test/Documents/ovis]\n- roadboard (Roadboard) enabled [local:/Users/test/Documents/workspace/roadboard]' \
+  run_case "$home18" env PATH="$stub18/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log18="$(cat "$home18/calls.log")"
+
+# Legacy web-ui must be stopped and uninstalled (no -y flag) before ovis installs.
+webui_stop=$(echo "$log18" | grep -n "plugin action invoke stop --plugin devswha.herdr-web-ui" | head -1 | cut -d: -f1)
+webui_uninst=$(echo "$log18" | grep -n "plugin uninstall devswha.herdr-web-ui" | head -1 | cut -d: -f1)
+ovis_unlink=$(echo "$log18" | grep -n "plugin unlink devswha.ovis" | head -1 | cut -d: -f1)
+ovis_inst=$(echo "$log18" | grep -n "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" | head -1 | cut -d: -f1)
+ovis_stop=$(echo "$log18" | grep -n "plugin action invoke stop --plugin devswha.ovis" | head -1 | cut -d: -f1)
+ovis_start=$(echo "$log18" | grep -n "plugin action invoke start --plugin devswha.ovis" | head -1 | cut -d: -f1)
+[ -n "$webui_stop" ] || fail "18: legacy devswha.herdr-web-ui must be stopped"
+[ -n "$webui_uninst" ] || fail "18: legacy devswha.herdr-web-ui must be uninstalled"
+echo "$log18" | grep -q "plugin uninstall -y" \
+  && fail "18: herdr plugin uninstall must not be passed -y" || true
+[ -n "$ovis_unlink" ] || fail "18: local devswha.ovis link must be unlinked"
+[ -n "$ovis_inst" ] || fail "18: pinned remote PannenetsF/ovis must be installed"
+[ -n "$ovis_stop" ] || fail "18: devswha.ovis must be stopped after install so start replaces the old local bridge"
+[ -n "$ovis_start" ] || fail "18: devswha.ovis start action must run"
+[ "$webui_stop" -lt "$webui_uninst" ] && [ "$webui_uninst" -lt "$ovis_unlink" ] \
+  && [ "$ovis_unlink" -lt "$ovis_inst" ] && [ "$ovis_inst" -lt "$ovis_stop" ] \
+  && [ "$ovis_stop" -lt "$ovis_start" ] \
+  || fail "18: ovis migration order wrong ($webui_stop -> $webui_uninst -> $ovis_unlink -> $ovis_inst -> $ovis_stop -> $ovis_start)"
+
+# Local roadboard link must be unlinked before remote install.
+rb_unlink=$(echo "$log18" | grep -n "plugin unlink roadboard" | head -1 | cut -d: -f1)
+rb_inst=$(echo "$log18" | grep -n "plugin install -y --ref v0.1.0-pf.1 PannenetsF/roadboard" | head -1 | cut -d: -f1)
+[ -n "$rb_unlink" ] || fail "18: local roadboard link must be unlinked"
+[ -n "$rb_inst" ] || fail "18: pinned remote PannenetsF/roadboard must be installed"
+[ "$rb_unlink" -lt "$rb_inst" ] \
+  || fail "18: roadboard unlink ($rb_unlink) must precede remote install ($rb_inst)"
+
+# --- Case 19: idempotent re-run when pinned remote ovis + roadboard present --
+stub19="$tmp/stub19"; make_stub "$stub19"; home19="$tmp/home19"
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.9-2]\n- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.1]' \
+  run_case "$home19" env PATH="$stub19/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log19="$(cat "$home19/calls.log")"
+
+echo "$log19" | grep -q "plugin uninstall devswha.herdr-web-ui" \
+  && fail "19: must not uninstall legacy web-ui when absent" || true
+echo "$log19" | grep -q "plugin unlink devswha.ovis" \
+  && fail "19: must not unlink pinned remote ovis" || true
+echo "$log19" | grep -q "PannenetsF/ovis" \
+  && fail "19: must not reinstall ovis when already at pinned ref" || true
+echo "$log19" | grep -q "plugin action invoke stop --plugin devswha.ovis" \
+  && fail "19: must not stop ovis on an idempotent activation" || true
+echo "$log19" | grep -q "plugin action invoke start --plugin devswha.ovis" \
+  || fail "19: ovis start action must still run on idempotent activation"
+echo "$log19" | grep -q "plugin unlink roadboard" \
+  && fail "19: must not unlink pinned remote roadboard" || true
+echo "$log19" | grep -q "PannenetsF/roadboard" \
+  && fail "19: must not reinstall roadboard when already at pinned ref" || true
+
+# --- Case 20: different / prefix-colliding GitHub refs upgrade in place ------
+# Anchoring with closing `]` ensures pf/0.5.9-20 does not match pf/0.5.9-2 and
+# v0.1.0-pf.10 does not match v0.1.0-pf.1. GitHub plugins upgrade in place
+# without `plugin unlink`, and Ovis restarts onto the new checkout after install.
+stub20="$tmp/stub20"; make_stub "$stub20"; home20="$tmp/home20"
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.9-20]\n- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.10]' \
+  run_case "$home20" env PATH="$stub20/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log20="$(cat "$home20/calls.log")"
+
+echo "$log20" | grep -q "plugin unlink devswha.ovis" \
+  && fail "20: must not unlink remote github ovis on ref upgrade" || true
+echo "$log20" | grep -q "plugin unlink roadboard" \
+  && fail "20: must not unlink remote github roadboard on ref upgrade" || true
+ovis20_inst=$(echo "$log20" | grep -n "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" | head -1 | cut -d: -f1)
+ovis20_stop=$(echo "$log20" | grep -n "plugin action invoke stop --plugin devswha.ovis" | head -1 | cut -d: -f1)
+ovis20_start=$(echo "$log20" | grep -n "plugin action invoke start --plugin devswha.ovis" | head -1 | cut -d: -f1)
+[ -n "$ovis20_inst" ] || fail "20: prefix-colliding ovis ref must still trigger install"
+[ -n "$ovis20_stop" ] || fail "20: ovis must be stopped after ref upgrade install"
+[ -n "$ovis20_start" ] || fail "20: ovis must be started after ref upgrade install"
+[ "$ovis20_inst" -lt "$ovis20_stop" ] && [ "$ovis20_stop" -lt "$ovis20_start" ] \
+  || fail "20: ovis upgrade order wrong ($ovis20_inst -> $ovis20_stop -> $ovis20_start)"
+echo "$log20" | grep -q "plugin install -y --ref v0.1.0-pf.1 PannenetsF/roadboard" \
+  || fail "20: prefix-colliding roadboard ref must still trigger install"
+
+# --- Case 21: failed ovis install must not stop an existing running bridge ---
+stub21="$tmp/stub21"; make_stub "$stub21"; home21="$tmp/home21"
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.9-1]' \
+  STUB_FAIL_INSTALL_REPO="PannenetsF/ovis" \
+  run_case "$home21" env PATH="$stub21/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log21="$(cat "$home21/calls.log")"
+
+echo "$log21" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" \
+  || fail "21: ovis install must be attempted"
+echo "$log21" | grep -q "plugin action invoke stop --plugin devswha.ovis" \
+  && fail "21: failed ovis install must not stop the existing bridge" || true
+echo "$log21" | grep -q "plugin action invoke start --plugin devswha.ovis" \
+  || fail "21: ovis start action must still run"
+
+# --- Case 22: roadboard command link migration & daemon restart --------------
+# Migrating from [local:<checkout>] updates ~/.local/bin/roadboard pointing into
+# that old local checkout to the active GitHub-installed binary and restarts the
+# daemon (`daemon stop` then `daemon kick`). An idempotent run does not stop
+# the daemon, and an unrelated foreign symlink is left untouched.
+stub22a="$tmp/stub22a"; make_stub "$stub22a"; home22a="$tmp/home22a"
+rb_old_local="$tmp/old-local-roadboard-22"
+rb_remote_root="$tmp/remote-roadboard-22"
+rb_link22="$tmp/rb-link-22"
+mkdir -p "$rb_old_local/target/release" "$rb_remote_root/target/release"
+cat >"$rb_old_local/target/release/roadboard" <<'SH'
+#!/usr/bin/env bash
+printf 'old-roadboard %s\n' "$*" >>"$STUB_LOG"
+SH
+cat >"$rb_remote_root/target/release/roadboard" <<'SH'
+#!/usr/bin/env bash
+printf 'remote-roadboard %s\n' "$*" >>"$STUB_LOG"
+SH
+chmod +x "$rb_old_local/target/release/roadboard" "$rb_remote_root/target/release/roadboard"
+ln -s "$rb_old_local/target/release/roadboard" "$rb_link22"
+
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PLUGIN_LIST="- roadboard (Roadboard) enabled [local:$rb_old_local]" \
+  STUB_ROADBOARD_ROOT="$rb_remote_root" \
+  run_case "$home22a" env HERDR_ROADBOARD_BIN="$rb_link22" \
+  PATH="$stub22a/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log22a="$(cat "$home22a/calls.log")"
+
+[ "$(readlink "$rb_link22")" = "$rb_remote_root/target/release/roadboard" ] \
+  || fail "22a: migrated local roadboard link must point to active remote binary (got $(readlink "$rb_link22"))"
+rb22_stop=$(echo "$log22a" | grep -n "remote-roadboard daemon stop" | head -1 | cut -d: -f1)
+rb22_kick=$(echo "$log22a" | grep -n "remote-roadboard daemon kick" | head -1 | cut -d: -f1)
+[ -n "$rb22_stop" ] && [ -n "$rb22_kick" ] && [ "$rb22_stop" -lt "$rb22_kick" ] \
+  || fail "22a: roadboard daemon must stop then kick after install ($rb22_stop -> $rb22_kick)"
+
+# Idempotent run: no stop, only kick; foreign link is preserved.
+rb_foreign="$tmp/foreign-roadboard-22"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$rb_foreign"
+chmod +x "$rb_foreign"
+ln -sfn "$rb_foreign" "$rb_link22"
+home22b="$tmp/home22b"
+STUB_MODE=ok STUB_VERSION=0.9.5 \
+  STUB_PLUGIN_LIST="- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.1]" \
+  STUB_ROADBOARD_ROOT="$rb_remote_root" \
+  run_case "$home22b" env HERDR_ROADBOARD_BIN="$rb_link22" \
+  PATH="$stub22a/bin:/usr/bin:/bin" \
+  bash "$repo_root/install-herdr-plugins.sh"
+log22b="$(cat "$home22b/calls.log")"
+
+[ "$(readlink "$rb_link22")" = "$rb_foreign" ] \
+  || fail "22b: unrelated foreign roadboard symlink must be left untouched"
+echo "$log22b" | grep -q "remote-roadboard daemon stop" \
+  && fail "22b: idempotent run must not stop roadboard daemon" || true
+echo "$log22b" | grep -q "remote-roadboard daemon kick" \
+  || fail "22b: idempotent run should still kick roadboard daemon"
 
 echo "all herdr plugin activation cases passed"

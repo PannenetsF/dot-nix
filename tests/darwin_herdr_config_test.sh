@@ -124,12 +124,16 @@ assert_contains "config/kitty/kitty.conf" "symbol_map U+E1A0-U+E1BB Herdr Agent 
 assert_contains "config/kitty/kitty.conf" "symbol_map U+E1C0-U+E1C5 Herdr Agent Icons Max"
 assert_contains "config/kitty/kitty.conf" "# <<< herdr-radar font block"
 
-# herdr-web-ui plugin: pinned install + immediate start action (its startup
-# hook only runs when herdr itself starts).
-assert_contains "$body" "devswha/herdr-web-ui"
-assert_contains "$body" "v0.4.11"
+# ovis plugin (devswha.ovis, successor to devswha.herdr-web-ui): pinned fork
+# install from source + migration from legacy/local + immediate start action
+# (its startup hook only runs when herdr itself starts).
+assert_contains "$body" "PannenetsF/ovis"
+assert_contains "$body" "pf/0.5.9-2"
+assert_contains "$body" "OVIS_FROM_SOURCE=1"
 assert_contains "$body" "action invoke start"
-assert_contains "$body" "--plugin devswha.herdr-web-ui"
+assert_contains "$body" "--plugin devswha.ovis"
+assert_contains "$body" "plugin uninstall devswha.herdr-web-ui"
+assert_contains "$body" "plugin unlink devswha.ovis"
 
 # herdr-portal: forked pinned tag. pf.1 keeps unknown-state agents visible in
 # a multi-agent tab; pf.2 adds the attention (待处理) column fed by the 0.2
@@ -272,9 +276,14 @@ assert_contains "config/homebrew/Casks/herdi.rb" "dcolinmorgan/herdr-remote"
 assert_contains "nix-darwin/homebrew.nix" "../config/homebrew/Casks/herdi.rb"
 assert_contains "nix-darwin/homebrew.nix" '"dot-nix/local/herdi"'
 
-# roadboard plugin: local-checkout link in postActivation (never hard-fails),
-# and prefix+shift+r opens its registered popup pane via a plugin_action.
-assert_contains "$body" "plugin link \"\$roadboard_src\""
+# roadboard plugin: pinned remote GitHub install inside the >= 0.9.5 gate
+# (migrates away from any legacy local link), and prefix+shift+r opens its
+# registered popup pane via a plugin_action.
+assert_contains "$body" "PannenetsF/roadboard"
+assert_contains "$body" "v0.1.0-pf.1"
+assert_contains "$body" "plugin unlink roadboard"
+assert_not_contains "$body" 'plugin link "$roadboard_src"'
+assert_not_contains "$body" "HERDR_ROADBOARD_SRC"
 assert_contains "config/herdr/config.toml" 'key = "prefix+shift+r"'
 assert_contains "config/herdr/config.toml" 'command = "roadboard.open"'
 assert_contains "config/herdr/config.toml" 'type = "plugin_action"'
