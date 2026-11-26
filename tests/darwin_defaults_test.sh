@@ -21,8 +21,12 @@ assert_contains "$repo_root/nix-darwin/configuration.nix" "services.openssh.enab
   "expected macOS OpenSSH server to be enabled"
 assert_contains "$repo_root/nix-darwin/configuration.nix" "networking.wakeOnLan.enable = true;" \
   "expected Wake-on-network to be enabled"
-assert_contains "$repo_root/nix-darwin/configuration.nix" "pmset -c sleep 0 displaysleep 0 disksleep 0" \
-  "expected AC power to keep the machine awake for SSH access"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "system.activationScripts.power.text = lib.mkAfter" \
+  "expected power settings to use an executed activation phase"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "pmset -a sleep 0 displaysleep 0" \
+  "expected both battery and AC power to disable idle system and display sleep"
+assert_contains "$repo_root/nix-darwin/configuration.nix" "pmset -c disksleep 0 womp 1 tcpkeepalive 1 ttyskeepawake 1 standby 0 powernap 1" \
+  "expected additional SSH availability settings to remain AC-only"
 assert_contains "$repo_root/nix-darwin/configuration.nix" "launchd.daemons.acPowerCaffeinate" \
   "expected caffeinate to be managed as a system daemon"
 assert_contains "$repo_root/nix-darwin/configuration.nix" "/usr/bin/caffeinate -s" \
@@ -97,3 +101,45 @@ assert_contains "$repo_root/nix-darwin/app-defaults.nix" "com.microsoft.VSCode p
   "expected VS Code to be set as default source-code handler"
 assert_contains "$repo_root/nix-darwin/app-defaults.nix" "net.sourceforge.skim-app.skim com.adobe.pdf all" \
   "expected Skim to be set as default PDF handler (com.adobe.pdf is the effective PDF UTI; public.pdf is not registered on this host)"
+
+# Check the generated script, not just fragment declarations: nix-darwin does
+# not automatically execute arbitrary system.activationScripts.<name> entries.
+snapshot="$(NIX_HM_USER=defaults-test NIX_HM_HOME=/Users/defaults-test \
+  NIX_HM_TEST_REPO="path:$repo_root" \
+  nix --extra-experimental-features 'nix-command flakes' eval --impure --json --expr '
+    let
+      f = builtins.getFlake (builtins.getEnv "NIX_HM_TEST_REPO");
+      summarize = system: let c = f.darwinConfigurations.${system}.config; in {
+        # The full Intel configuration has unrelated unsupported package inputs;
+        # check its power/defaults modules without forcing the Home Manager build.
+        activation = if system == "aarch64-darwin"
+          then c.system.activationScripts.script.text else null;
+        power = c.system.activationScripts.power.text;
+        userDefaults = c.system.activationScripts.userDefaults.text;
+        idleTime = c.system.defaults.CustomUserPreferences."com.apple.screensaver".idleTime;
+        askForPassword = c.system.defaults.screensaver.askForPassword;
+        askForPasswordDelay = c.system.defaults.screensaver.askForPasswordDelay;
+        caffeinate = c.launchd.daemons.acPowerCaffeinate.command;
+      };
+    in map summarize [ "aarch64-darwin" "x86_64-darwin" ]
+  ')"
+
+printf '%s\n' "$snapshot" | jq -e '
+  all(.[];
+    .idleTime == 0 and
+    .askForPassword == null and
+    .askForPasswordDelay == null and
+    .caffeinate == "/usr/bin/caffeinate -s" and
+    (.userDefaults | contains("com.apple.screensaver") and contains("idleTime")) and
+    (.power | contains("/usr/bin/pmset -a sleep 0 displaysleep 0")) and
+    (.power | contains("/usr/bin/pmset -c disksleep 0 womp 1 tcpkeepalive 1 ttyskeepawake 1 standby 0 powernap 1")) and
+    (if .activation != null then
+      (.activation | contains("/usr/bin/pmset -a sleep 0 displaysleep 0")) and
+      (.activation | contains("/usr/bin/pmset -c disksleep 0 womp 1 tcpkeepalive 1 ttyskeepawake 1 standby 0 powernap 1")) and
+      (.activation | contains("/usr/bin/sudo -H -u defaults-test")) and
+      (.activation | contains("/usr/bin/defaults -currentHost write com.apple.screensaver idleTime -int 0"))
+    else true end)
+  )
+' >/dev/null
+
+echo 'macOS defaults and idle sleep activation checks passed'

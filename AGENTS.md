@@ -239,9 +239,12 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
 - `nix.enable = false`：Determinate Nix Installer 管理 Nix daemon，nix-darwin 不接管。
 - 开启 Touch ID sudo，并启用 reattach 以兼容 tmux/screen。
 - 关闭系统级 zsh completion，避免和 Home Manager/oh-my-zsh 双重初始化。
-- 启用 `services.openssh` 与 `networking.wakeOnLan`；`acPowerSshAvailability`
-  activation 用 `pmset` 让机器接电源时保持可远程访问，并配 `acPowerCaffeinate`
-  daemon (`caffeinate -s`)。
+- 启用 `services.openssh` 与 `networking.wakeOnLan`；在内建 `power` activation
+  阶段用 `pmset -a sleep 0 displaysleep 0` 禁止电池与接电模式的空闲睡眠/息屏
+  （电池耗电会增加，合盖/手动睡眠和低电量保护不受此设置禁用）。其余 SSH
+  可用性参数仍限定 `pmset -c`，并保留 `acPowerCaffeinate` daemon
+  (`caffeinate -s`)。不能只声明任意名字的 activation 片段：当前 nix-darwin
+  不会自动执行它们，必须接到 `power` / `postActivation` 等实际调用的阶段。
 - `remoteManagementCurtainMode` activation 把 Remote Management/屏幕共享配置成
   curtain 模式并 kickstart `com.apple.screensharing`。
 - 内嵌 Home Manager，`isHost = true`，所以 macOS 默认包含 host 工具集。
@@ -877,6 +880,10 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `refreshFunctionKeyMode` activation 写入用户 GlobalPreferences 并 kickstart
   Karabiner agents）、Dock、Finder、Trackpad、截图目录、Control Center、
   登录窗口等。
+- 普通用户 `com.apple.screensaver.idleTime = 0` 禁止空闲启动屏保；
+  `postActivation` 以目标用户身份同步 `-currentHost` 偏好，避免旧 ByHost
+  定时器覆盖。不关闭解锁密码验证、不影响手动锁屏。MDM 的受管屏保/锁屏
+  策略优先级更高，此配置不能覆盖；受管机器仍自动锁屏时需管理员调整策略。
 
 `nix-darwin/app-defaults.nix`
 
@@ -1191,7 +1198,9 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   `init_brew_upgrade_test.sh` 验证 `hm-upgrade` 在 bundle 之后调用脚本，
   以及每次 darwin switch 后 `converge_homebrew_bundle` 的 cleanup→trust→
   cache 序列与 Homebrew 7 不兼容的 `--cleanup` 不再从 nix-darwin 发出）
-- macOS defaults / Touch ID：`bash tests/darwin_defaults_test.sh`、
+- macOS defaults / Touch ID：`bash tests/darwin_defaults_test.sh`（含两种 Darwin
+  架构的电源/屏保偏好求值，以及 Apple Silicon 完整 activation 接线；Intel
+  完整配置受无关包的 unsupported stdenv 阻断，不在此测试中强制求值）、
   `bash tests/darwin_touchid_sudo_test.sh`
 - macOS 用户环境 / 激活 PATH：`bash tests/darwin_user_env_test.sh`、
   `bash tests/darwin_activation_nvim_path_test.sh`

@@ -1,4 +1,4 @@
-{ pkgsUnstable, system, username, homeDir, herdrPkg, ... }: {
+{ lib, pkgsUnstable, system, username, homeDir, herdrPkg, ... }: {
   imports = [
     ./app-defaults.nix
     ./gui-apps.nix
@@ -32,9 +32,12 @@
   services.openssh.enable = true;
   networking.wakeOnLan.enable = true;
 
-  system.activationScripts.acPowerSshAvailability.text = ''
-    echo "configuring AC power SSH availability..." >&2
-    pmset -c sleep 0 displaysleep 0 disksleep 0 womp 1 tcpkeepalive 1 ttyskeepawake 1 standby 0 powernap 1
+  # Disable idle sleep on both battery and AC; manual/lid sleep still works.
+  # Use a built-in activation phase: arbitrary named fragments are not run.
+  system.activationScripts.power.text = lib.mkAfter ''
+    echo "configuring idle sleep and AC power SSH availability..." >&2
+    /usr/bin/pmset -a sleep 0 displaysleep 0
+    /usr/bin/pmset -c disksleep 0 womp 1 tcpkeepalive 1 ttyskeepawake 1 standby 0 powernap 1
   '';
 
   launchd.daemons.acPowerCaffeinate = {

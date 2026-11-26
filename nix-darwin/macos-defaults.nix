@@ -1,4 +1,4 @@
-{ homeDir, username, ... }: {
+{ lib, homeDir, username, ... }: {
   system.defaults = {
     NSGlobalDomain = {
       ApplePressAndHoldEnabled = false;
@@ -73,6 +73,10 @@
     };
 
     CustomUserPreferences = {
+      # Disable idle screen savers without weakening manual lock authentication.
+      # Managed (MDM) screen saver/lock policies take precedence over this value.
+      "com.apple.screensaver" = { idleTime = 0; };
+
       "com.apple.controlcenter" = {
         "NSStatusItem VisibleCC AudioVideoModule" = true;
         "NSStatusItem VisibleCC NowPlaying" = false;
@@ -97,6 +101,13 @@
 
     loginwindow.GuestEnabled = false;
   };
+
+  # Clear a host-specific idle timer too; user defaults alone do not override it.
+  system.activationScripts.postActivation.text = lib.mkAfter ''
+    echo "disabling the user's idle screen saver (subject to MDM policy)..." >&2
+    /usr/bin/sudo -H -u ${lib.escapeShellArg username} \
+      /usr/bin/defaults -currentHost write com.apple.screensaver idleTime -int 0
+  '';
 
   system.activationScripts.ensureScreenshotDirectory.text = ''
     mkdir -p ${homeDir}/Pictures/Screenshots
