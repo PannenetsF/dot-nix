@@ -22,7 +22,7 @@ status_indicators = "symbols"
 delivery = "herdr"
 
 [ui.sound]
-enabled = true
+enabled = false
 
 # Keybindings chosen to match nvim habits (see nvim/lua/vimconf/easy-keymap.lua):
 # plain alt is globally owned by AeroSpace, so direct chords use ctrl+alt.
