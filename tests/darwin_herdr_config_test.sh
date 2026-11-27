@@ -128,7 +128,7 @@ assert_contains "config/kitty/kitty.conf" "# <<< herdr-radar font block"
 # install from source + migration from legacy/local + immediate start action
 # (its startup hook only runs when herdr itself starts).
 assert_contains "$body" "PannenetsF/ovis"
-assert_contains "$body" "pf/0.5.9-2"
+assert_contains "$body" "pf/0.5.11-1"
 assert_contains "$body" "OVIS_FROM_SOURCE=1"
 assert_contains "$body" "action invoke start"
 assert_contains "$body" "--plugin devswha.ovis"

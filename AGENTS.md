@@ -524,7 +524,7 @@ Home Manager dotfiles，而是 **Nix Home Manager + nix-darwin + Homebrew**
   一次抖动刷回无 filter 的 view。
 
 - ovis（`devswha.ovis`，接替旧版 `devswha.herdr-web-ui`；pinned fork
-  `PannenetsF/ovis@pf/0.5.9-2`）是 Bun 插件：浏览器/PWA 客户端，经 herdr socket
+  `PannenetsF/ovis@pf/0.5.11-1`）是 Bun 插件：浏览器/PWA 客户端，经 herdr socket
   API 呈现 workspace/tab/pane、聊天和实时终端，默认只监听 `127.0.0.1:7317`
   （loopback；手机访问需用户自己加 Tailscale 并跑插件的 `tailscale serve`，仓库
   不配置）。Bun 运行时是 `modules/host.nix` 的 `bun`（需 ≥1.4，node 22 已由

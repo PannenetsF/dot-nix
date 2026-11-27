@@ -699,8 +699,8 @@ sys.exit(0 if t >= (0, 9, 5) else 1)' "$server_version" 2>/dev/null; then
     "$herdr_cli" plugin unlink devswha.ovis >/dev/null 2>&1 || true
   fi
   if ! "$herdr_cli" plugin list 2>/dev/null \
-      | grep -q '^- devswha\.ovis .*\[github:PannenetsF/ovis@pf/0\.5\.9-2\]'; then
-    if OVIS_FROM_SOURCE=1 "$herdr_cli" plugin install -y --ref pf/0.5.9-2 \
+      | grep -q '^- devswha\.ovis .*\[github:PannenetsF/ovis@pf/0\.5\.11-1\]'; then
+    if OVIS_FROM_SOURCE=1 "$herdr_cli" plugin install -y --ref pf/0.5.11-1 \
         PannenetsF/ovis; then
       # Restart any bridge still running from an old local link or earlier ref:
       # Ovis's `start` is a no-op while an older server still answers on :7317.

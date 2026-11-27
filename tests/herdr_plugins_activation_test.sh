@@ -162,7 +162,7 @@ echo "$log1" | grep -q "action invoke state-start" || fail "radar state-start mi
 
 # ovis (devswha.ovis): pinned fork install from source + immediate bridge start
 # (startup hooks only fire on server start).
-echo "$log1" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" \
+echo "$log1" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.11-1 PannenetsF/ovis" \
   || fail "ovis not installed at the pinned fork ref with OVIS_FROM_SOURCE=1"
 echo "$log1" | grep -q "action invoke start --plugin devswha.ovis" \
   || fail "ovis start action missing"
@@ -254,7 +254,7 @@ log4="$(cat "$home4/calls.log")"
 echo "$log4" | grep -q "PannenetsF/herdr-radar" || fail "radar allowed on 0.9.0"
 echo "$log4" | grep -q "PannenetsF/herdr-projects" && fail "projects needs >= 0.9.5" || true
 echo "$log4" | grep -q "PannenetsF/roadboard" && fail "roadboard needs >= 0.9.5" || true
-echo "$log4" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" \
+echo "$log4" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.11-1 PannenetsF/ovis" \
   || fail "ovis allowed on 0.9.0 (min_herdr_version)"
 # No HERDR_PUSH_RELAY_URL in this run (Linux wrapper style): push never installs.
 echo "$log4" | grep -q "dcolinmorgan/herdr-push" && fail "push must be skipped without a relay URL" || true
@@ -623,7 +623,7 @@ log18="$(cat "$home18/calls.log")"
 webui_stop=$(echo "$log18" | grep -n "plugin action invoke stop --plugin devswha.herdr-web-ui" | head -1 | cut -d: -f1)
 webui_uninst=$(echo "$log18" | grep -n "plugin uninstall devswha.herdr-web-ui" | head -1 | cut -d: -f1)
 ovis_unlink=$(echo "$log18" | grep -n "plugin unlink devswha.ovis" | head -1 | cut -d: -f1)
-ovis_inst=$(echo "$log18" | grep -n "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" | head -1 | cut -d: -f1)
+ovis_inst=$(echo "$log18" | grep -n "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.11-1 PannenetsF/ovis" | head -1 | cut -d: -f1)
 ovis_stop=$(echo "$log18" | grep -n "plugin action invoke stop --plugin devswha.ovis" | head -1 | cut -d: -f1)
 ovis_start=$(echo "$log18" | grep -n "plugin action invoke start --plugin devswha.ovis" | head -1 | cut -d: -f1)
 [ -n "$webui_stop" ] || fail "18: legacy devswha.herdr-web-ui must be stopped"
@@ -650,7 +650,7 @@ rb_inst=$(echo "$log18" | grep -n "plugin install -y --ref v0.1.0-pf.1 Pannenets
 # --- Case 19: idempotent re-run when pinned remote ovis + roadboard present --
 stub19="$tmp/stub19"; make_stub "$stub19"; home19="$tmp/home19"
 STUB_MODE=ok STUB_VERSION=0.9.5 \
-  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.9-2]\n- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.1]' \
+  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.11-1]\n- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.1]' \
   run_case "$home19" env PATH="$stub19/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log19="$(cat "$home19/calls.log")"
@@ -671,12 +671,12 @@ echo "$log19" | grep -q "PannenetsF/roadboard" \
   && fail "19: must not reinstall roadboard when already at pinned ref" || true
 
 # --- Case 20: different / prefix-colliding GitHub refs upgrade in place ------
-# Anchoring with closing `]` ensures pf/0.5.9-20 does not match pf/0.5.9-2 and
+# Anchoring with closing `]` ensures pf/0.5.11-10 does not match pf/0.5.11-1 and
 # v0.1.0-pf.10 does not match v0.1.0-pf.1. GitHub plugins upgrade in place
 # without `plugin unlink`, and Ovis restarts onto the new checkout after install.
 stub20="$tmp/stub20"; make_stub "$stub20"; home20="$tmp/home20"
 STUB_MODE=ok STUB_VERSION=0.9.5 \
-  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.9-20]\n- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.10]' \
+  STUB_PLUGIN_LIST=$'- devswha.ovis (Ovis) enabled [github:PannenetsF/ovis@pf/0.5.11-10]\n- roadboard (Roadboard) enabled [github:PannenetsF/roadboard@v0.1.0-pf.10]' \
   run_case "$home20" env PATH="$stub20/bin:/usr/bin:/bin" \
   bash "$repo_root/install-herdr-plugins.sh"
 log20="$(cat "$home20/calls.log")"
@@ -685,7 +685,7 @@ echo "$log20" | grep -q "plugin unlink devswha.ovis" \
   && fail "20: must not unlink remote github ovis on ref upgrade" || true
 echo "$log20" | grep -q "plugin unlink roadboard" \
   && fail "20: must not unlink remote github roadboard on ref upgrade" || true
-ovis20_inst=$(echo "$log20" | grep -n "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" | head -1 | cut -d: -f1)
+ovis20_inst=$(echo "$log20" | grep -n "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.11-1 PannenetsF/ovis" | head -1 | cut -d: -f1)
 ovis20_stop=$(echo "$log20" | grep -n "plugin action invoke stop --plugin devswha.ovis" | head -1 | cut -d: -f1)
 ovis20_start=$(echo "$log20" | grep -n "plugin action invoke start --plugin devswha.ovis" | head -1 | cut -d: -f1)
 [ -n "$ovis20_inst" ] || fail "20: prefix-colliding ovis ref must still trigger install"
@@ -705,7 +705,7 @@ STUB_MODE=ok STUB_VERSION=0.9.5 \
   bash "$repo_root/install-herdr-plugins.sh"
 log21="$(cat "$home21/calls.log")"
 
-echo "$log21" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.9-2 PannenetsF/ovis" \
+echo "$log21" | grep -q "OVIS_FROM_SOURCE=1 plugin install -y --ref pf/0.5.11-1 PannenetsF/ovis" \
   || fail "21: ovis install must be attempted"
 echo "$log21" | grep -q "plugin action invoke stop --plugin devswha.ovis" \
   && fail "21: failed ovis install must not stop the existing bridge" || true
